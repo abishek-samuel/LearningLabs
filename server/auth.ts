@@ -82,14 +82,8 @@ export async function setupAuth(app: Express): Promise<void> {
   // Auth Routes
   app.post("/api/register", async (req, res, next) => {
     try {
-      const registerSchema = insertUserSchema.extend({
-        confirmPassword: z.string(),
-      }).refine((data) => data.password === data.confirmPassword, {
-        message: "Passwords don't match",
-        path: ["confirmPassword"],
-      });
-      
-      const userData = registerSchema.parse(req.body);
+      // Use the insertUserSchema directly without extending it to require confirmPassword
+      const userData = insertUserSchema.parse(req.body);
       
       // Check if user with the same email or username already exists
       const existingEmailUser = await storage.getUserByEmail(userData.email);

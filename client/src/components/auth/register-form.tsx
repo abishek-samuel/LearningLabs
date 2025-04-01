@@ -52,7 +52,7 @@ export function RegisterForm() {
   });
 
   const onSubmit = async (data: FormData) => {
-    const { confirmPassword, termsAccepted, ...registerData } = data;
+    const { termsAccepted, ...registerData } = data;
     await registerMutation.mutateAsync(registerData);
     setLocation("/");
   };
