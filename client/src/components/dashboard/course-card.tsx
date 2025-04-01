@@ -44,7 +44,7 @@ export function CourseCard({
         <p className="text-slate-500 dark:text-slate-400 text-sm mb-4">{description}</p>
         
         {isInProgress && (
-          <div className="mt-auto">
+          <div className="mt-auto mb-4">
             <div className="flex justify-between items-center mb-1">
               <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Progress</span>
               <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{progress}%</span>
@@ -52,10 +52,9 @@ export function CourseCard({
             <Progress value={progress} className="h-2" />
           </div>
         )}
-      </div>
-      <div className="bg-slate-50 dark:bg-slate-700/50 p-4 border-t border-slate-200 dark:border-slate-700">
+        
         <Link href={isInProgress ? `/course/${id}/learn` : `/course/${id}`}>
-          <a className="inline-flex items-center justify-center w-full rounded-md bg-accent px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-accent/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+          <a className="mt-auto inline-flex items-center justify-center w-full rounded-md bg-blue-600 dark:bg-blue-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 dark:hover:bg-blue-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
             {isInProgress ? "Continue Learning" : "View Course"}
           </a>
         </Link>

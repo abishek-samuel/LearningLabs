@@ -245,7 +245,7 @@ export default function Dashboard() {
               </div>
               <div className="bg-slate-50 dark:bg-slate-700/50 px-4 py-3 sm:px-6">
                 <div className="text-sm">
-                  <a href="#" className="font-medium text-accent hover:text-accent/80">View all deadlines</a>
+                  <a href="#" className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300">View all deadlines</a>
                 </div>
               </div>
             </div>
@@ -310,7 +310,7 @@ export default function Dashboard() {
               </div>
               <div className="bg-slate-50 dark:bg-slate-700/50 px-4 py-3">
                 <div className="text-sm">
-                  <a href="#" className="font-medium text-accent hover:text-accent/80">View activity log</a>
+                  <a href="#" className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300">View activity log</a>
                 </div>
               </div>
             </div>

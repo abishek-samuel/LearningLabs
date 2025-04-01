@@ -41,7 +41,7 @@ export function StatsCard({
       </div>
       <div className="bg-slate-50 dark:bg-slate-700/50 px-5 py-3">
         <div className="text-sm">
-          <a href={linkHref} className="font-medium text-accent hover:text-accent/80">
+          <a href={linkHref} className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300">
             {linkText}
           </a>
         </div>
