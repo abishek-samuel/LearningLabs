@@ -21,6 +21,9 @@ import GroupManagement from "@/pages/group-management";
 import CourseApproval from "@/pages/course-approval";
 import AccessControl from "@/pages/access-control";
 import SystemSettings from "@/pages/system-settings";
+import CourseDetail from "@/pages/course-detail";
+import CourseContent from "@/pages/course-content";
+import Quiz from "@/pages/quiz";
 import AuthPage from "@/pages/auth-page";
 import ForgotPassword from "@/pages/forgot-password";
 import NotFound from "@/pages/not-found";
@@ -43,6 +46,9 @@ function Router() {
       <ProtectedRoute path="/course-approval" component={CourseApproval} />
       <ProtectedRoute path="/access-control" component={AccessControl} />
       <ProtectedRoute path="/system-settings" component={SystemSettings} />
+      <ProtectedRoute path="/course-detail" component={CourseDetail} />
+      <ProtectedRoute path="/course-content" component={CourseContent} />
+      <ProtectedRoute path="/quiz" component={Quiz} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route component={NotFound} />
