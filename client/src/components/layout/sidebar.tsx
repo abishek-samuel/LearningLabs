@@ -1,6 +1,6 @@
 import { useAuth } from "@/context/auth-context";
-import { useState } from "react";
-import { Link } from "wouter";
+import { useEffect } from "react";
+import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -28,11 +28,15 @@ interface SidebarProps {
 
 export function Sidebar({ className }: SidebarProps) {
   const { user, logoutMutation } = useAuth();
-  const [activeItem, setActiveItem] = useState("overview");
+  const [location] = useLocation();
 
   const role = user?.role || "employee";
 
-  const isActive = (key: string) => activeItem === key;
+  const isActive = (path: string) => {
+    if (path === "/" && location === "/") return true;
+    if (path !== "/" && location.startsWith(path)) return true;
+    return false;
+  };
 
   const handleLogout = async () => {
     await logoutMutation.mutateAsync();
@@ -43,13 +47,17 @@ export function Sidebar({ className }: SidebarProps) {
       <a
         className={cn(
           "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
-          isActive(itemKey)
+          isActive(href)
             ? "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-white"
             : "text-slate-700 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
         )}
-        onClick={() => setActiveItem(itemKey)}
       >
-        <Icon className="mr-3 h-5 w-5 text-slate-500 dark:text-slate-400" />
+        <Icon className={cn(
+          "mr-3 h-5 w-5",
+          isActive(href) 
+            ? "text-blue-600 dark:text-blue-500" 
+            : "text-slate-500 dark:text-slate-400"
+        )} />
         <span>{label}</span>
       </a>
     </Link>

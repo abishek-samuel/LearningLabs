@@ -110,7 +110,7 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
             <DropdownMenuContent align="end" className="w-80">
               <DropdownMenuLabel>Notifications</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <div className="max-h-96 overflow-y-auto">
+              <div className="max-h-72 overflow-y-auto py-1">
                 <div className="py-2 px-4">
                   <div className="font-medium">New course available</div>
                   <div className="text-sm text-gray-500">TypeScript Essentials is now available.</div>
@@ -119,6 +119,11 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
                 <div className="py-2 px-4">
                   <div className="font-medium">Assignment due soon</div>
                   <div className="text-sm text-gray-500">React Hooks assignment due in 2 days.</div>
+                </div>
+                <DropdownMenuSeparator />
+                <div className="py-2 px-4">
+                  <div className="font-medium">Course update</div>
+                  <div className="text-sm text-gray-500">JavaScript Fundamentals module has been updated.</div>
                 </div>
               </div>
               <DropdownMenuSeparator />

@@ -136,8 +136,8 @@ export function RegisterForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}>
-        <Card className="border-0 shadow-sm">
-          <CardHeader>
+        <Card className="border-0 shadow-sm min-h-[420px]">
+          <CardHeader className="pb-3">
             <div className="flex justify-between mb-2">
               {Array(totalSteps).fill(0).map((_, i) => (
                 <div 
@@ -154,18 +154,18 @@ export function RegisterForm() {
                 </div>
               ))}
             </div>
-            <CardTitle>
+            <CardTitle className="text-xl mb-0">
               {step === 1 && "Account Information"}
               {step === 2 && "Create Password"}
               {step === 3 && "Final Steps"}
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-sm">
               {step === 1 && "Set up your basic account details"}
               {step === 2 && "Create a secure password"}
               {step === 3 && "Just a few more details"}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pb-3">
             {step === 1 && (
               <div className="space-y-3">
                 <div className="flex items-center gap-2 mb-2">
@@ -176,12 +176,12 @@ export function RegisterForm() {
                   control={form.control}
                   name="username"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Username</FormLabel>
+                    <FormItem className="mb-1">
+                      <FormLabel className="mb-1 text-xs">Username</FormLabel>
                       <FormControl>
-                        <Input placeholder="johndoe" {...field} autoComplete="username" />
+                        <Input placeholder="johndoe" {...field} autoComplete="username" className="h-9" />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-xs" />
                     </FormItem>
                   )}
                 />
@@ -189,26 +189,26 @@ export function RegisterForm() {
                   control={form.control}
                   name="email"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
+                    <FormItem className="mb-1">
+                      <FormLabel className="mb-1 text-xs">Email</FormLabel>
                       <FormControl>
-                        <Input placeholder="you@example.com" {...field} autoComplete="email" />
+                        <Input placeholder="you@example.com" {...field} autoComplete="email" className="h-9" />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-xs" />
                     </FormItem>
                   )}
                 />
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <FormField
                     control={form.control}
                     name="firstName"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>First name</FormLabel>
+                      <FormItem className="mb-1">
+                        <FormLabel className="mb-1 text-xs">First name</FormLabel>
                         <FormControl>
-                          <Input placeholder="John" {...field} />
+                          <Input placeholder="John" {...field} className="h-9" />
                         </FormControl>
-                        <FormMessage />
+                        <FormMessage className="text-xs" />
                       </FormItem>
                     )}
                   />
@@ -216,12 +216,12 @@ export function RegisterForm() {
                     control={form.control}
                     name="lastName"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Last name</FormLabel>
+                      <FormItem className="mb-1">
+                        <FormLabel className="mb-1 text-xs">Last name</FormLabel>
                         <FormControl>
-                          <Input placeholder="Doe" {...field} />
+                          <Input placeholder="Doe" {...field} className="h-9" />
                         </FormControl>
-                        <FormMessage />
+                        <FormMessage className="text-xs" />
                       </FormItem>
                     )}
                   />
@@ -239,8 +239,8 @@ export function RegisterForm() {
                   control={form.control}
                   name="password"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password</FormLabel>
+                    <FormItem className="mb-1">
+                      <FormLabel className="mb-1 text-xs">Password</FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Input 
@@ -248,6 +248,7 @@ export function RegisterForm() {
                             placeholder="••••••••" 
                             {...field} 
                             autoComplete="new-password"
+                            className="h-9"
                           />
                           <Button
                             type="button"
@@ -261,10 +262,10 @@ export function RegisterForm() {
                         </div>
                       </FormControl>
                       {password && (
-                        <div className="mt-2 space-y-1">
+                        <div className="mt-1 space-y-1">
                           <div className="flex h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
                             <div
-                              className={`${getPasswordStrengthColor(strength)} transition-all duration-300 ease-in-out`}
+                              className={`${getPasswordStrengthColor(strength)} transition-all duration-300 ease-in-out dark:bg-blue-500`}
                               style={{ width: `${(strength / 5) * 100}%` }}
                             ></div>
                           </div>
@@ -273,7 +274,7 @@ export function RegisterForm() {
                           </p>
                         </div>
                       )}
-                      <FormMessage />
+                      <FormMessage className="text-xs" />
                     </FormItem>
                   )}
                 />
@@ -281,8 +282,8 @@ export function RegisterForm() {
                   control={form.control}
                   name="confirmPassword"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Confirm Password</FormLabel>
+                    <FormItem className="mb-1">
+                      <FormLabel className="mb-1 text-xs">Confirm Password</FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Input 
@@ -290,6 +291,7 @@ export function RegisterForm() {
                             placeholder="••••••••" 
                             {...field} 
                             autoComplete="new-password"
+                            className="h-9"
                           />
                           <Button
                             type="button"
@@ -302,7 +304,7 @@ export function RegisterForm() {
                           </Button>
                         </div>
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-xs" />
                     </FormItem>
                   )}
                 />
@@ -319,11 +321,11 @@ export function RegisterForm() {
                   control={form.control}
                   name="role"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Role</FormLabel>
+                    <FormItem className="mb-1">
+                      <FormLabel className="mb-1 text-xs">Role</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger className="h-9">
                             <SelectValue placeholder="Select a role" />
                           </SelectTrigger>
                         </FormControl>
@@ -333,7 +335,7 @@ export function RegisterForm() {
                           <SelectItem value="admin">Administrator</SelectItem>
                         </SelectContent>
                       </Select>
-                      <FormMessage />
+                      <FormMessage className="text-xs" />
                     </FormItem>
                   )}
                 />
@@ -341,7 +343,7 @@ export function RegisterForm() {
                   control={form.control}
                   name="termsAccepted"
                   render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 mt-6">
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 mt-4">
                       <FormControl>
                         <Checkbox
                           checked={field.value}
@@ -350,13 +352,13 @@ export function RegisterForm() {
                         />
                       </FormControl>
                       <div className="space-y-1 leading-none">
-                        <FormLabel className="text-slate-900 dark:text-white">
+                        <FormLabel className="text-slate-900 dark:text-white text-xs">
                           I accept the{" "}
-                          <Button variant="link" className="h-auto p-0 text-blue-600 dark:text-blue-400 font-medium">
+                          <Button variant="link" className="h-auto p-0 text-blue-600 dark:text-blue-400 font-medium text-xs">
                             terms and conditions
                           </Button>
                         </FormLabel>
-                        <FormMessage />
+                        <FormMessage className="text-xs"/>
                       </div>
                     </FormItem>
                   )}
