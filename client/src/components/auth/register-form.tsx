@@ -167,8 +167,8 @@ export function RegisterForm() {
           </CardHeader>
           <CardContent>
             {step === 1 && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 mb-4">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 mb-2">
                   <UserCircle className="text-blue-600 dark:text-blue-400 h-5 w-5" />
                   <h3 className="text-sm font-medium text-slate-900 dark:text-white">Identity</h3>
                 </div>
@@ -230,8 +230,8 @@ export function RegisterForm() {
             )}
             
             {step === 2 && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 mb-4">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 mb-2">
                   <Lock className="text-blue-600 dark:text-blue-400 h-5 w-5" />
                   <h3 className="text-sm font-medium text-slate-900 dark:text-white">Security</h3>
                 </div>
@@ -310,8 +310,8 @@ export function RegisterForm() {
             )}
             
             {step === 3 && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 mb-4">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 mb-2">
                   <Mail className="text-blue-600 dark:text-blue-400 h-5 w-5" />
                   <h3 className="text-sm font-medium text-slate-900 dark:text-white">Preferences</h3>
                 </div>
@@ -346,6 +346,7 @@ export function RegisterForm() {
                         <Checkbox
                           checked={field.value}
                           onCheckedChange={field.onChange}
+                          className="border-slate-500 dark:border-slate-400 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
                         />
                       </FormControl>
                       <div className="space-y-1 leading-none">
