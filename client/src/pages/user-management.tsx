@@ -3,7 +3,7 @@ import { MainLayout } from "@/components/layout/main-layout";
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { UserPlus, Search, MoreHorizontal, Loader2  } from "lucide-react";
+import { UserPlus, Search, MoreHorizontal, Loader2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Dialog,
@@ -31,9 +31,14 @@ interface User {
   lastName?: string;
   role: string;
 }
+import { useLocation } from "wouter";
 
 export default function UserManagement() {
   const { user } = useAuth();
+
+
+  const [, navigate] = useLocation();
+
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -74,7 +79,7 @@ export default function UserManagement() {
     try {
       const url = selectedUser ? `/api/users/${selectedUser.id}` : "/api/users";
       const method = selectedUser ? "PUT" : "POST";
-      
+
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
@@ -82,7 +87,7 @@ export default function UserManagement() {
       });
 
       if (!response.ok) throw new Error("Failed to save user");
-      
+
       setIsDialogOpen(false);
       fetchUsers();
       toast({
@@ -128,13 +133,13 @@ export default function UserManagement() {
 
   const handleDelete = async (userId) => {
     if (!confirm("Are you sure you want to delete this user?")) return;
-    
+
     try {
       const response = await fetch(`/api/users/${userId}`, {
         method: "DELETE",
       });
       if (!response.ok) throw new Error("Failed to delete user");
-      
+
       fetchUsers();
       toast({
         title: "Success",
@@ -152,28 +157,24 @@ export default function UserManagement() {
   return (
     <MainLayout>
       <div className="bg-white dark:bg-slate-900 shadow">
-      <div className="px-4 sm:px-6 lg:px-8 py-6 md:flex md:items-center md:justify-between">
+        <div className="px-4 sm:px-6 lg:px-8 py-6 md:flex md:items-center md:justify-between">
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-bold leading-7 text-slate-900 dark:text-white">User Management</h1>
           </div>
           <div className="mt-4 flex md:mt-0 md:ml-4">
-          <Button onClick={() => {
-              setSelectedUser(null);
-              setFormData({ name: "", email: "", role: "employee", password: "" });
-              setIsDialogOpen(true);
-            }}>
+            <Button onClick={() => navigate("/register")}>
               <UserPlus className="mr-2 h-4 w-4" />
               Add User
             </Button>
           </div>
         </div>
       </div>
-      
+
       <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">
-        
-        
-        
-      <div className="flex justify-between items-center mb-6">
+
+
+
+        <div className="flex justify-between items-center mb-6">
           <div className="relative w-64">
             <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
             {/* <Input 
@@ -196,7 +197,7 @@ export default function UserManagement() {
             </select>
           </div> */}
         </div>
-        
+
         <div className="bg-white dark:bg-slate-800 overflow-hidden shadow rounded-lg">
           {loading ? (
             <div className="flex justify-center items-center p-8">
@@ -216,7 +217,7 @@ export default function UserManagement() {
                 {users.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">
-                      {user.firstName && user.lastName 
+                      {user.firstName && user.lastName
                         ? `${user.firstName} ${user.lastName}`
                         : user.username}
                     </TableCell>
@@ -236,7 +237,7 @@ export default function UserManagement() {
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleEdit(user)}>Edit</DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
                             className="text-red-600 dark:text-red-400"
                             onClick={() => handleDelete(user.id)}
                           >
@@ -274,7 +275,7 @@ export default function UserManagement() {
               <div>
                 <label className="font-medium">Full Name</label>
                 <p>
-                  {selectedUser.firstName && selectedUser.lastName 
+                  {selectedUser.firstName && selectedUser.lastName
                     ? `${selectedUser.firstName} ${selectedUser.lastName}`
                     : "Not provided"}
                 </p>
