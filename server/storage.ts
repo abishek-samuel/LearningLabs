@@ -1,96 +1,111 @@
-import { 
-  User, InsertUser, Course, InsertCourse, Module, InsertModule, 
-  Lesson, InsertLesson, Enrollment, InsertEnrollment,
-  Assessment, InsertAssessment, Question, InsertQuestion,
-  AssessmentAttempt, InsertAssessmentAttempt, Group, InsertGroup,
-  GroupMember, InsertGroupMember, CourseAccess, InsertCourseAccess,
-  LessonProgress, InsertLessonProgress, ActivityLog, InsertActivityLog,
-  Certificate, InsertCertificate
-} from "@shared/schema";
+import { PrismaClient, Prisma } from "@prisma/client"; // Import Prisma namespace for types
+import type {
+  User, Course, Module, Lesson, Enrollment, Assessment, Question,
+  AssessmentAttempt, Group, GroupMember, CourseAccess, LessonProgress,
+  ActivityLog, Certificate
+} from ".prisma/client"; // Import types from the generated client
 import session from "express-session";
-import createMemoryStore from "memorystore";
+import connectPgSimple from "connect-pg-simple";
+import pg from "pg"; // Import pg for pool
 
-// Create memory store for session
-const MemoryStore = createMemoryStore(session);
+// Define Insert types based on Prisma models (adjust as needed, Prisma doesn't auto-generate these like Drizzle-Zod)
+// For simplicity, we'll use Prisma's built-in types for creation where possible,
+// but you might want more specific insert types later, perhaps using Zod.
+type InsertUser = Omit<User, 'id' | 'createdAt'>;
+type InsertCourse = Omit<Course, 'id' | 'createdAt' | 'updatedAt'>;
+type InsertModule = Omit<Module, 'id'>;
+type InsertLesson = Omit<Lesson, 'id'>;
+type InsertEnrollment = Omit<Enrollment, 'id' | 'enrolledAt' | 'completedAt' | 'progress'>;
+type InsertAssessment = Omit<Assessment, 'id' | 'createdAt'>;
+type InsertQuestion = Omit<Question, 'id' | 'options'> & { options?: Prisma.InputJsonValue }; // Adjust JSON type
+type InsertAssessmentAttempt = Omit<AssessmentAttempt, 'id' | 'startedAt' | 'completedAt' | 'score' | 'answers' | 'status'> & { answers?: Prisma.InputJsonValue }; // Adjust JSON type
+type InsertGroup = Omit<Group, 'id' | 'createdAt'>;
+type InsertGroupMember = Omit<GroupMember, 'id' | 'addedAt'>;
+type InsertCourseAccess = Omit<CourseAccess, 'id' | 'grantedAt'>;
+type InsertLessonProgress = Omit<LessonProgress, 'id' | 'lastAccessedAt' | 'completedAt'>;
+type InsertActivityLog = Omit<ActivityLog, 'id' | 'createdAt' | 'metadata'> & { metadata?: Prisma.InputJsonValue }; // Adjust JSON type
+type InsertCertificate = Omit<Certificate, 'id' | 'issueDate'>;
 
+
+// Re-define the IStorage interface to use Prisma types
 export interface IStorage {
   // User related methods
-  getUser(id: number): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  getUserByEmail(email: string): Promise<User | undefined>;
+  getUser(id: number): Promise<User | null>;
+  getUserByUsername(username: string): Promise<User | null>;
+  getUserByEmail(email: string): Promise<User | null>;
   getUsers(): Promise<User[]>;
-  getUsersByRole(role: string): Promise<User[]>;
+  getUsersByRole(role: User['role']): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
-  updateUser(id: number, user: Partial<User>): Promise<User | undefined>;
+  updateUser(id: number, user: Partial<User>): Promise<User | null>;
   deleteUser(id: number): Promise<boolean>;
 
   // Course related methods
-  getCourse(id: number): Promise<Course | undefined>;
+  getCourse(id: number): Promise<Course | null>;
   getCourses(): Promise<Course[]>;
   getCoursesByInstructor(instructorId: number): Promise<Course[]>;
   createCourse(course: InsertCourse): Promise<Course>;
-  updateCourse(id: number, course: Partial<Course>): Promise<Course | undefined>;
+  updateCourse(id: number, course: Partial<Course>): Promise<Course | null>;
   deleteCourse(id: number): Promise<boolean>;
 
   // Module related methods
-  getModule(id: number): Promise<Module | undefined>;
+  getModule(id: number): Promise<Module | null>;
   getModulesByCourse(courseId: number): Promise<Module[]>;
   createModule(module: InsertModule): Promise<Module>;
-  updateModule(id: number, module: Partial<Module>): Promise<Module | undefined>;
+  updateModule(id: number, module: Partial<Module>): Promise<Module | null>;
   deleteModule(id: number): Promise<boolean>;
 
   // Lesson related methods
-  getLesson(id: number): Promise<Lesson | undefined>;
+  getLesson(id: number): Promise<Lesson | null>;
   getLessonsByModule(moduleId: number): Promise<Lesson[]>;
   createLesson(lesson: InsertLesson): Promise<Lesson>;
-  updateLesson(id: number, lesson: Partial<Lesson>): Promise<Lesson | undefined>;
+  updateLesson(id: number, lesson: Partial<Lesson>): Promise<Lesson | null>;
   deleteLesson(id: number): Promise<boolean>;
 
   // Enrollment related methods
-  getEnrollment(id: number): Promise<Enrollment | undefined>;
+  getEnrollment(id: number): Promise<Enrollment | null>;
   getEnrollmentsByUser(userId: number): Promise<Enrollment[]>;
   getEnrollmentsByCourse(courseId: number): Promise<Enrollment[]>;
   createEnrollment(enrollment: InsertEnrollment): Promise<Enrollment>;
-  updateEnrollment(id: number, enrollment: Partial<Enrollment>): Promise<Enrollment | undefined>;
+  updateEnrollment(id: number, enrollment: Partial<Enrollment>): Promise<Enrollment | null>;
   deleteEnrollment(id: number): Promise<boolean>;
 
   // Assessment related methods
-  getAssessment(id: number): Promise<Assessment | undefined>;
+  getAssessment(id: number): Promise<Assessment | null>;
   getAssessmentsByModule(moduleId: number): Promise<Assessment[]>;
   createAssessment(assessment: InsertAssessment): Promise<Assessment>;
-  updateAssessment(id: number, assessment: Partial<Assessment>): Promise<Assessment | undefined>;
+  updateAssessment(id: number, assessment: Partial<Assessment>): Promise<Assessment | null>;
   deleteAssessment(id: number): Promise<boolean>;
 
   // Question related methods
-  getQuestion(id: number): Promise<Question | undefined>;
+  getQuestion(id: number): Promise<Question | null>;
   getQuestionsByAssessment(assessmentId: number): Promise<Question[]>;
   createQuestion(question: InsertQuestion): Promise<Question>;
-  updateQuestion(id: number, question: Partial<Question>): Promise<Question | undefined>;
+  updateQuestion(id: number, question: Partial<Question>): Promise<Question | null>;
   deleteQuestion(id: number): Promise<boolean>;
 
   // Assessment attempt related methods
-  getAssessmentAttempt(id: number): Promise<AssessmentAttempt | undefined>;
+  getAssessmentAttempt(id: number): Promise<AssessmentAttempt | null>;
   getAssessmentAttemptsByUser(userId: number): Promise<AssessmentAttempt[]>;
   getAssessmentAttemptsByAssessment(assessmentId: number): Promise<AssessmentAttempt[]>;
   createAssessmentAttempt(attempt: InsertAssessmentAttempt): Promise<AssessmentAttempt>;
-  updateAssessmentAttempt(id: number, attempt: Partial<AssessmentAttempt>): Promise<AssessmentAttempt | undefined>;
-  
+  updateAssessmentAttempt(id: number, attempt: Partial<AssessmentAttempt>): Promise<AssessmentAttempt | null>;
+
   // Group related methods
-  getGroup(id: number): Promise<Group | undefined>;
+  getGroup(id: number): Promise<Group | null>;
   getGroups(): Promise<Group[]>;
   createGroup(group: InsertGroup): Promise<Group>;
-  updateGroup(id: number, group: Partial<Group>): Promise<Group | undefined>;
+  updateGroup(id: number, group: Partial<Group>): Promise<Group | null>;
   deleteGroup(id: number): Promise<boolean>;
 
   // Group member related methods
-  getGroupMember(id: number): Promise<GroupMember | undefined>;
+  getGroupMember(id: number): Promise<GroupMember | null>;
   getGroupMembersByGroup(groupId: number): Promise<GroupMember[]>;
   getGroupMembersByUser(userId: number): Promise<GroupMember[]>;
   createGroupMember(member: InsertGroupMember): Promise<GroupMember>;
   deleteGroupMember(id: number): Promise<boolean>;
 
   // Course access related methods
-  getCourseAccess(id: number): Promise<CourseAccess | undefined>;
+  getCourseAccess(id: number): Promise<CourseAccess | null>;
   getCourseAccessByCourse(courseId: number): Promise<CourseAccess[]>;
   getCourseAccessByUser(userId: number): Promise<CourseAccess[]>;
   getCourseAccessByGroup(groupId: number): Promise<CourseAccess[]>;
@@ -98,19 +113,19 @@ export interface IStorage {
   deleteCourseAccess(id: number): Promise<boolean>;
 
   // Lesson progress related methods
-  getLessonProgress(id: number): Promise<LessonProgress | undefined>;
+  getLessonProgress(id: number): Promise<LessonProgress | null>;
   getLessonProgressByUser(userId: number): Promise<LessonProgress[]>;
   getLessonProgressByLesson(lessonId: number): Promise<LessonProgress[]>;
   createLessonProgress(progress: InsertLessonProgress): Promise<LessonProgress>;
-  updateLessonProgress(id: number, progress: Partial<LessonProgress>): Promise<LessonProgress | undefined>;
+  updateLessonProgress(id: number, progress: Partial<LessonProgress>): Promise<LessonProgress | null>;
 
   // Activity log related methods
-  getActivityLog(id: number): Promise<ActivityLog | undefined>;
+  getActivityLog(id: number): Promise<ActivityLog | null>;
   getActivityLogsByUser(userId: number): Promise<ActivityLog[]>;
   createActivityLog(log: InsertActivityLog): Promise<ActivityLog>;
 
   // Certificate related methods
-  getCertificate(id: number): Promise<Certificate | undefined>;
+  getCertificate(id: number): Promise<Certificate | null>;
   getCertificatesByUser(userId: number): Promise<Certificate[]>;
   getCertificatesByCourse(courseId: number): Promise<Certificate[]>;
   createCertificate(certificate: InsertCertificate): Promise<Certificate>;
@@ -119,618 +134,478 @@ export interface IStorage {
   sessionStore: session.Store;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private courses: Map<number, Course>;
-  private modules: Map<number, Module>;
-  private lessons: Map<number, Lesson>;
-  private enrollments: Map<number, Enrollment>;
-  private assessments: Map<number, Assessment>;
-  private questions: Map<number, Question>;
-  private assessmentAttempts: Map<number, AssessmentAttempt>;
-  private groups: Map<number, Group>;
-  private groupMembers: Map<number, GroupMember>;
-  private courseAccess: Map<number, CourseAccess>;
-  private lessonProgress: Map<number, LessonProgress>;
-  private activityLogs: Map<number, ActivityLog>;
-  private certificates: Map<number, Certificate>;
-
-  // ID counters
-  private userIdCounter: number;
-  private courseIdCounter: number;
-  private moduleIdCounter: number;
-  private lessonIdCounter: number;
-  private enrollmentIdCounter: number;
-  private assessmentIdCounter: number;
-  private questionIdCounter: number;
-  private assessmentAttemptIdCounter: number;
-  private groupIdCounter: number;
-  private groupMemberIdCounter: number;
-  private courseAccessIdCounter: number;
-  private lessonProgressIdCounter: number;
-  private activityLogIdCounter: number;
-  private certificateIdCounter: number;
-
+// Implementation using Prisma
+export class PrismaStorage implements IStorage {
+  private prisma: PrismaClient;
   sessionStore: session.Store;
 
   constructor() {
-    this.users = new Map();
-    this.courses = new Map();
-    this.modules = new Map();
-    this.lessons = new Map();
-    this.enrollments = new Map();
-    this.assessments = new Map();
-    this.questions = new Map();
-    this.assessmentAttempts = new Map();
-    this.groups = new Map();
-    this.groupMembers = new Map();
-    this.courseAccess = new Map();
-    this.lessonProgress = new Map();
-    this.activityLogs = new Map();
-    this.certificates = new Map();
+    this.prisma = new PrismaClient();
 
-    // Initialize ID counters
-    this.userIdCounter = 1;
-    this.courseIdCounter = 1;
-    this.moduleIdCounter = 1;
-    this.lessonIdCounter = 1;
-    this.enrollmentIdCounter = 1;
-    this.assessmentIdCounter = 1;
-    this.questionIdCounter = 1;
-    this.assessmentAttemptIdCounter = 1;
-    this.groupIdCounter = 1;
-    this.groupMemberIdCounter = 1;
-    this.courseAccessIdCounter = 1;
-    this.lessonProgressIdCounter = 1;
-    this.activityLogIdCounter = 1;
-    this.certificateIdCounter = 1;
-
-    // Initialize session store
-    this.sessionStore = new MemoryStore({
-      checkPeriod: 86400000, // prune expired entries every 24h
+    // Initialize pg Pool for session store
+    // Ensure DATABASE_URL is loaded (e.g., using dotenv)
+    if (!process.env.DATABASE_URL) {
+        throw new Error("DATABASE_URL environment variable is not set.");
+    }
+    const pool = new pg.Pool({
+        connectionString: process.env.DATABASE_URL,
     });
 
-    // Create an admin user by default
-    this.createUser({
-      username: "admin",
-      email: "admin@example.com",
-      password: "admin123",
-      firstName: "Admin",
-      lastName: "User",
-      role: "admin",
+    // Initialize connect-pg-simple store
+    const PgSessionStore = connectPgSimple(session);
+    this.sessionStore = new PgSessionStore({
+        pool: pool,
+        tableName: 'session' // Matches the table name in schema.prisma
     });
 
-    // Create a contributor user
-    this.createUser({
-      username: "contributor",
-      email: "contributor@example.com",
-      password: "contributor123",
-      firstName: "Content",
-      lastName: "Creator",
-      role: "contributor",
-    });
-
-    // Create an employee user
-    this.createUser({
-      username: "employee",
-      email: "employee@example.com",
-      password: "employee123",
-      firstName: "John",
-      lastName: "Doe",
-      role: "employee",
-    });
+    // Optional: Seed initial data if needed (consider using Prisma seed scripts instead)
+    // this.seedData();
   }
 
-  // User related methods
-  async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+  // --- User Methods ---
+  async getUser(id: number): Promise<User | null> {
+    return this.prisma.user.findUnique({ where: { id } });
   }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username.toLowerCase() === username.toLowerCase()
-    );
+  async getUserByUsername(username: string): Promise<User | null> {
+    return this.prisma.user.findUnique({ where: { username } });
   }
-
-  async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.email.toLowerCase() === email.toLowerCase()
-    );
+  async getUserByEmail(email: string): Promise<User | null> {
+    return this.prisma.user.findUnique({ where: { email } });
   }
-
   async getUsers(): Promise<User[]> {
-    return Array.from(this.users.values());
+    return this.prisma.user.findMany();
   }
-
-  async getUsersByRole(role: string): Promise<User[]> {
-    return Array.from(this.users.values()).filter(
-      (user) => user.role === role
-    );
+  async getUsersByRole(role: User['role']): Promise<User[]> {
+    return this.prisma.user.findMany({ where: { role } });
   }
-
   async createUser(user: InsertUser): Promise<User> {
-    const id = this.userIdCounter++;
-    const newUser: User = { 
-      ...user, 
-      id,
-      createdAt: new Date()
-    };
-    this.users.set(id, newUser);
-    return newUser;
+    return this.prisma.user.create({ data: user });
   }
-
-  async updateUser(id: number, user: Partial<User>): Promise<User | undefined> {
-    const existingUser = this.users.get(id);
-    if (!existingUser) return undefined;
-
-    const updatedUser = { ...existingUser, ...user };
-    this.users.set(id, updatedUser);
-    return updatedUser;
+  async updateUser(id: number, userData: Partial<User>): Promise<User | null> {
+    try {
+      const { id: userId, ...updateData } = userData; // Exclude id from data
+      return await this.prisma.user.update({ where: { id }, data: updateData });
+    } catch (error) {
+      // Handle potential errors like record not found
+      return null;
+    }
   }
-
   async deleteUser(id: number): Promise<boolean> {
-    return this.users.delete(id);
+    try {
+      await this.prisma.user.delete({ where: { id } });
+      return true;
+    } catch (error) {
+      return false;
+    }
   }
 
-  // Course related methods
-  async getCourse(id: number): Promise<Course | undefined> {
-    return this.courses.get(id);
+  // --- Course Methods ---
+  async getCourse(id: number): Promise<Course | null> {
+    return this.prisma.course.findUnique({ where: { id } });
   }
-
+  // New method to get course with nested content
+  async getCourseWithContent(id: number): Promise<Course | null> {
+    return this.prisma.course.findUnique({ 
+      where: { id },
+      include: {
+        instructor: true, // Include instructor details
+        modules: {
+          orderBy: { position: 'asc' }, // Order modules
+          include: {
+            lessons: {
+              orderBy: { position: 'asc' }, // Order lessons within modules
+            },
+            // Optionally include assessments here too if needed on detail page
+            // assessments: {
+            //   orderBy: { createdAt: 'asc' } 
+            // }
+          }
+        },
+        // Include enrollments if needed for count, etc.
+        // enrollments: true 
+      }
+    });
+  }
   async getCourses(): Promise<Course[]> {
-    return Array.from(this.courses.values());
+    return this.prisma.course.findMany();
   }
-
   async getCoursesByInstructor(instructorId: number): Promise<Course[]> {
-    return Array.from(this.courses.values()).filter(
-      (course) => course.instructorId === instructorId
-    );
+    return this.prisma.course.findMany({ where: { instructorId } });
   }
-
   async createCourse(course: InsertCourse): Promise<Course> {
-    const id = this.courseIdCounter++;
-    const now = new Date();
-    const newCourse: Course = { 
-      ...course, 
-      id,
-      createdAt: now,
-      updatedAt: now
-    };
-    this.courses.set(id, newCourse);
-    return newCourse;
+    // Ensure category is included in the data passed to Prisma
+    return this.prisma.course.create({ data: course });
   }
-
-  async updateCourse(id: number, course: Partial<Course>): Promise<Course | undefined> {
-    const existingCourse = this.courses.get(id);
-    if (!existingCourse) return undefined;
-
-    const updatedCourse = { 
-      ...existingCourse, 
-      ...course,
-      updatedAt: new Date()
-    };
-    this.courses.set(id, updatedCourse);
-    return updatedCourse;
+  async updateCourse(id: number, courseData: Partial<Course>): Promise<Course | null> {
+     try {
+      // Prisma automatically handles updatedAt
+      const { id: courseId, updatedAt, ...updateData } = courseData; // Exclude id
+      return await this.prisma.course.update({ where: { id }, data: updateData });
+    } catch (error) {
+      return null;
+    }
   }
-
   async deleteCourse(id: number): Promise<boolean> {
-    return this.courses.delete(id);
+     try {
+      await this.prisma.course.delete({ where: { id } });
+      return true;
+    } catch (error) {
+      return false;
+    }
   }
 
-  // Module related methods
-  async getModule(id: number): Promise<Module | undefined> {
-    return this.modules.get(id);
+  // --- Module Methods ---
+  async getModule(id: number): Promise<Module | null> {
+    return this.prisma.module.findUnique({ where: { id } });
   }
-
   async getModulesByCourse(courseId: number): Promise<Module[]> {
-    return Array.from(this.modules.values())
-      .filter((module) => module.courseId === courseId)
-      .sort((a, b) => a.position - b.position);
+    return this.prisma.module.findMany({ where: { courseId }, orderBy: { position: 'asc' } });
   }
-
   async createModule(module: InsertModule): Promise<Module> {
-    const id = this.moduleIdCounter++;
-    const newModule: Module = { ...module, id };
-    this.modules.set(id, newModule);
-    return newModule;
+    return this.prisma.module.create({ data: module });
   }
-
-  async updateModule(id: number, module: Partial<Module>): Promise<Module | undefined> {
-    const existingModule = this.modules.get(id);
-    if (!existingModule) return undefined;
-
-    const updatedModule = { ...existingModule, ...module };
-    this.modules.set(id, updatedModule);
-    return updatedModule;
+  async updateModule(id: number, moduleData: Partial<Module>): Promise<Module | null> {
+     try {
+       const { id: moduleId, ...updateData } = moduleData; // Exclude id
+      return await this.prisma.module.update({ where: { id }, data: updateData });
+    } catch (error) {
+      return null;
+    }
   }
-
   async deleteModule(id: number): Promise<boolean> {
-    return this.modules.delete(id);
+     try {
+      await this.prisma.module.delete({ where: { id } });
+      return true;
+    } catch (error) {
+      return false;
+    }
   }
 
-  // Lesson related methods
-  async getLesson(id: number): Promise<Lesson | undefined> {
-    return this.lessons.get(id);
+  // --- Lesson Methods ---
+  async getLesson(id: number): Promise<Lesson | null> {
+    return this.prisma.lesson.findUnique({ where: { id } });
   }
-
   async getLessonsByModule(moduleId: number): Promise<Lesson[]> {
-    return Array.from(this.lessons.values())
-      .filter((lesson) => lesson.moduleId === moduleId)
-      .sort((a, b) => a.position - b.position);
+    return this.prisma.lesson.findMany({ where: { moduleId }, orderBy: { position: 'asc' } });
   }
-
   async createLesson(lesson: InsertLesson): Promise<Lesson> {
-    const id = this.lessonIdCounter++;
-    const newLesson: Lesson = { ...lesson, id };
-    this.lessons.set(id, newLesson);
-    return newLesson;
+    return this.prisma.lesson.create({ data: lesson });
   }
-
-  async updateLesson(id: number, lesson: Partial<Lesson>): Promise<Lesson | undefined> {
-    const existingLesson = this.lessons.get(id);
-    if (!existingLesson) return undefined;
-
-    const updatedLesson = { ...existingLesson, ...lesson };
-    this.lessons.set(id, updatedLesson);
-    return updatedLesson;
+  async updateLesson(id: number, lessonData: Partial<Lesson>): Promise<Lesson | null> {
+     try {
+       const { id: lessonId, ...updateData } = lessonData; // Exclude id
+      return await this.prisma.lesson.update({ where: { id }, data: updateData });
+    } catch (error) {
+      return null;
+    }
   }
-
   async deleteLesson(id: number): Promise<boolean> {
-    return this.lessons.delete(id);
+     try {
+      await this.prisma.lesson.delete({ where: { id } });
+      return true;
+    } catch (error) {
+      return false;
+    }
   }
 
-  // Enrollment related methods
-  async getEnrollment(id: number): Promise<Enrollment | undefined> {
-    return this.enrollments.get(id);
+  // --- Enrollment Methods ---
+  async getEnrollment(id: number): Promise<Enrollment | null> {
+    return this.prisma.enrollment.findUnique({ where: { id } });
   }
-
   async getEnrollmentsByUser(userId: number): Promise<Enrollment[]> {
-    return Array.from(this.enrollments.values()).filter(
-      (enrollment) => enrollment.userId === userId
-    );
+    // Include nested course data with instructor and module count
+    return this.prisma.enrollment.findMany({ 
+      where: { userId },
+      include: {
+        course: {
+          include: {
+            instructor: { // Include instructor relation
+              select: { // Select only necessary fields
+                firstName: true,
+                lastName: true,
+              }
+            }, 
+            modules: { // Include modules relation
+              select: { // Select only id for counting
+                id: true 
+              }
+            } 
+          }
+        }
+      }
+    });
   }
-
   async getEnrollmentsByCourse(courseId: number): Promise<Enrollment[]> {
-    return Array.from(this.enrollments.values()).filter(
-      (enrollment) => enrollment.courseId === courseId
-    );
+    return this.prisma.enrollment.findMany({ where: { courseId } });
   }
-
   async createEnrollment(enrollment: InsertEnrollment): Promise<Enrollment> {
-    const id = this.enrollmentIdCounter++;
-    const now = new Date();
-    const newEnrollment: Enrollment = { 
-      ...enrollment, 
-      id,
-      enrolledAt: now,
-      progress: 0
-    };
-    this.enrollments.set(id, newEnrollment);
-    return newEnrollment;
+    // Default progress is handled by schema
+    return this.prisma.enrollment.create({ data: enrollment });
   }
-
-  async updateEnrollment(id: number, enrollment: Partial<Enrollment>): Promise<Enrollment | undefined> {
-    const existingEnrollment = this.enrollments.get(id);
-    if (!existingEnrollment) return undefined;
-
-    const updatedEnrollment = { ...existingEnrollment, ...enrollment };
-    this.enrollments.set(id, updatedEnrollment);
-    return updatedEnrollment;
+  async updateEnrollment(id: number, enrollmentData: Partial<Enrollment>): Promise<Enrollment | null> {
+     try {
+       const { id: enrollmentId, ...updateData } = enrollmentData; // Exclude id
+      return await this.prisma.enrollment.update({ where: { id }, data: updateData });
+    } catch (error) {
+      return null;
+    }
   }
-
   async deleteEnrollment(id: number): Promise<boolean> {
-    return this.enrollments.delete(id);
+     try {
+      await this.prisma.enrollment.delete({ where: { id } });
+      return true;
+    } catch (error) {
+      return false;
+    }
   }
 
-  // Assessment related methods
-  async getAssessment(id: number): Promise<Assessment | undefined> {
-    return this.assessments.get(id);
+  // --- Assessment Methods ---
+  async getAssessment(id: number): Promise<Assessment | null> {
+    return this.prisma.assessment.findUnique({ where: { id } });
   }
-
   async getAssessmentsByModule(moduleId: number): Promise<Assessment[]> {
-    return Array.from(this.assessments.values()).filter(
-      (assessment) => assessment.moduleId === moduleId
-    );
+    // Handle potential null moduleId if assessments can exist without modules
+    return this.prisma.assessment.findMany({ where: { moduleId } });
   }
-
   async createAssessment(assessment: InsertAssessment): Promise<Assessment> {
-    const id = this.assessmentIdCounter++;
-    const now = new Date();
-    const newAssessment: Assessment = { 
-      ...assessment, 
-      id,
-      createdAt: now
-    };
-    this.assessments.set(id, newAssessment);
-    return newAssessment;
+    return this.prisma.assessment.create({ data: assessment });
   }
-
-  async updateAssessment(id: number, assessment: Partial<Assessment>): Promise<Assessment | undefined> {
-    const existingAssessment = this.assessments.get(id);
-    if (!existingAssessment) return undefined;
-
-    const updatedAssessment = { ...existingAssessment, ...assessment };
-    this.assessments.set(id, updatedAssessment);
-    return updatedAssessment;
+  async updateAssessment(id: number, assessmentData: Partial<Assessment>): Promise<Assessment | null> {
+     try {
+       const { id: assessmentId, ...updateData } = assessmentData; // Exclude id
+      return await this.prisma.assessment.update({ where: { id }, data: updateData });
+    } catch (error) {
+      return null;
+    }
   }
-
   async deleteAssessment(id: number): Promise<boolean> {
-    return this.assessments.delete(id);
+     try {
+      await this.prisma.assessment.delete({ where: { id } });
+      return true;
+    } catch (error) {
+      return false;
+    }
   }
 
-  // Question related methods
-  async getQuestion(id: number): Promise<Question | undefined> {
-    return this.questions.get(id);
+  // --- Question Methods ---
+  async getQuestion(id: number): Promise<Question | null> {
+    return this.prisma.question.findUnique({ where: { id } });
   }
-
   async getQuestionsByAssessment(assessmentId: number): Promise<Question[]> {
-    return Array.from(this.questions.values())
-      .filter((question) => question.assessmentId === assessmentId)
-      .sort((a, b) => a.position - b.position);
+    return this.prisma.question.findMany({ where: { assessmentId }, orderBy: { position: 'asc' } });
   }
-
   async createQuestion(question: InsertQuestion): Promise<Question> {
-    const id = this.questionIdCounter++;
-    const newQuestion: Question = { ...question, id };
-    this.questions.set(id, newQuestion);
-    return newQuestion;
+    // Ensure JSON fields are handled correctly if needed (Prisma usually does this well)
+    return this.prisma.question.create({ data: question });
   }
+  async updateQuestion(id: number, questionData: Partial<Question>): Promise<Question | null> {
+     try {
+       const { id: questionId, ...updateData } = questionData; // Exclude id
 
-  async updateQuestion(id: number, question: Partial<Question>): Promise<Question | undefined> {
-    const existingQuestion = this.questions.get(id);
-    if (!existingQuestion) return undefined;
+       // Directly use updateData, Prisma handles undefined fields correctly.
+       // Ensure the JSON field is correctly typed if present.
+       const data: Prisma.QuestionUpdateInput = {
+         ...updateData,
+         options: 'options' in updateData
+           ? (updateData.options === null ? Prisma.JsonNull : updateData.options)
+           : undefined, // Explicitly undefined if not in updateData
+       };
 
-    const updatedQuestion = { ...existingQuestion, ...question };
-    this.questions.set(id, updatedQuestion);
-    return updatedQuestion;
+      // Remove undefined keys loop removed - Prisma handles undefined correctly
+      // Object.keys(data).forEach(key => data[key] === undefined && delete data[key]);
+
+      return await this.prisma.question.update({ where: { id }, data });
+    } catch (error) {
+      return null;
+    }
   }
-
   async deleteQuestion(id: number): Promise<boolean> {
-    return this.questions.delete(id);
+     try {
+      await this.prisma.question.delete({ where: { id } });
+      return true;
+    } catch (error) {
+      return false;
+    }
   }
 
-  // Assessment attempt related methods
-  async getAssessmentAttempt(id: number): Promise<AssessmentAttempt | undefined> {
-    return this.assessmentAttempts.get(id);
+  // --- Assessment Attempt Methods ---
+  async getAssessmentAttempt(id: number): Promise<AssessmentAttempt | null> {
+    return this.prisma.assessmentAttempt.findUnique({ where: { id } });
   }
-
   async getAssessmentAttemptsByUser(userId: number): Promise<AssessmentAttempt[]> {
-    return Array.from(this.assessmentAttempts.values()).filter(
-      (attempt) => attempt.userId === userId
-    );
+    return this.prisma.assessmentAttempt.findMany({ where: { userId } });
   }
-
   async getAssessmentAttemptsByAssessment(assessmentId: number): Promise<AssessmentAttempt[]> {
-    return Array.from(this.assessmentAttempts.values()).filter(
-      (attempt) => attempt.assessmentId === assessmentId
-    );
+    return this.prisma.assessmentAttempt.findMany({ where: { assessmentId } });
   }
-
   async createAssessmentAttempt(attempt: InsertAssessmentAttempt): Promise<AssessmentAttempt> {
-    const id = this.assessmentAttemptIdCounter++;
-    const now = new Date();
-    const newAttempt: AssessmentAttempt = { 
-      ...attempt, 
-      id,
-      startedAt: now,
-      status: "in_progress",
-      answers: {}
-    };
-    this.assessmentAttempts.set(id, newAttempt);
-    return newAttempt;
+    // Defaults handled by schema
+    return this.prisma.assessmentAttempt.create({ data: attempt });
+  }
+  async updateAssessmentAttempt(id: number, attemptData: Partial<AssessmentAttempt>): Promise<AssessmentAttempt | null> {
+     try {
+       const { id: attemptId, ...updateData } = attemptData; // Exclude id
+
+        // Directly use updateData, Prisma handles undefined fields correctly.
+       // Ensure the JSON field is correctly typed if present.
+       const data: Prisma.AssessmentAttemptUpdateInput = {
+         ...updateData,
+         answers: 'answers' in updateData
+           ? (updateData.answers === null ? Prisma.JsonNull : updateData.answers)
+           : undefined, // Explicitly undefined if not in updateData
+       };
+
+      // Remove undefined keys loop removed - Prisma handles undefined correctly
+      // Object.keys(data).forEach(key => data[key] === undefined && delete data[key]);
+
+      return await this.prisma.assessmentAttempt.update({ where: { id }, data });
+    } catch (error) {
+      return null;
+    }
   }
 
-  async updateAssessmentAttempt(id: number, attempt: Partial<AssessmentAttempt>): Promise<AssessmentAttempt | undefined> {
-    const existingAttempt = this.assessmentAttempts.get(id);
-    if (!existingAttempt) return undefined;
-
-    const updatedAttempt = { ...existingAttempt, ...attempt };
-    this.assessmentAttempts.set(id, updatedAttempt);
-    return updatedAttempt;
+  // --- Group Methods ---
+  async getGroup(id: number): Promise<Group | null> {
+    return this.prisma.group.findUnique({ where: { id } });
   }
-
-  // Group related methods
-  async getGroup(id: number): Promise<Group | undefined> {
-    return this.groups.get(id);
-  }
-
   async getGroups(): Promise<Group[]> {
-    return Array.from(this.groups.values());
+    return this.prisma.group.findMany();
   }
-
   async createGroup(group: InsertGroup): Promise<Group> {
-    const id = this.groupIdCounter++;
-    const now = new Date();
-    const newGroup: Group = { 
-      ...group, 
-      id,
-      createdAt: now
-    };
-    this.groups.set(id, newGroup);
-    return newGroup;
+    return this.prisma.group.create({ data: group });
   }
-
-  async updateGroup(id: number, group: Partial<Group>): Promise<Group | undefined> {
-    const existingGroup = this.groups.get(id);
-    if (!existingGroup) return undefined;
-
-    const updatedGroup = { ...existingGroup, ...group };
-    this.groups.set(id, updatedGroup);
-    return updatedGroup;
+  async updateGroup(id: number, groupData: Partial<Group>): Promise<Group | null> {
+     try {
+       const { id: groupId, ...updateData } = groupData; // Exclude id
+      return await this.prisma.group.update({ where: { id }, data: updateData });
+    } catch (error) {
+      return null;
+    }
   }
-
   async deleteGroup(id: number): Promise<boolean> {
-    return this.groups.delete(id);
+     try {
+      await this.prisma.group.delete({ where: { id } });
+      return true;
+    } catch (error) {
+      return false;
+    }
   }
 
-  // Group member related methods
-  async getGroupMember(id: number): Promise<GroupMember | undefined> {
-    return this.groupMembers.get(id);
+  // --- Group Member Methods ---
+  async getGroupMember(id: number): Promise<GroupMember | null> {
+    return this.prisma.groupMember.findUnique({ where: { id } });
   }
-
   async getGroupMembersByGroup(groupId: number): Promise<GroupMember[]> {
-    return Array.from(this.groupMembers.values()).filter(
-      (member) => member.groupId === groupId
-    );
+    return this.prisma.groupMember.findMany({ where: { groupId } });
   }
-
   async getGroupMembersByUser(userId: number): Promise<GroupMember[]> {
-    return Array.from(this.groupMembers.values()).filter(
-      (member) => member.userId === userId
-    );
+    return this.prisma.groupMember.findMany({ where: { userId } });
   }
-
   async createGroupMember(member: InsertGroupMember): Promise<GroupMember> {
-    const id = this.groupMemberIdCounter++;
-    const now = new Date();
-    const newMember: GroupMember = { 
-      ...member, 
-      id,
-      addedAt: now
-    };
-    this.groupMembers.set(id, newMember);
-    return newMember;
+    return this.prisma.groupMember.create({ data: member });
   }
-
   async deleteGroupMember(id: number): Promise<boolean> {
-    return this.groupMembers.delete(id);
+     try {
+      await this.prisma.groupMember.delete({ where: { id } });
+      return true;
+    } catch (error) {
+      return false;
+    }
   }
 
-  // Course access related methods
-  async getCourseAccess(id: number): Promise<CourseAccess | undefined> {
-    return this.courseAccess.get(id);
+  // --- Course Access Methods ---
+  async getCourseAccess(id: number): Promise<CourseAccess | null> {
+    return this.prisma.courseAccess.findUnique({ where: { id } });
   }
-
   async getCourseAccessByCourse(courseId: number): Promise<CourseAccess[]> {
-    return Array.from(this.courseAccess.values()).filter(
-      (access) => access.courseId === courseId
-    );
+    return this.prisma.courseAccess.findMany({ where: { courseId } });
   }
-
   async getCourseAccessByUser(userId: number): Promise<CourseAccess[]> {
-    return Array.from(this.courseAccess.values()).filter(
-      (access) => access.userId === userId
-    );
+    return this.prisma.courseAccess.findMany({ where: { userId } });
   }
-
   async getCourseAccessByGroup(groupId: number): Promise<CourseAccess[]> {
-    return Array.from(this.courseAccess.values()).filter(
-      (access) => access.groupId === groupId
-    );
+    return this.prisma.courseAccess.findMany({ where: { groupId } });
   }
-
   async createCourseAccess(access: InsertCourseAccess): Promise<CourseAccess> {
-    const id = this.courseAccessIdCounter++;
-    const now = new Date();
-    const newAccess: CourseAccess = { 
-      ...access, 
-      id,
-      grantedAt: now
-    };
-    this.courseAccess.set(id, newAccess);
-    return newAccess;
+    return this.prisma.courseAccess.create({ data: access });
   }
-
   async deleteCourseAccess(id: number): Promise<boolean> {
-    return this.courseAccess.delete(id);
+     try {
+      await this.prisma.courseAccess.delete({ where: { id } });
+      return true;
+    } catch (error) {
+      return false;
+    }
   }
 
-  // Lesson progress related methods
-  async getLessonProgress(id: number): Promise<LessonProgress | undefined> {
-    return this.lessonProgress.get(id);
+  // --- Lesson Progress Methods ---
+  async getLessonProgress(id: number): Promise<LessonProgress | null> {
+    return this.prisma.lessonProgress.findUnique({ where: { id } });
   }
-
   async getLessonProgressByUser(userId: number): Promise<LessonProgress[]> {
-    return Array.from(this.lessonProgress.values()).filter(
-      (progress) => progress.userId === userId
-    );
+    return this.prisma.lessonProgress.findMany({ where: { userId } });
   }
-
   async getLessonProgressByLesson(lessonId: number): Promise<LessonProgress[]> {
-    return Array.from(this.lessonProgress.values()).filter(
-      (progress) => progress.lessonId === lessonId
-    );
+    return this.prisma.lessonProgress.findMany({ where: { lessonId } });
   }
-
+  // New method to get progress for a user in a specific course
+  async getLessonProgressByUserAndCourse(userId: number, courseId: number): Promise<LessonProgress[]> {
+    return this.prisma.lessonProgress.findMany({
+      where: {
+        userId: userId,
+        lesson: {
+          module: {
+            courseId: courseId,
+          },
+        },
+      },
+    });
+  }
   async createLessonProgress(progress: InsertLessonProgress): Promise<LessonProgress> {
-    const id = this.lessonProgressIdCounter++;
-    const now = new Date();
-    const newProgress: LessonProgress = { 
-      ...progress, 
-      id,
-      lastAccessedAt: now
-    };
-    this.lessonProgress.set(id, newProgress);
-    return newProgress;
+    // Defaults handled by schema
+    return this.prisma.lessonProgress.create({ data: progress });
+  }
+  async updateLessonProgress(id: number, progress: Partial<LessonProgress>): Promise<LessonProgress | null> {
+     try {
+       const { id: progressId, ...updateData } = progress; // Exclude id
+       // Ensure lastAccessedAt is updated if not explicitly provided
+       const dataToUpdate = { ...updateData, lastAccessedAt: new Date() };
+      return await this.prisma.lessonProgress.update({ where: { id }, data: dataToUpdate });
+    } catch (error) {
+      return null;
+    }
   }
 
-  async updateLessonProgress(id: number, progress: Partial<LessonProgress>): Promise<LessonProgress | undefined> {
-    const existingProgress = this.lessonProgress.get(id);
-    if (!existingProgress) return undefined;
-
-    const updatedProgress = { 
-      ...existingProgress, 
-      ...progress,
-      lastAccessedAt: new Date()
-    };
-    this.lessonProgress.set(id, updatedProgress);
-    return updatedProgress;
+  // --- Activity Log Methods ---
+  async getActivityLog(id: number): Promise<ActivityLog | null> {
+    return this.prisma.activityLog.findUnique({ where: { id } });
   }
-
-  // Activity log related methods
-  async getActivityLog(id: number): Promise<ActivityLog | undefined> {
-    return this.activityLogs.get(id);
-  }
-
   async getActivityLogsByUser(userId: number): Promise<ActivityLog[]> {
-    return Array.from(this.activityLogs.values())
-      .filter((log) => log.userId === userId)
-      .sort((a, b) => {
-        if (!b.createdAt || !a.createdAt) return 0;
-        return b.createdAt.getTime() - a.createdAt.getTime();
-      });
+    return this.prisma.activityLog.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
   }
-
   async createActivityLog(log: InsertActivityLog): Promise<ActivityLog> {
-    const id = this.activityLogIdCounter++;
-    const now = new Date();
-    const newLog: ActivityLog = { 
-      ...log, 
-      id,
-      createdAt: now
-    };
-    this.activityLogs.set(id, newLog);
-    return newLog;
+    return this.prisma.activityLog.create({ data: log });
   }
 
-  // Certificate related methods
-  async getCertificate(id: number): Promise<Certificate | undefined> {
-    return this.certificates.get(id);
+  // --- Certificate Methods ---
+  async getCertificate(id: number): Promise<Certificate | null> {
+    return this.prisma.certificate.findUnique({ where: { id } });
   }
-
   async getCertificatesByUser(userId: number): Promise<Certificate[]> {
-    return Array.from(this.certificates.values()).filter(
-      (certificate) => certificate.userId === userId
-    );
+    return this.prisma.certificate.findMany({ where: { userId } });
   }
-
   async getCertificatesByCourse(courseId: number): Promise<Certificate[]> {
-    return Array.from(this.certificates.values()).filter(
-      (certificate) => certificate.courseId === courseId
-    );
+    return this.prisma.certificate.findMany({ where: { courseId } });
+  }
+  async createCertificate(certificate: InsertCertificate): Promise<Certificate> {
+    return this.prisma.certificate.create({ data: certificate });
   }
 
-  async createCertificate(certificate: InsertCertificate): Promise<Certificate> {
-    const id = this.certificateIdCounter++;
-    const now = new Date();
-    const newCertificate: Certificate = { 
-      ...certificate, 
-      id,
-      issueDate: now
-    };
-    this.certificates.set(id, newCertificate);
-    return newCertificate;
+  // Optional: Method to disconnect Prisma client when server shuts down
+  async disconnect(): Promise<void> {
+    await this.prisma.$disconnect();
   }
 }
 
-export const storage = new MemStorage();
+// Export the instance of PrismaStorage
+export const storage = new PrismaStorage();

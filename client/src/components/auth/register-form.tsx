@@ -136,7 +136,7 @@ export function RegisterForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}>
-        <Card className="border-0 shadow-sm min-h-[420px]">
+        <Card className="border-0 shadow-sm"> {/* Removed min-h-[420px] */}
           <CardHeader className="pb-3">
             <div className="flex justify-between mb-2">
               {Array(totalSteps).fill(0).map((_, i) => (

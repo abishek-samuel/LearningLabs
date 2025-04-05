@@ -27,6 +27,8 @@ import Quiz from "@/pages/quiz";
 import AuthPage from "@/pages/auth-page";
 import ForgotPassword from "@/pages/forgot-password";
 import NotFound from "@/pages/not-found";
+import CreateCoursePage from "./pages/create-course";
+import EditCoursePage from "./pages/edit-course"; // Import EditCoursePage
 
 function Router() {
   return (
@@ -46,8 +48,10 @@ function Router() {
       <ProtectedRoute path="/course-approval" component={CourseApproval} />
       <ProtectedRoute path="/access-control" component={AccessControl} />
       <ProtectedRoute path="/system-settings" component={SystemSettings} />
-      <ProtectedRoute path="/course-detail" component={CourseDetail} />
+      <ProtectedRoute path="/course-detail/:id" component={CourseDetail} /> {/* Use path param */}
       <ProtectedRoute path="/course-content" component={CourseContent} />
+      <ProtectedRoute path="/create-course" component={CreateCoursePage} />
+      <ProtectedRoute path="/edit-course/:id" component={EditCoursePage} /> {/* Add Edit Course Route */}
       <ProtectedRoute path="/quiz" component={Quiz} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/forgot-password" component={ForgotPassword} />

@@ -1,6 +1,7 @@
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter"; // Import useLocation
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button"; // Import Button
 
 interface CourseCardProps {
   id: number;
@@ -23,7 +24,17 @@ export function CourseCard({
   isInProgress = false,
   className,
 }: CourseCardProps) {
+  const [, navigate] = useLocation(); // Get navigate function
   const defaultThumbnail = "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?ixlib=rb-4.0.3&auto=format&fit=crop&w=1170&q=80";
+
+  const handleNavigate = (e: React.MouseEvent<HTMLButtonElement>) => {
+    // Explicitly prevent default and stop propagation
+    e.preventDefault(); 
+    e.stopPropagation(); 
+    const targetUrl = isInProgress ? `/course-content?id=${id}&moduleId=1&lessonId=3` : `/course-detail/${id}`;
+    navigate(targetUrl);
+    // Returning false is generally not needed with preventDefault/stopPropagation
+  };
 
   return (
     <div className={cn("bg-white dark:bg-slate-800 shadow rounded-lg overflow-hidden flex flex-col", className)}>
@@ -41,7 +52,7 @@ export function CourseCard({
       </div>
       <div className="p-4 flex-1 flex flex-col">
         <h3 className="font-semibold text-slate-900 dark:text-white text-lg mb-1">{title}</h3>
-        <p className="text-slate-500 dark:text-slate-400 text-sm mb-4">{description}</p>
+        <p className="text-slate-500 dark:text-slate-400 text-sm mb-4 line-clamp-2">{description}</p> {/* Added line-clamp */}
         
         {isInProgress && (
           <div className="mt-auto mb-4">
@@ -53,11 +64,15 @@ export function CourseCard({
           </div>
         )}
         
-        <Link href={isInProgress ? `/course-content?id=${id}&moduleId=1&lessonId=3` : `/course-detail?id=${id}`}>
-          <div className="mt-auto inline-flex items-center justify-center w-full rounded-md bg-blue-600 dark:bg-blue-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 dark:hover:bg-blue-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 cursor-pointer">
-            {isInProgress ? "Continue Learning" : "View Course"}
-          </div>
-        </Link>
+        {/* Reverted to Button with onClick for navigation */}
+        <Button 
+          type="button" // Explicitly set button type
+          variant="default" 
+          className="w-full mt-auto bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white"
+          onClick={handleNavigate} // Use the handler function
+        > 
+          {isInProgress ? "Continue Learning" : "View Course"}
+        </Button>
       </div>
     </div>
   );

@@ -70,7 +70,7 @@ export function Sidebar({ className }: SidebarProps) {
         className
       )}
     >
-      <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
+      <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto sidebar-scroll-container">
         <div className="px-4">
           <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider dark:text-slate-400">
             Dashboard

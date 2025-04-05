@@ -4,13 +4,20 @@ import { Express } from "express";
 import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
-import { storage } from "./storage";
-import { User, insertUserSchema } from "@shared/schema";
-import { z } from "zod";
+import { storage } from "./storage"; // Ensure this imports the PrismaStorage instance
+import type { User } from ".prisma/client"; // Import User type from Prisma
+// Zod is still useful for API input validation, but insertUserSchema is gone from storage.ts
+// We might redefine validation schemas here or in routes.ts later.
+// import { z } from "zod";
+
+// Define the Prisma User type alias to avoid naming conflict in the global scope
+import type { User as PrismaUser } from ".prisma/client";
 
 declare global {
   namespace Express {
-    interface User extends User {}
+    // Augment Express.User with the Prisma User type
+    // eslint-disable-next-line @typescript-eslint/no-empty-interface
+    interface User extends PrismaUser {}
   }
 }
 
@@ -82,25 +89,35 @@ export async function setupAuth(app: Express): Promise<void> {
   // Auth Routes
   app.post("/api/register", async (req, res, next) => {
     try {
-      // Use the insertUserSchema directly without extending it to require confirmPassword
-      const userData = insertUserSchema.parse(req.body);
-      
+      // TODO: Add validation here (e.g., using Zod) if desired
+      const { username, email, password, firstName, lastName, role, profilePicture } = req.body;
+
+      // Basic checks (replace with robust validation)
+      if (!username || !email || !password) {
+        return res.status(400).json({ message: "Username, email, and password are required" });
+      }
+
       // Check if user with the same email or username already exists
-      const existingEmailUser = await storage.getUserByEmail(userData.email);
+      const existingEmailUser = await storage.getUserByEmail(email);
       if (existingEmailUser) {
         return res.status(400).json({ message: "Email already in use" });
       }
 
-      const existingUsernameUser = await storage.getUserByUsername(userData.username);
+      const existingUsernameUser = await storage.getUserByUsername(username);
       if (existingUsernameUser) {
         return res.status(400).json({ message: "Username already taken" });
       }
 
       // Hash password and create user
-      const hashedPassword = await hashPassword(userData.password);
+      const hashedPassword = await hashPassword(password);
       const newUser = await storage.createUser({
-        ...userData,
+        username,
+        email,
         password: hashedPassword,
+        firstName: firstName || null, // Handle optional fields
+        lastName: lastName || null,
+        role: role || 'employee', // Default role if not provided
+        profilePicture: profilePicture || null,
       });
 
       // Log the user in automatically
@@ -112,18 +129,19 @@ export async function setupAuth(app: Express): Promise<void> {
         return res.status(201).json(userWithoutPassword);
       });
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          message: "Validation failed", 
-          errors: error.errors 
-        });
-      }
+      // if (error instanceof z.ZodError) { // Re-enable if using Zod validation
+      //   return res.status(400).json({
+      //     message: "Validation failed",
+      //     errors: error.errors
+      //   });
+      // }
       next(error);
     }
   });
 
   app.post("/api/login", (req, res, next) => {
-    passport.authenticate("local", (err, user, info) => {
+    // Add types to the callback parameters
+    passport.authenticate("local", (err: Error | null, user: PrismaUser | false | null, info?: { message: string }) => {
       if (err) return next(err);
       if (!user) {
         return res.status(401).json({ message: info?.message || "Invalid credentials" });
