@@ -33,7 +33,7 @@ export default function Dashboard() {
   };
 
   // Mock data for demo purposes - in a real application, this would come from API
-  const inProgressCourses = enrollments?.filter(e => !e.completedAt).slice(0, 3) || [];
+  const inProgressCourses = enrollments?.filter(e => e.progress < 100).slice(0, 3) || [];
   const recommendedCourses = [];
 
   return (

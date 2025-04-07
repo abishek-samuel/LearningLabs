@@ -110,7 +110,7 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
             <DropdownMenuContent align="end" className="w-80">
               <DropdownMenuLabel>Notifications</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <div className="max-h-72 overflow-y-auto py-1">
+              <div className="max-h-72 overflow-y-auto overflow-x-hidden break-words py-1">
                 <div className="py-2 px-4">
                   <div className="font-medium">New course available</div>
                   <div className="text-sm text-gray-500">TypeScript Essentials is now available.</div>

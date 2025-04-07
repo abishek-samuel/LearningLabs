@@ -28,26 +28,38 @@ import type {
 } from ".prisma/client"; // Import Prisma types
 
 // --- Multer Configuration for Video Uploads ---
-// Get current directory in ES module scope
-// Get project root assuming server/routes.ts is one level down from project root
-// Adjust '..' if the file structure is different (e.g., src/server/routes.ts might need '../..')
 const projectRoot = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
   ".."
 );
-const videoUploadDir = path.join(projectRoot, "uploads", "videos"); // Define upload directory relative to project root
+const videoUploadDir = path.join(projectRoot, "uploads", "videos");
+const imageUploadDir = path.join(projectRoot, "uploads", "course-images");
 
-// Ensure upload directory exists
 if (!fs.existsSync(videoUploadDir)) {
   fs.mkdirSync(videoUploadDir, { recursive: true });
+}
+if (!fs.existsSync(imageUploadDir)) {
+  fs.mkdirSync(imageUploadDir, { recursive: true });
 }
 
 const videoStorage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, videoUploadDir); // Save to uploads/videos
+    cb(null, videoUploadDir);
   },
   filename: function (req, file, cb) {
-    // Create a unique filename: fieldname-timestamp.extension
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(
+      null,
+      file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname)
+    );
+  },
+});
+
+const imageStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, imageUploadDir);
+  },
+  filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(
       null,
@@ -58,8 +70,12 @@ const videoStorage = multer.diskStorage({
 
 const uploadVideo = multer({
   storage: videoStorage,
-  limits: { fileSize: 100 * 1024 * 1024 }, // Example: Limit file size to 100MB
-  // fileFilter removed to resolve persistent TS error. Relying on frontend accept attribute for now.
+  limits: { fileSize: 100 * 1024 * 1024 },
+});
+
+const uploadImage = multer({
+  storage: imageStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
 });
 // --- End Multer Configuration ---
 
@@ -680,12 +696,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: "Forbidden" });
         }
 
+        let finalDuration = duration ? parseInt(duration) : null;
+
+        if (videoUrl) {
+          try {
+            const ffmpegModule = await import("fluent-ffmpeg");
+            const ffprobeStatic = await import("ffprobe-static");
+            const ffmpeg = ffmpegModule.default;
+            ffmpeg.setFfprobePath(ffprobeStatic.path);
+
+            const videoPath = videoUrl.startsWith("/uploads")
+              ? path.join(projectRoot, videoUrl)
+              : videoUrl;
+
+            await new Promise<void>((resolve, reject) => {
+              ffmpeg.ffprobe(videoPath, (err, metadata) => {
+                if (err) return reject(err);
+                if (metadata && metadata.format && metadata.format.duration) {
+                  finalDuration = Math.floor(metadata.format.duration);
+                }
+                resolve();
+              });
+            });
+          } catch (err) {
+            console.error("Failed to extract video duration:", err);
+          }
+        }
+
         const newLesson = await storage.createLesson({
           moduleId,
           title,
           content: content || null,
           videoUrl: videoUrl || null,
-          duration: duration || null,
+          duration: finalDuration,
           position,
         });
 
@@ -1276,9 +1319,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // 5. Update enrollment with correct progress and completion status
             await storage.updateEnrollment(enrollment.id, {
               progress: progressPercentage,
-              // Uncommented and corrected: Mark course completed if progress is 100%
               completedAt: progressPercentage === 100 ? new Date() : null,
             });
+
+            // Auto-create certificate if completed and not exists
+            if (progressPercentage === 100) {
+              console.log(
+                "Progress is 100%, checking for existing certificate..."
+              );
+              const existingCerts = await storage.getCertificatesByUser(userId);
+              const existing = existingCerts.find(
+                (c) => c.courseId === module.courseId
+              );
+              if (!existing) {
+                console.log(
+                  "No existing certificate found, creating new certificate..."
+                );
+                const crypto = await import("crypto");
+                const certHash = crypto.randomBytes(16).toString("hex");
+                await storage.createCertificate({
+                  userId,
+                  courseId: module.courseId,
+                  certificateId: certHash,
+                  issueDate: new Date(),
+                  certificateUrl: null,
+                });
+                console.log("Certificate created with ID:", certHash);
+              } else {
+                console.log(
+                  "Certificate already exists for this user and course."
+                );
+              }
+            }
             // --- End Corrected Progress Calculation ---
           }
         }
@@ -1423,23 +1495,321 @@ export async function registerRoutes(app: Express): Promise<Server> {
     hasRole(["contributor", "admin"]),
     uploadVideo.single("video"),
     (req, res) => {
-      // 'video' should match the field name in the FormData from the frontend
       if (!req.file) {
         return res.status(400).json({ message: "No video file uploaded." });
       }
-
-      // Construct the URL path to access the video
-      // Assuming 'uploads' is served statically at the root
       const videoUrl = `/uploads/videos/${req.file.filename}`;
-
-      res.status(201).json({
-        message: "Video uploaded successfully",
-        videoUrl: videoUrl, // Return the URL path
-      });
-      // Removed custom error handler for upload route due to persistent TS errors
+      res
+        .status(201)
+        .json({ message: "Video uploaded successfully", videoUrl });
     }
   );
-  // --- End Video Upload Route ---
+
+  // --- Image Upload Route ---
+  app.post(
+    "/api/upload/image",
+    isAuthenticated,
+    hasRole(["contributor", "admin"]),
+    uploadImage.single("image"),
+    (req, res) => {
+      if (!req.file) {
+        return res.status(400).json({ message: "No image file uploaded." });
+      }
+      const url = `/uploads/course-images/${req.file.filename}`;
+      res.status(201).json({ message: "Image uploaded successfully", url });
+    }
+  );
+  // --- End Upload Routes ---
+
+  // --- Certificate Creation Route ---
+  app.post("/api/certificates/:courseId", isAuthenticated, async (req, res) => {
+    try {
+      const courseId = parseInt(req.params.courseId);
+      if (isNaN(courseId)) {
+        return res.status(400).json({ message: "Invalid course ID" });
+      }
+
+      // Check if user completed the course
+      const enrollments = await storage.getEnrollmentsByUser(req.user!.id);
+      const enrollment = enrollments.find((e) => e.courseId === courseId);
+      if (!enrollment || enrollment.progress < 100) {
+        return res.status(403).json({ message: "Course not completed" });
+      }
+
+      // Check if certificate already exists
+      const existingCerts = await storage.getCertificatesByUser(req.user!.id);
+      const existing = existingCerts.find((c) => c.courseId === courseId);
+      if (existing) {
+        return res.json({ certificateId: existing.id });
+      }
+
+      // Generate unique hash ID
+      const crypto = await import("crypto");
+      const certHash = crypto.randomBytes(16).toString("hex");
+
+      // Create certificate
+      const newCert = await storage.createCertificate({
+        userId: req.user!.id,
+        courseId,
+        certificateId: certHash,
+        issueDate: new Date(),
+        certificateUrl: null,
+      });
+
+      res.json({ certificateId: certHash });
+    } catch (error) {
+      console.error("Error creating certificate:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // --- Public Certificate PDF by Certificate ID ---
+  app.get("/public/certificate/:certificateId", async (req, res) => {
+    try {
+      const certId = req.params.certificateId;
+      const cert = await storage.getCertificateByHash(certId);
+      if (!cert) {
+        return res.status(404).json({ message: "Certificate not found" });
+      }
+
+      const course = await storage.getCourse(cert.courseId);
+      if (!course) {
+        return res.status(404).json({ message: "Course not found" });
+      }
+
+      const user = await storage.getUser(cert.userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const PDFDocument = (await import("pdfkit")).default;
+      const doc = new PDFDocument({ size: "A4", layout: "landscape" });
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `inline; filename="certificate-${certId}.pdf"`
+      );
+
+      doc.pipe(res);
+
+      const certImagePath = path.join(
+        projectRoot,
+        "uploads",
+        "certificate-template.png"
+      );
+      if (fs.existsSync(certImagePath)) {
+        doc.image(certImagePath, 0, 0, {
+          width: doc.page.width,
+          height: doc.page.height,
+        });
+      }
+
+      doc
+        .fontSize(30)
+        .fillColor("black")
+        .text("Certificate of Completion", {
+          align: "center",
+          valign: "center",
+        });
+      doc.moveDown(2);
+      doc
+        .fontSize(24)
+        .text(`${user.firstName || ""} ${user.lastName || ""}`.trim(), {
+          align: "center",
+        });
+      doc.moveDown(1);
+      doc
+        .fontSize(20)
+        .text(`has successfully completed the course`, { align: "center" });
+      doc.moveDown(1);
+      doc.fontSize(24).text(`${course.title}`, { align: "center" });
+      doc.moveDown(2);
+      doc
+        .fontSize(16)
+        .text(`Issued on: ${cert.issueDate.toLocaleDateString()}`, {
+          align: "center",
+        });
+
+      doc.end();
+    } catch (error) {
+      console.error("Error generating public certificate:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // --- Certificate PDF by Certificate ID ---
+  app.get(
+    "/api/certificate-by-id/:certificateId",
+    isAuthenticated,
+    async (req, res) => {
+      try {
+        const certId = req.params.certificateId;
+        const cert = await storage.getCertificateByHash(certId);
+        if (!cert) {
+          return res.status(404).json({ message: "Certificate not found" });
+        }
+        if (cert.userId !== req.user!.id) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+
+        const course = await storage.getCourse(cert.courseId);
+        if (!course) {
+          return res.status(404).json({ message: "Course not found" });
+        }
+
+        const user = req.user!;
+
+        const PDFDocument = (await import("pdfkit")).default;
+        const doc = new PDFDocument({ size: "A4", layout: "landscape" });
+
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader(
+          "Content-Disposition",
+          `inline; filename="certificate-${certId}.pdf"`
+        );
+
+        doc.pipe(res);
+
+        const certImagePath = path.join(
+          projectRoot,
+          "uploads",
+          "certificate-template.png"
+        );
+        if (fs.existsSync(certImagePath)) {
+          doc.image(certImagePath, 0, 0, {
+            width: doc.page.width,
+            height: doc.page.height,
+          });
+        }
+
+        doc
+          .fontSize(30)
+          .fillColor("black")
+          .text("Certificate of Completion", {
+            align: "center",
+            valign: "center",
+          });
+        doc.moveDown(2);
+        doc
+          .fontSize(24)
+          .text(`${user.firstName || ""} ${user.lastName || ""}`.trim(), {
+            align: "center",
+          });
+        doc.moveDown(1);
+        doc
+          .fontSize(20)
+          .text(`has successfully completed the course`, { align: "center" });
+        doc.moveDown(1);
+        doc.fontSize(24).text(`${course.title}`, { align: "center" });
+        doc.moveDown(2);
+        doc
+          .fontSize(16)
+          .text(`Issued on: ${cert.issueDate.toLocaleDateString()}`, {
+            align: "center",
+          });
+
+        doc.end();
+      } catch (error) {
+        console.error("Error generating certificate by ID:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  );
+
+  // --- Certificate PDF Generation Route ---
+  app.get("/api/certificates/:courseId", isAuthenticated, async (req, res) => {
+    try {
+      const courseId = parseInt(req.params.courseId);
+      if (isNaN(courseId)) {
+        return res.status(400).json({ message: "Invalid course ID" });
+      }
+
+      // Check if user completed the course
+      const enrollments = await storage.getEnrollmentsByUser(req.user!.id);
+      const enrollment = enrollments.find((e) => e.courseId === courseId);
+      if (!enrollment || enrollment.progress < 100) {
+        return res.status(403).json({ message: "Course not completed" });
+      }
+
+      const course = await storage.getCourse(courseId);
+      if (!course) {
+        return res.status(404).json({ message: "Course not found" });
+      }
+
+      const user = req.user!;
+
+      // Generate PDF
+      const PDFDocument = (await import("pdfkit")).default;
+      const doc = new PDFDocument({ size: "A4", layout: "landscape" });
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `inline; filename="certificate-${courseId}.pdf"`
+      );
+
+      doc.pipe(res);
+
+      // Background image
+      const certImagePath = path.join(
+        projectRoot,
+        "uploads",
+        "certificate-template.png"
+      );
+      if (fs.existsSync(certImagePath)) {
+        doc.image(certImagePath, 0, 0, {
+          width: doc.page.width,
+          height: doc.page.height,
+        });
+      }
+
+      // Overlay text
+      doc
+        .fontSize(30)
+        .fillColor("black")
+        .text("Certificate of Completion", {
+          align: "center",
+          valign: "center",
+        });
+      doc.moveDown(2);
+      doc
+        .fontSize(24)
+        .text(`${user.firstName || ""} ${user.lastName || ""}`.trim(), {
+          align: "center",
+        });
+      doc.moveDown(1);
+      doc
+        .fontSize(20)
+        .text(`has successfully completed the course`, { align: "center" });
+      doc.moveDown(1);
+      doc.fontSize(24).text(`${course.title}`, { align: "center" });
+      doc.moveDown(2);
+      doc
+        .fontSize(16)
+        .text(`Issued on: ${new Date().toLocaleDateString()}`, {
+          align: "center",
+        });
+
+      doc.end();
+    } catch (error) {
+      console.error("Error generating certificate:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  // --- End Certificate PDF Generation Route ---
+
+  // --- Get User Certificates Route ---
+  app.get("/api/certificates-user", isAuthenticated, async (req, res) => {
+    try {
+      const certs = await storage.getCertificatesByUser(req.user!.id);
+      res.json(certs);
+    } catch (error) {
+      console.error("Error fetching certificates:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  // --- End Get User Certificates Route ---
 
   // Add the HTTP server
   const httpServer = createServer(app);

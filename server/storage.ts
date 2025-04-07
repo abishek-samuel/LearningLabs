@@ -129,6 +129,7 @@ export interface IStorage {
   getCertificatesByUser(userId: number): Promise<Certificate[]>;
   getCertificatesByCourse(courseId: number): Promise<Certificate[]>;
   createCertificate(certificate: InsertCertificate): Promise<Certificate>;
+  getCertificateByHash(certHash: string): Promise<Certificate | null>;
 
   // Session store
   sessionStore: session.Store;
@@ -626,7 +627,22 @@ async deleteCategory(id: number): Promise<boolean> {
     return this.prisma.certificate.findUnique({ where: { id } });
   }
   async getCertificatesByUser(userId: number): Promise<Certificate[]> {
-    return this.prisma.certificate.findMany({ where: { userId } });
+    return this.prisma.certificate.findMany({
+      where: { userId },
+      include: {
+        course: {
+          select: {
+            title: true,
+          },
+        },
+      },
+    });
+  }
+
+  async getCertificateByHash(certHash: string): Promise<Certificate | null> {
+    return this.prisma.certificate.findFirst({
+      where: { certificateId: certHash },
+    });
   }
   async getCertificatesByCourse(courseId: number): Promise<Certificate[]> {
     return this.prisma.certificate.findMany({ where: { courseId } });

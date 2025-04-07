@@ -1,5 +1,6 @@
 import { MainLayout } from "@/components/layout/main-layout";
 import { useAuth } from "@/context/auth-context";
+import { queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,59 +21,64 @@ import { Loader2 } from "lucide-react"; // Import Loader2 for loading state
 import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton
 
 // Define a type for the course data expected from the API
-// Adjust based on the actual fields returned by /api/courses
 type CourseType = {
   id: number;
   title: string;
   description?: string | null;
   status?: string | null; // e.g., 'published', 'draft', 'under review'
   instructorId?: number | null; // Crucial for filtering
-  // Add other fields displayed in the card if available from API
-  // studentsEnrolled?: number; 
-  // lastUpdated?: string; 
-  // completionRate?: number; 
   modules?: { id: number }[]; // Example: if module count is needed
   createdAt: string; // Assuming this is available for sorting/display
 };
 
+
 export default function MyContent() {
   const { user } = useAuth();
   const [, navigate] = useLocation(); // Get navigate function
-  
-  // Mock data for demonstration
-  const courses = [
-    {
-      id: 1,
-      title: "JavaScript Programming Fundamentals",
-      description: "Learn the core concepts of JavaScript programming.",
-      status: "published",
-      studentsEnrolled: 124,
-      lastUpdated: "2023-08-15",
-      completionRate: 68,
-      modules: 12,
+
+  // Fetch all courses
+  const { data: allCourses = [], isLoading, error, isError } = useQuery<CourseType[]>({
+    queryKey: ["/api/courses"], // Query key for caching all courses
+    queryFn: async () => {
+      if (!user?.id) {
+        console.warn("User not available, skipping fetch.");
+        return []; 
+      }
+      const res = await fetch('/api/courses'); 
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || `Failed to fetch courses: ${res.statusText}`);
+      }
+      return res.json();
     },
-    {
-      id: 2,
-      title: "Introduction to React Hooks",
-      description: "Master the modern way to write React components.",
-      status: "draft",
-      studentsEnrolled: 0,
-      lastUpdated: "2023-09-02",
-      completionRate: 0,
-      modules: 8,
-    },
-    {
-      id: 3,
-      title: "Advanced TypeScript for Developers",
-      description: "Take your TypeScript skills to the next level.",
-      status: "under review",
-      studentsEnrolled: 0,
-      lastUpdated: "2023-08-28",
-      completionRate: 0,
-      modules: 10,
-    },
-  ];
-  
+    enabled: !!user?.id, 
+  });
+
+  // Filter courses created by the current user
+  const myCourses = allCourses.filter(course => course.instructorId === user?.id);
+
+  const handleDeleteCourse = async (courseId: number) => {
+    if (!confirm("Are you sure you want to delete this course? This action cannot be undone.")) {
+      return;
+    }
+    try {
+      const response = await fetch(`/api/courses/${courseId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to delete course");
+      }
+      alert("Course deleted successfully.");
+      queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
+    } catch (error) {
+      console.error("Error deleting course:", error);
+      alert(`Error deleting course: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  };
+
+  // TODO: Implement filtering/sorting based on UI controls using the 'myCourses' array
+
   return (
     <MainLayout>
       <div className="bg-white dark:bg-slate-900 shadow">
@@ -122,78 +128,134 @@ export default function MyContent() {
           </TabsList>
           
           <TabsContent value="courses">
-            <div className="grid grid-cols-1 gap-6">
-              {courses.map((course) => (
-                <Card key={course.id}>
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle>{course.title}</CardTitle>
-                        <CardDescription>{course.description}</CardDescription>
+            {isLoading ? (
+              // Loading Skeleton
+              <div className="grid grid-cols-1 gap-6">
+                {[1, 2, 3].map((i) => (
+                  <Card key={i}>
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <Skeleton className="h-6 w-3/4 mb-2" />
+                          <Skeleton className="h-4 w-full" />
+                        </div>
+                        <Skeleton className="h-5 w-20 rounded-full" />
                       </div>
-                      <StatusBadge status={course.status} />
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <div className="text-slate-500 dark:text-slate-400 mb-1">Students Enrolled</div>
-                        <div className="font-medium">{course.studentsEnrolled}</div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                        <div><Skeleton className="h-4 w-24 mb-1" /><Skeleton className="h-5 w-12" /></div>
+                        <div><Skeleton className="h-4 w-24 mb-1" /><Skeleton className="h-5 w-10" /></div>
+                        <div><Skeleton className="h-4 w-24 mb-1" /><Skeleton className="h-5 w-20" /></div>
                       </div>
-                      <div>
-                        <div className="text-slate-500 dark:text-slate-400 mb-1">Completion Rate</div>
-                        <div className="font-medium">{course.completionRate}%</div>
+                    </CardContent>
+                    <CardFooter className="justify-between">
+                      <Skeleton className="h-5 w-24" />
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-9 w-24" />
+                        <Skeleton className="h-9 w-20" />
+                        <Skeleton className="h-9 w-9" />
                       </div>
-                      <div>
-                        <div className="text-slate-500 dark:text-slate-400 mb-1">Last Updated</div>
-                        <div className="font-medium">{course.lastUpdated}</div>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            ) : isError ? (
+              // Error Message
+              <div className="text-center py-10 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700/30 rounded-md p-4">
+                <h3 className="font-semibold mb-2">Error Loading Courses</h3>
+                <p className="text-sm">{error instanceof Error ? error.message : 'An unknown error occurred.'}</p>
+              </div>
+            ) : myCourses.length === 0 ? (
+               // Empty State
+               <div className="text-center py-16 text-slate-500 dark:text-slate-400 border border-dashed border-slate-300 dark:border-slate-700 rounded-md">
+                 <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-200 mb-2">No Courses Found</h3>
+                 <p className="mb-4">You haven't created any courses yet.</p>
+                 <Button onClick={() => navigate('/create-course')}>
+                   <Plus className="mr-2 h-4 w-4" /> Create Your First Course
+                 </Button>
+               </div>
+            ) : (
+              // Display Filtered Courses
+              <div className="grid grid-cols-1 gap-6">
+                {myCourses.map((course) => (
+                  <Card key={course.id}>
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <CardTitle>{course.title}</CardTitle>
+                          <CardDescription>{course.description || 'No description provided.'}</CardDescription>
+                        </div>
+                        <StatusBadge status={course.status ? course.status : 'unknown'} /> 
                       </div>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="justify-between">
-                    <div className="flex items-center gap-2 text-sm">
-                      <FileText className="h-4 w-4 text-slate-400" />
-                      <span>{course.modules} modules</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm">
-                        <Eye className="mr-2 h-4 w-4" />
-                        Preview
-                      </Button>
-                      <Button size="sm" onClick={() => navigate(`/edit-course/${course.id}`)}>
-                        <Edit className="mr-2 h-4 w-4" />
-                        Edit
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem className="flex items-center">
-                            <BarChart className="mr-2 h-4 w-4" />
-                            View Analytics
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="flex items-center">
-                            <FileText className="mr-2 h-4 w-4" />
-                            Duplicate
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-red-600 dark:text-red-400 flex items-center">
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <div className="text-slate-500 dark:text-slate-400 mb-1">Status</div>
+                          <div className="font-medium capitalize">{course.status || 'N/A'}</div>
+                        </div>
+                        <div>
+                          {/* Module count display removed temporarily */}
+                          <div className="text-slate-500 dark:text-slate-400 mb-1">Modules</div>
+                          <div className="font-medium">{course.modules ? course.modules.length : 0}</div> 
+                        </div>
+                        <div>
+                          <div className="text-slate-500 dark:text-slate-400 mb-1">Created</div>
+                          <div className="font-medium">{new Date(course.createdAt).toLocaleDateString()}</div>
+                        </div>
+                      </div>
+                    </CardContent>
+                    <CardFooter className="justify-between">
+                      <div className="flex items-center gap-2 text-sm">
+                        {/* Module count display removed temporarily */}
+                        {/* <FileText className="h-4 w-4 text-slate-400" /> */}
+                        {/* <span>{course.modules ? course.modules.length : 0} modules</span> */}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => navigate(`/course-detail/${course.id}`)}>
+                          <Eye className="mr-2 h-4 w-4" />
+                          Preview
+                        </Button>
+                        <Button size="sm" onClick={() => navigate(`/edit-course/${course.id}`)}>
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent>
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem className="flex items-center">
+                              <BarChart className="mr-2 h-4 w-4" />
+                              View Analytics
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="flex items-center">
+                              <FileText className="mr-2 h-4 w-4" />
+                              Duplicate
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteCourse(course.id)}
+                              className="text-red-600 dark:text-red-400 flex items-center"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            )}
           </TabsContent>
           
+          {/* Other TabsContent sections remain unchanged */}
           <TabsContent value="modules">
             <Card>
               <CardHeader>
@@ -208,7 +270,7 @@ export default function MyContent() {
                 </p>
               </CardContent>
               <CardFooter>
-                <Button>Create a Course</Button>
+                <Button onClick={() => navigate('/create-course')}>Create a Course</Button>
               </CardFooter>
             </Card>
           </TabsContent>
