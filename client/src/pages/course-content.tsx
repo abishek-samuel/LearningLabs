@@ -33,6 +33,68 @@ type LessonProgress = { lessonId: number; status: string; };
 import { useQuery } from "@tanstack/react-query";
 
 export default function CourseContent() {
+  const [comments, setComments] = useState<any[]>([]);
+  const [newComment, setNewComment] = useState("");
+  const [replyingTo, setReplyingTo] = useState<number | null>(null);
+  const [replyText, setReplyText] = useState("");
+
+  const fetchComments = async (lessonId: number) => {
+    try {
+      const res = await fetch(`/api/comments?lessonId=${lessonId}`);
+      if (!res.ok) throw new Error("Failed to fetch comments");
+      const data = await res.json();
+      setComments(data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handlePostComment = async () => {
+    if (!currentLesson?.id || !newComment.trim()) return;
+    try {
+      const res = await fetch("/api/comments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lessonId: currentLesson.id,
+          comment: newComment.trim(),
+          parentId: null,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to post comment");
+      setNewComment("");
+      fetchComments(currentLesson.id);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handlePostReply = async (parentId: number) => {
+    if (!currentLesson?.id || !replyText.trim()) return;
+    try {
+      const res = await fetch("/api/comments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lessonId: currentLesson.id,
+          comment: replyText.trim(),
+          parentId,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to post reply");
+      setReplyText("");
+      setReplyingTo(null);
+      fetchComments(currentLesson.id);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const toggleReply = (commentId: number) => {
+    setReplyingTo(replyingTo === commentId ? null : commentId);
+    setReplyText("");
+  };
+
   const { user } = useAuth();
   const { data: certificates = [] } = useQuery<any[]>({
     queryKey: ["/api/certificates-user"],
@@ -136,6 +198,13 @@ export default function CourseContent() {
       setCurrentLesson(finalLesson);
     }
   }, [search, course]);
+
+  // Fetch comments when currentLesson changes
+  useEffect(() => {
+    if (currentLesson?.id) {
+      fetchComments(currentLesson.id);
+    }
+  }, [currentLesson?.id]);
 
 
   // Calculate navigation links
@@ -552,14 +621,77 @@ export default function CourseContent() {
                       </TabsContent>
 
                       <TabsContent value="discussion">
-                          <div className="space-y-3">
-                              <h3 className="text-base font-medium">Discussion</h3>
-                               {/* TODO: Implement Discussion Feature */}
-                              <div className="flex flex-col items-center gap-2 text-center text-sm text-slate-500 dark:text-slate-400 border rounded-md p-6 bg-slate-50 dark:bg-slate-800/30">
-                                <MessageSquare className="h-8 w-8 text-slate-400"/>
-                                <span>Discussion feature coming soon. Ask questions and share insights here!</span>
-                              </div>
+                        <div className="space-y-4">
+                          <h3 className="text-base font-medium">Discussion</h3>
+
+                          {/* New comment input */}
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              placeholder="Add a comment..."
+                              className="flex-1 border rounded px-3 py-2 text-sm bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700"
+                              value={newComment}
+                              onChange={(e) => setNewComment(e.target.value)}
+                            />
+                            <Button size="sm" onClick={handlePostComment} disabled={!newComment.trim()}>
+                              Post
+                            </Button>
                           </div>
+
+                          {/* Comments list */}
+                          <div className="space-y-4 mt-4 max-h-[60rem] overflow-y-auto custom-scrollbar">
+                            {comments.map((comment) => (
+                              <div key={comment.id} className="border rounded p-3 bg-slate-50 dark:bg-slate-800/30">
+                                <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+                                  <span>
+                                    {comment.user?.firstName || comment.user?.username || "User"}
+                                  </span>
+                                  <span>
+                                    {new Date(comment.createdAt).toLocaleString()}
+                                  </span>
+                                </div>
+                                <div className="text-sm">{comment.comment}</div>
+                                <div className="mt-2 flex gap-2">
+                                  <Button size="sm" variant="ghost" onClick={() => toggleReply(comment.id)}>
+                                    Reply
+                                  </Button>
+                                </div>
+                                {replyingTo === comment.id && (
+                                  <div className="mt-2 flex gap-2">
+                                    <input
+                                      type="text"
+                                      placeholder="Write a reply..."
+                                      className="flex-1 border rounded px-3 py-2 text-sm bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700"
+                                      value={replyText}
+                                      onChange={(e) => setReplyText(e.target.value)}
+                                    />
+                                    <Button size="sm" onClick={() => handlePostReply(comment.id)} disabled={!replyText.trim()}>
+                                      Post
+                                    </Button>
+                                  </div>
+                                )}
+                                {/* Replies */}
+                                {comment.replies && comment.replies.length > 0 && (
+                                  <div className="mt-3 space-y-2 pl-4 border-l border-slate-200 dark:border-slate-700">
+                                    {comment.replies.map((reply: any) => (
+                                      <div key={reply.id} className="border rounded p-2 bg-slate-100 dark:bg-slate-800/50">
+                                        <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+                                          <span>
+                                            {reply.user?.firstName || reply.user?.username || "User"}
+                                          </span>
+                                          <span>
+                                            {new Date(reply.createdAt).toLocaleString()}
+                                          </span>
+                                        </div>
+                                        <div className="text-sm">{reply.comment}</div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       </TabsContent>
                     </Tabs>
                   </div>

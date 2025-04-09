@@ -75,10 +75,10 @@ model User {
   lessonProgress     LessonProgress[]
   activityLogs       ActivityLog[]
   certificates       Certificate[]
+  Comment            Comment[]
 
   @@map("users")
 }
-
 
 model Category {
   id        Int      @id @default(autoincrement())
@@ -88,7 +88,6 @@ model Category {
 
   @@map("categories")
 }
-
 
 model Course {
   id           Int               @id @default(autoincrement())
@@ -139,6 +138,7 @@ model Lesson {
   // Relations
   module         Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   lessonProgress LessonProgress[]
+  Comment        Comment[]
 
   @@map("lessons")
 }
@@ -303,4 +303,18 @@ model Session {
   expire DateTime @map("expire")
 
   @@map("session") // Ensure table name matches connect-pg-simple default
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  lessonId  Int
+  userId    Int
+  comment   String
+  parentId  Int?
+  createdAt DateTime @default(now())
+
+  lesson  Lesson    @relation(fields: [lessonId], references: [id])
+  user    User      @relation(fields: [userId], references: [id])
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies Comment[] @relation("CommentReplies")
 }

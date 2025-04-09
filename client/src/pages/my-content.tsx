@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { Search, Plus, Edit, Trash2, Eye, MoreHorizontal, FileText, Video, BarChart } from "lucide-react";
+import { Search, Plus, Edit, Trash2, Eye, MoreHorizontal, FileText, Video, BarChart, ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,13 +38,13 @@ export default function MyContent() {
 
   // Fetch all courses
   const { data: allCourses = [], isLoading, error, isError } = useQuery<CourseType[]>({
-    queryKey: ["/api/courses"], // Query key for caching all courses
+    queryKey: ["/api/my-courses"], // Query key for caching user's courses
     queryFn: async () => {
       if (!user?.id) {
         console.warn("User not available, skipping fetch.");
         return []; 
       }
-      const res = await fetch('/api/courses'); 
+      const res = await fetch('/api/my-courses'); 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.message || `Failed to fetch courses: ${res.statusText}`);
@@ -90,7 +90,7 @@ export default function MyContent() {
             </p>
           </div>
           <div className="mt-4 flex md:mt-0 md:ml-4">
-            <Button onClick={() => navigate('/create-course')}>
+            <Button variant="default" onClick={() => navigate('/create-course')}>
               <Plus className="mr-2 h-4 w-4" />
               Create Course
             </Button>
@@ -105,17 +105,23 @@ export default function MyContent() {
             <Input placeholder="Search content..." className="pl-8" />
           </div>
           <div className="flex gap-2">
-            <select className="rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm">
-              <option value="all">All Statuses</option>
-              <option value="published">Published</option>
-              <option value="draft">Draft</option>
-              <option value="review">Under Review</option>
-            </select>
-            <select className="rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm">
-              <option value="newest">Newest</option>
-              <option value="oldest">Oldest</option>
-              <option value="students">Most Students</option>
-            </select>
+            <div className="relative">
+              <select className="appearance-none rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 pl-3 pr-8 py-2 text-sm">
+                <option value="all">All Statuses</option>
+                <option value="published">Published</option>
+                <option value="draft">Draft</option>
+                <option value="review">Under Review</option>
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+            </div>
+            <div className="relative">
+              <select className="appearance-none rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 pl-3 pr-8 py-2 text-sm">
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+                <option value="students">Most Students</option>
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+            </div>
           </div>
         </div>
         

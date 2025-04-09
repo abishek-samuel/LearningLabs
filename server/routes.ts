@@ -70,7 +70,7 @@ const imageStorage = multer.diskStorage({
 
 const uploadVideo = multer({
   storage: videoStorage,
-  limits: { fileSize: 100 * 1024 * 1024 },
+  limits: { fileSize: 500 * 1024 * 1024 }, // Increased to 500 MB
 });
 
 const uploadImage = multer({
@@ -288,7 +288,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // Course routes
+  // --- Comments API ---
+  app.get("/api/comments", isAuthenticated, async (req, res) => {
+    try {
+      const lessonId = parseInt(req.query.lessonId as string);
+      if (isNaN(lessonId)) {
+        return res.status(400).json({ message: "Invalid lessonId" });
+      }
+      const allComments = await storage.prisma.comment.findMany({
+        where: { lessonId },
+        orderBy: { createdAt: 'asc' },
+        include: {
+          user: {
+            select: {
+              username: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+      });
+
+      // Group replies under parent comments
+      const commentsMap: Record<number, any> = {};
+      const topLevelComments: any[] = [];
+
+      allComments.forEach((comment: any) => {
+        comment.replies = [];
+        commentsMap[comment.id] = comment;
+      });
+
+      allComments.forEach((comment: any) => {
+        if (comment.parentId) {
+          const parent = commentsMap[comment.parentId];
+          if (parent) {
+            parent.replies.push(comment);
+          }
+        } else {
+          topLevelComments.push(comment);
+        }
+      });
+
+      res.json(topLevelComments);
+    } catch (error) {
+      console.error("Error fetching comments:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/comments", isAuthenticated, async (req, res) => {
+    try {
+      console.log("Received POST /api/comments with body:", req.body);
+      console.log("Authenticated user:", req.user);
+
+      if (!req.user?.id) {
+        console.warn("User not authenticated");
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const { lessonId, comment, parentId } = req.body;
+      if (!lessonId || !comment) {
+        console.warn("Missing lessonId or comment");
+        return res.status(400).json({ message: "lessonId and comment are required" });
+      }
+
+      const newComment = await storage.createComment({
+        lessonId,
+        userId: req.user.id,
+        comment,
+        parentId: parentId || null,
+        createdAt: new Date(),
+      });
+      console.log("Created comment:", newComment);
+      res.status(201).json(newComment);
+    } catch (error) {
+      console.error("Error creating comment:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  // --- End Comments API ---
+
   app.get("/api/courses", isAuthenticated, async (req, res) => {
+
     try {
       const courses = (await storage.getCourses()).filter(
         (course) => course.status === "published"
@@ -297,6 +378,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(courses);
     } catch (error) {
       console.error("Error fetching courses:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // New endpoint: get all courses created by the logged-in user
+  app.get("/api/my-courses", isAuthenticated, async (req, res) => {
+    try {
+      const allCourses = await storage.getCourses();
+      const myCourses = allCourses.filter(
+        (course) => course.instructorId === req.user!.id
+      );
+      res.json(myCourses);
+    } catch (error) {
+      console.error("Error fetching my courses:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
@@ -1631,6 +1726,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           align: "center",
         });
 
+      // Add certificate ID at bottom-right corner immediately after background
+      doc.fontSize(10).fillColor("gray").text(`Certificate ID: ${certId}`, doc.page.width - 300, doc.page.height - 90, {
+        allign: "right",
+        width: "250"
+      });
+
       doc.end();
     } catch (error) {
       console.error("Error generating public certificate:", error);
@@ -1639,164 +1740,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // --- Certificate PDF by Certificate ID ---
-  app.get(
-    "/api/certificate-by-id/:certificateId",
-    isAuthenticated,
-    async (req, res) => {
-      try {
-        const certId = req.params.certificateId;
-        const cert = await storage.getCertificateByHash(certId);
-        if (!cert) {
-          return res.status(404).json({ message: "Certificate not found" });
-        }
-        if (cert.userId !== req.user!.id) {
-          return res.status(403).json({ message: "Forbidden" });
-        }
-
-        const course = await storage.getCourse(cert.courseId);
-        if (!course) {
-          return res.status(404).json({ message: "Course not found" });
-        }
-
-        const user = req.user!;
-
-        const PDFDocument = (await import("pdfkit")).default;
-        const doc = new PDFDocument({ size: "A4", layout: "landscape" });
-
-        res.setHeader("Content-Type", "application/pdf");
-        res.setHeader(
-          "Content-Disposition",
-          `inline; filename="certificate-${certId}.pdf"`
-        );
-
-        doc.pipe(res);
-
-        const certImagePath = path.join(
-          projectRoot,
-          "uploads",
-          "certificate-template.png"
-        );
-        if (fs.existsSync(certImagePath)) {
-          doc.image(certImagePath, 0, 0, {
-            width: doc.page.width,
-            height: doc.page.height,
-          });
-        }
-
-        doc
-          .fontSize(30)
-          .fillColor("black")
-          .text("Certificate of Completion", {
-            align: "center",
-            valign: "center",
-          });
-        doc.moveDown(2);
-        doc
-          .fontSize(24)
-          .text(`${user.firstName || ""} ${user.lastName || ""}`.trim(), {
-            align: "center",
-          });
-        doc.moveDown(1);
-        doc
-          .fontSize(20)
-          .text(`has successfully completed the course`, { align: "center" });
-        doc.moveDown(1);
-        doc.fontSize(24).text(`${course.title}`, { align: "center" });
-        doc.moveDown(2);
-        doc
-          .fontSize(16)
-          .text(`Issued on: ${cert.issueDate.toLocaleDateString()}`, {
-            align: "center",
-          });
-
-        doc.end();
-      } catch (error) {
-        console.error("Error generating certificate by ID:", error);
-        res.status(500).json({ message: "Internal server error" });
-      }
-    }
-  );
 
   // --- Certificate PDF Generation Route ---
-  app.get("/api/certificates/:courseId", isAuthenticated, async (req, res) => {
-    try {
-      const courseId = parseInt(req.params.courseId);
-      if (isNaN(courseId)) {
-        return res.status(400).json({ message: "Invalid course ID" });
-      }
-
-      // Check if user completed the course
-      const enrollments = await storage.getEnrollmentsByUser(req.user!.id);
-      const enrollment = enrollments.find((e) => e.courseId === courseId);
-      if (!enrollment || enrollment.progress < 100) {
-        return res.status(403).json({ message: "Course not completed" });
-      }
-
-      const course = await storage.getCourse(courseId);
-      if (!course) {
-        return res.status(404).json({ message: "Course not found" });
-      }
-
-      const user = req.user!;
-
-      // Generate PDF
-      const PDFDocument = (await import("pdfkit")).default;
-      const doc = new PDFDocument({ size: "A4", layout: "landscape" });
-
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader(
-        "Content-Disposition",
-        `inline; filename="certificate-${courseId}.pdf"`
-      );
-
-      doc.pipe(res);
-
-      // Background image
-      const certImagePath = path.join(
-        projectRoot,
-        "uploads",
-        "certificate-template.png"
-      );
-      if (fs.existsSync(certImagePath)) {
-        doc.image(certImagePath, 0, 0, {
-          width: doc.page.width,
-          height: doc.page.height,
-        });
-      }
-
-      // Overlay text
-      doc
-        .fontSize(30)
-        .fillColor("black")
-        .text("Certificate of Completion", {
-          align: "center",
-          valign: "center",
-        });
-      doc.moveDown(2);
-      doc
-        .fontSize(24)
-        .text(`${user.firstName || ""} ${user.lastName || ""}`.trim(), {
-          align: "center",
-        });
-      doc.moveDown(1);
-      doc
-        .fontSize(20)
-        .text(`has successfully completed the course`, { align: "center" });
-      doc.moveDown(1);
-      doc.fontSize(24).text(`${course.title}`, { align: "center" });
-      doc.moveDown(2);
-      doc
-        .fontSize(16)
-        .text(`Issued on: ${new Date().toLocaleDateString()}`, {
-          align: "center",
-        });
-
-      doc.end();
-    } catch (error) {
-      console.error("Error generating certificate:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
   // --- End Certificate PDF Generation Route ---
 
   // --- Get User Certificates Route ---

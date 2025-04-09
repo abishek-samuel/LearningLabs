@@ -163,6 +163,42 @@ export class PrismaStorage implements IStorage {
     // this.seedData();
   }
 
+  // --- Comment Methods ---
+  async getCommentsByLesson(lessonId: number): Promise<any[]> {
+    return this.prisma.comment.findMany({
+      where: { lessonId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async getCommentsWithUserByLesson(lessonId: number): Promise<any[]> {
+    return this.prisma.comment.findMany({
+      where: { lessonId },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        user: {
+          select: {
+            username: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+  }
+
+  async createComment(data: { lessonId: number; userId: number; comment: string; parentId?: number | null; createdAt: Date }): Promise<any> {
+    return this.prisma.comment.create({
+      data: {
+        lessonId: data.lessonId,
+        userId: data.userId,
+        comment: data.comment,
+        parentId: data.parentId ?? null,
+        createdAt: data.createdAt,
+      },
+    });
+  }
+
   // --- User Methods ---
   async getUser(id: number): Promise<User | null> {
     return this.prisma.user.findUnique({ where: { id } });
