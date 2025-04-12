@@ -29,7 +29,10 @@ async function hashPassword(password: string): Promise<string> {
   return `${buf.toString("hex")}.${salt}`;
 }
 
-async function comparePasswords(supplied: string, stored: string): Promise<boolean> {
+async function comparePasswords(
+  supplied: string,
+  stored: string
+): Promise<boolean> {
   const [hashed, salt] = stored.split(".");
   const hashedBuf = Buffer.from(hashed, "hex");
   const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
@@ -38,7 +41,7 @@ async function comparePasswords(supplied: string, stored: string): Promise<boole
 
 export async function setupAuth(app: Express): Promise<void> {
   const sessionSecret = process.env.SESSION_SECRET || "your-secret-key";
-  
+
   const sessionSettings: session.SessionOptions = {
     secret: sessionSecret,
     resave: false,
@@ -56,21 +59,23 @@ export async function setupAuth(app: Express): Promise<void> {
   app.use(passport.session());
 
   passport.use(
-    new LocalStrategy({
-      usernameField: "email",
-      passwordField: "password",
-    }, 
-    async (email, password, done) => {
-      try {
-        const user = await storage.getUserByEmail(email);
-        if (!user || !(await comparePasswords(password, user.password))) {
-          return done(null, false, { message: "Invalid email or password" });
+    new LocalStrategy(
+      {
+        usernameField: "email",
+        passwordField: "password",
+      },
+      async (email, password, done) => {
+        try {
+          const user = await storage.getUserByEmail(email);
+          if (!user || !(await comparePasswords(password, user.password))) {
+            return done(null, false, { message: "Invalid email or password" });
+          }
+          return done(null, user);
+        } catch (error) {
+          return done(error);
         }
-        return done(null, user);
-      } catch (error) {
-        return done(error);
       }
-    }),
+    )
   );
 
   passport.serializeUser((user, done) => {
@@ -90,11 +95,21 @@ export async function setupAuth(app: Express): Promise<void> {
   app.post("/api/register", async (req, res, next) => {
     try {
       // TODO: Add validation here (e.g., using Zod) if desired
-      const { username, email, password, firstName, lastName, role, profilePicture } = req.body;
+      const {
+        username,
+        email,
+        password,
+        firstName,
+        lastName,
+        role,
+        profilePicture,
+      } = req.body;
 
       // Basic checks (replace with robust validation)
       if (!username || !email || !password) {
-        return res.status(400).json({ message: "Username, email, and password are required" });
+        return res
+          .status(400)
+          .json({ message: "Username, email, and password are required" });
       }
 
       // Check if user with the same email or username already exists
@@ -116,14 +131,14 @@ export async function setupAuth(app: Express): Promise<void> {
         password: hashedPassword,
         firstName: firstName || null, // Handle optional fields
         lastName: lastName || null,
-        role: role || 'employee', // Default role if not provided
+        role: role || "employee", // Default role if not provided
         profilePicture: profilePicture || null,
       });
 
       // Log the user in automatically
       req.login(newUser, (err) => {
         if (err) return next(err);
-        
+
         // Remove password from response
         const { password, ...userWithoutPassword } = newUser;
         return res.status(201).json(userWithoutPassword);
@@ -141,20 +156,29 @@ export async function setupAuth(app: Express): Promise<void> {
 
   app.post("/api/login", (req, res, next) => {
     // Add types to the callback parameters
-    passport.authenticate("local", (err: Error | null, user: PrismaUser | false | null, info?: { message: string }) => {
-      if (err) return next(err);
-      if (!user) {
-        return res.status(401).json({ message: info?.message || "Invalid credentials" });
+    passport.authenticate(
+      "local",
+      (
+        err: Error | null,
+        user: PrismaUser | false | null,
+        info?: { message: string }
+      ) => {
+        if (err) return next(err);
+        if (!user) {
+          return res
+            .status(401)
+            .json({ message: info?.message || "Invalid credentials" });
+        }
+
+        req.login(user, (loginErr) => {
+          if (loginErr) return next(loginErr);
+
+          // Remove password from response
+          const { password, ...userWithoutPassword } = user;
+          return res.json(userWithoutPassword);
+        });
       }
-      
-      req.login(user, (loginErr) => {
-        if (loginErr) return next(loginErr);
-        
-        // Remove password from response
-        const { password, ...userWithoutPassword } = user;
-        return res.json(userWithoutPassword);
-      });
-    })(req, res, next);
+    )(req, res, next);
   });
 
   app.post("/api/logout", (req, res, next) => {
@@ -177,11 +201,12 @@ export async function setupAuth(app: Express): Promise<void> {
     try {
       const { email } = req.body;
       const user = await storage.getUserByEmail(email);
-      
+
       // Always return success even if email doesn't exist for security reasons
-      return res.json({ 
-        success: true, 
-        message: "If an account with that email exists, a password reset link has been sent." 
+      return res.json({
+        success: true,
+        message:
+          "If an account with that email exists, a password reset link has been sent.",
       });
     } catch (error) {
       console.error("Forgot password error:", error);
@@ -189,3 +214,5 @@ export async function setupAuth(app: Express): Promise<void> {
     }
   });
 }
+
+export { hashPassword, comparePasswords };
