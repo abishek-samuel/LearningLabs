@@ -10,6 +10,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
+import { jwtDecode } from "jwt-decode";
+const clientId = "986989868035-bbbpdr11ndnft9igim3p4oj5ha9mc658.apps.googleusercontent.com";
 
 const formSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -47,6 +50,62 @@ export function LoginForm() {
     }
   };
 
+  const handleGoogleLoginSuccess = async (response) => {
+    try {
+      const token = response.credential;
+      const user = jwtDecode(token); // Decode the JWT token
+      console.log("Google User:", user);
+
+      const payload = {
+        email: user.email,
+        username: user.name,
+        password: "GoogleUser",  // Set a default password as "GoogleUser" (optional)
+        firstName: user.given_name,  // First name from Google profile
+        lastName: user.family_name,  // Last name from Google profile
+        profilePicture: user.picture || null  // Optional profile picture
+      };
+
+      const apiResponse = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await apiResponse.json();
+
+      if (apiResponse.ok && data.success) {
+        // If the response is successful, show success toast
+        toast({
+          title: "Sign up successful! You will receive an email after approval from the admin.",
+          description: "Please check your email",
+        });
+        // Redirect to home or login page after successful sign-up
+        // window.location.href = '/';
+      } else {
+        // If the response is not successful, show the error message
+        toast({
+          title: "Already Registered",
+          description: data.message,  // Error message from the server
+        });
+      }
+    } catch (error) {
+      console.error('Google login error:', error);
+      toast({
+        title: "Error",
+        description: "Something went wrong. Please try again!",
+      });
+    }
+  };
+
+
+
+  const handleGoogleLoginFailure = () => {
+    toast({
+      title: "Failed",
+      description: "Please check your email",
+    });
+  };
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
@@ -54,7 +113,7 @@ export function LoginForm() {
           <Mail className="text-blue-600 dark:text-blue-400 h-5 w-5" />
           <h3 className="text-sm font-medium text-slate-900 dark:text-white">Account Details</h3>
         </div>
-        
+
         <FormField
           control={form.control}
           name="email"
@@ -64,10 +123,10 @@ export function LoginForm() {
               <FormControl>
                 <div className="relative">
                   <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input 
-                    placeholder="you@example.com" 
-                    {...field} 
-                    autoComplete="email" 
+                  <Input
+                    placeholder="you@example.com"
+                    {...field}
+                    autoComplete="email"
                     className="pl-10"
                   />
                 </div>
@@ -76,7 +135,7 @@ export function LoginForm() {
             </FormItem>
           )}
         />
-        
+
         <FormField
           control={form.control}
           name="password"
@@ -86,10 +145,10 @@ export function LoginForm() {
               <FormControl>
                 <div className="relative">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input 
-                    type={showPassword ? "text" : "password"} 
-                    placeholder="••••••••" 
-                    {...field} 
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    {...field}
                     autoComplete="current-password"
                     className="pl-10"
                   />
@@ -112,7 +171,7 @@ export function LoginForm() {
             </FormItem>
           )}
         />
-        
+
         <div className="flex items-center justify-between">
           <FormField
             control={form.control}
@@ -141,10 +200,10 @@ export function LoginForm() {
             Forgot password?
           </Button>
         </div>
-        
-        <Button 
-          type="submit" 
-          className="w-full mt-6 bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700" 
+
+        <Button
+          type="submit"
+          className="w-full mt-6 bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700"
           disabled={loginMutation.isPending}
         >
           {loginMutation.isPending ? (
@@ -156,8 +215,24 @@ export function LoginForm() {
             "Sign in"
           )}
         </Button>
-      </form>
-    </Form>
+
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-300 dark:border-gray-700"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-white dark:bg-slate-900 text-gray-500 dark:text-gray-400">Or</span>
+          </div>
+        </div>
+
+        <GoogleOAuthProvider clientId={clientId}>
+          <GoogleLogin onSuccess={handleGoogleLoginSuccess}
+            onError={handleGoogleLoginFailure}
+          />
+        </GoogleOAuthProvider>
+
+      </form >
+    </Form >
   );
 }
 

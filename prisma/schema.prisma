@@ -63,6 +63,7 @@ model User {
   firstName      String?  @map("first_name")
   lastName       String?  @map("last_name")
   role           UserRole @default(employee)
+  status         String   @default("active") 
   profilePicture String?  @map("profile_picture")
   createdAt      DateTime @default(now()) @map("created_at")
 

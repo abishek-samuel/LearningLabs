@@ -115,6 +115,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const users = await storage.getUsers();
         let filteredUsers = users.map(({ password, ...user }) => user);
 
+        // Filter for active users
+        filteredUsers = filteredUsers.filter(user => user.status === "active");
+
         if (search) {
           const searchStr = search.toString().toLowerCase();
           filteredUsers = filteredUsers.filter(
@@ -138,6 +141,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
+  // Get draft users
+
+  app.get(
+    "/api/draft-users",
+    isAuthenticated,
+    hasRole(["admin"]),
+    async (req, res) => {
+      try {
+        const { search, role } = req.query;
+        const users = await storage.getUsers();
+        let filteredUsers = users.map(({ password, ...user }) => user);
+
+        // Filter for active users
+        filteredUsers = filteredUsers.filter(user => user.status === "draft");
+
+        if (search) {
+          const searchStr = search.toString().toLowerCase();
+          filteredUsers = filteredUsers.filter(
+            (user) =>
+              user.username.toLowerCase().includes(searchStr) ||
+              user.email.toLowerCase().includes(searchStr) ||
+              user.firstName?.toLowerCase().includes(searchStr) ||
+              user.lastName?.toLowerCase().includes(searchStr)
+          );
+        }
+
+        if (role && role !== "all") {
+          filteredUsers = filteredUsers.filter((user) => user.role === role);
+        }
+
+        res.json(filteredUsers);
+      } catch (error) {
+        console.error("Error fetching users:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  );
+
+
+  // Approve user
+  app.post(
+    "/api/users/:id/approve",
+    isAuthenticated,
+    hasRole(["admin"]),
+    async (req, res) => {
+      try {
+        const userId = parseInt(req.params.id);
+        const updatedUser = await storage.updateUser(userId, { status: "active" });
+        if (!updatedUser) {
+          return res.status(404).json({ message: "User not found" });
+        }
+        const { password, ...userWithoutPassword } = updatedUser;
+        res.json(userWithoutPassword);
+      } catch (error) {
+        console.error("Error approving user:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    },
+  );
   app.get(
     "/api/users/:id",
     isAuthenticated,

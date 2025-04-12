@@ -25,7 +25,14 @@ export default function AuthPage() {
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900">
       {/* Left side - Auth forms */}
       <div className="flex flex-col justify-center px-4 py-12 sm:px-6 lg:flex-none lg:px-20 xl:px-24 w-full lg:w-1/2 relative">
-        <div className="absolute top-4 right-4">
+        {/* <div className="absolute top-4 right-4"> */}
+        <div className="flex items-center justify-between h-16" style={{ marginTop: "-50px", marginLeft: "-70px" }}>
+          <img
+            src="../../../alten.png"
+            title="Alten Global Technologies Private Limited"
+            alt="Alten Global Technologies Private Limited"
+            className="h-12 w-13 mr-2"
+          />
           <Button
             variant="ghost"
             size="icon"
@@ -60,9 +67,9 @@ export default function AuthPage() {
             </TabsList> */}
             <div>
               {/* <TabsContent value="login"> */}
-              <Card className="border-slate-200 dark:border-slate-700">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-2xl">Sign in to your account</CardTitle>
+              <Card className="border-slate-200 dark:border-slate-700" style={{ marginTop: "-20px" }}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-2xl" style={{ marginTop: "-10px" }}>Sign in to your account</CardTitle>
                   <CardDescription className="text-slate-500 dark:text-slate-400">
                     Enter your credentials to access your account
                   </CardDescription>
