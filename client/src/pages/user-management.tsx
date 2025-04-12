@@ -110,10 +110,35 @@ export default function UserManagement() {
     }
   };
 
+  const generateRandomPassword = () => {
+    const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const lower = "abcdefghijklmnopqrstuvwxyz";
+    const numbers = "0123456789";
+    const special = "!@#$%^&*()";
+
+    let password = "";
+    password += upper.charAt(Math.floor(Math.random() * upper.length));
+    password += lower.charAt(Math.floor(Math.random() * lower.length));
+    password += numbers.charAt(Math.floor(Math.random() * numbers.length));
+    password += special.charAt(Math.floor(Math.random() * special.length));
+
+    const allChars = upper + lower + numbers + special;
+    for (let i = 0; i < 2; i++) {
+      password += allChars.charAt(Math.floor(Math.random() * allChars.length));
+    }
+
+    return password.split('').sort(() => 0.5 - Math.random()).join('');
+  };
+
   const handleApproveUser = async (userId: number) => {
+    const generatedPassword = generateRandomPassword();
     try {
       const response = await fetch(`/api/users/${userId}/approve`, {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ password: generatedPassword })
       });
       if (!response.ok) throw new Error("Failed to approve user");
       toast({ title: "User Approved", description: "The user has been approved.", variant: "success" });
@@ -122,6 +147,7 @@ export default function UserManagement() {
       console.error("Error approving user:", error);
     }
   };
+
 
   const handleRejectUser = async (userId: number) => {
     try {

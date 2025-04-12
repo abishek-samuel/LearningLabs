@@ -222,7 +222,6 @@ export async function setupAuth(app: Express): Promise<void> {
 
       const existingEmailUser = await storage.getUserByEmail(email);
       const existingUsernameUser = await storage.getUserByUsername(username);
-      const hashedPassword = await hashPassword(password);
 
       if (existingEmailUser || existingUsernameUser) {
         return res.json({
@@ -234,7 +233,7 @@ export async function setupAuth(app: Express): Promise<void> {
       const newUser = await storage.createUser({
         email,
         username,
-        password: hashedPassword,
+        password: "",
         firstName,
         lastName,
         status: "draft",

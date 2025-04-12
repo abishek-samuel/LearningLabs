@@ -1,7 +1,7 @@
 import { type Express, Request, Response, NextFunction } from "express"; // Keep original import
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth } from "./auth";
+import { hashPassword, setupAuth } from "./auth";
 import { Prisma } from "@prisma/client"; // Import Prisma namespace
 import multer from "multer"; // Import multer
 import path from "path"; // Import path for handling file paths
@@ -188,18 +188,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req, res) => {
       try {
         const userId = parseInt(req.params.id);
-        const updatedUser = await storage.updateUser(userId, { status: "active" });
-        if (!updatedUser) {
+        const { password } = req.body; // Ensure password is being passed
+
+        // Check if the user exists
+        const existingUser = await storage.getUser(userId);
+        if (!existingUser) {
+          console.error("User not found in the database");
           return res.status(404).json({ message: "User not found" });
         }
-        const { password, ...userWithoutPassword } = updatedUser;
+
+        // Logging before updating
+        console.log("Approving user:", userId, existingUser);
+
+        // Await hashed password before updating
+        const hashedPassword = await hashPassword(password);
+
+        // Proceed with updating the user if they exist
+        const updatedUser = await storage.updateUser(userId, {
+          status: "active",
+          password: hashedPassword,  // Use the resolved hashed password
+        });
+
+        if (!updatedUser) {
+          console.error("Failed to update user:", userId);
+          return res.status(500).json({ message: "Failed to update user" });
+        }
+
+        // Log the result of update
+        console.log("Updated user:", updatedUser);
+
+        const { password: pw, ...userWithoutPassword } = updatedUser;  // Omit password
         res.json(userWithoutPassword);
       } catch (error) {
         console.error("Error approving user:", error);
         res.status(500).json({ message: "Internal server error" });
       }
-    },
+    }
   );
+
+
+
   app.get(
     "/api/users/:id",
     isAuthenticated,
