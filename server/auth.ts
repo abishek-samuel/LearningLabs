@@ -11,13 +11,13 @@ import type { User } from ".prisma/client"; // Import User type from Prisma
 // import { z } from "zod";
 // Define the Prisma User type alias to avoid naming conflict in the global scope
 import type { User as PrismaUser } from ".prisma/client";
-import { sendWelcomeEmail } from "./utils/email";
+import { sendPasswordResetEmail, sendWelcomeEmail } from "./utils/email";
 
 declare global {
   namespace Express {
     // Augment Express.User with the Prisma User type
     // eslint-disable-next-line @typescript-eslint/no-empty-interface
-    interface User extends PrismaUser { }
+    interface User extends PrismaUser {}
   }
 }
 
@@ -226,19 +226,18 @@ export async function setupAuth(app: Express): Promise<void> {
 
         // Hash the password
         const hashedPassword = await hashPassword(newPassword);
-
         // Update the user's password
-        await storage.updateUser(user.id, { password: hashedPassword });
-
-        console.log(`Password reset for ${email}: ${newPassword} ${hashedPassword}`);
-        // Later: send this via email
+        await storage.updateUser(user.id, {
+          password: hashedPassword,
+        });
+        await sendPasswordResetEmail(user.email, user.username, newPassword);
       }
 
       return res.json({
         success: true,
-        message: "If an account with that email exists, a new password has been sent.",
+        message:
+          "If an account with that email exists, a new password has been sent.",
       });
-
     } catch (error) {
       console.error("Forgot password error:", error);
       res.status(500).json({ message: "An error occurred" });
@@ -247,7 +246,8 @@ export async function setupAuth(app: Express): Promise<void> {
 
   // Place this function above your route
   function generateRandomPassword(length = 6) {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+    const chars =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
     let password = "";
     for (let i = 0; i < length; i++) {
       const randomIndex = Math.floor(Math.random() * chars.length);
@@ -255,7 +255,6 @@ export async function setupAuth(app: Express): Promise<void> {
     }
     return password;
   }
-
 
   app.post("/api/auth/google", async (req, res) => {
     try {

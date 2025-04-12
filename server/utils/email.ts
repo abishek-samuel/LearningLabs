@@ -99,3 +99,66 @@ export async function sendRejectionEmail(email: string, username: string) {
     throw error;
   }
 }
+
+export async function sendGroupAssignmentEmail(
+  email: string,
+  username: string,
+  groupName: string,
+  courses: { id: number; title: string }[]
+) {
+  const mailOptions = {
+    from: process.env.SMTP_FROM,
+    to: email,
+    subject: "Course Access Granted - Group Assignment",
+    html: `
+      <h1>Course Assignment Notification</h1>
+      <p>Hello ${username},</p>
+      <p>You have been granted access to the following course(s):</p>
+      <ul>
+        ${courses.map((course) => `<li>${course.title}</li>`).join("")}
+      </ul>
+      <p>You can access these courses by logging into your LMS account.</p>
+      <p>Best regards,<br>LMS Team</p>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log("Group assignment email sent successfully to:", email);
+  } catch (error) {
+    console.error("Error sending group assignment email:", error);
+    throw error;
+  }
+}
+
+// Send password reset email
+export async function sendPasswordResetEmail(
+  email: string,
+  username: string,
+  newPassword: string
+) {
+  const mailOptions = {
+    from: process.env.SMTP_FROM,
+    to: email,
+    subject: "Password Reset - Learning Management System",
+    html: `
+      <h1>Password Reset</h1>
+      <p>Hello ${username},</p>
+      <p>Your password has been reset. Here are your new credentials:</p>
+      <ul>
+        <li>Email: ${email}</li>
+        <li>New Password: ${newPassword}</li>
+      </ul>
+      <p>Please log in and change your password immediately for security purposes.</p>
+      <p>Best regards,<br>LMS Team</p>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log("Password reset email sent successfully to:", email);
+  } catch (error) {
+    console.error("Error sending password reset email:", error);
+    throw error;
+  }
+}

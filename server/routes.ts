@@ -7,7 +7,11 @@ import multer from "multer"; // Import multer
 import path from "path"; // Import path for handling file paths
 import fs from "fs"; // Import fs for creating directories
 import { fileURLToPath } from "url"; // Import fileURLToPath
-import { sendApproveEmail, sendRejectionEmail } from "./utils/email";
+import {
+  sendApproveEmail,
+  sendGroupAssignmentEmail,
+  sendRejectionEmail,
+} from "./utils/email";
 
 // Zod validation removed for now, can be added back based on Prisma types
 // import { z } from "zod";
@@ -1332,6 +1336,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
         }
 
+        // Get courses accessible through this group
+        const groupCourses = await storage.getGroupCoursesByGroup(newGroup.id);
+        const courses = await Promise.all(
+          groupCourses.map(async (gc) => {
+            const course = await storage.getCourse(gc.courseId);
+            return course ? { id: course.id, title: course.title } : null;
+          })
+        ).then((results) => results.filter(Boolean));
+
+        // Send email to each user
+        if (userIds.length > 0 && courses.length > 0) {
+          await Promise.all(
+            userIds.map(async (userId: number) => {
+              const user = await storage.getUser(userId);
+              if (user) {
+                await sendGroupAssignmentEmail(
+                  user.email,
+                  user.username,
+                  newGroup.name,
+                  courses
+                );
+              }
+            })
+          );
+        }
+
         res
           .status(201)
           .json({ message: "Group created successfully", group: newGroup });
@@ -1351,14 +1381,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const groupId = parseInt(req.params.id);
         const { name, userIds = [], courseIds = [] } = req.body;
 
-        // Update the group name
+        // Get existing users before update
+        const existingMembers = await storage.getGroupMembersByGroup(groupId); // You need to have this method
+        const existingUserIds = existingMembers.map((member) => member.userId);
+
+        // Determine newly added users
+        const newlyAddedUserIds = userIds.filter(
+          (userId) => !existingUserIds.includes(userId)
+        );
+
+        // Update group name
         await storage.updateGroup(groupId, { name });
 
-        // Remove existing members & courses first
+        // Remove and recreate all members and courses
         await storage.deleteGroupMembers(groupId);
         await storage.deleteGroupCourses(groupId);
 
-        // Add new members
+        // Add members
         if (Array.isArray(userIds) && userIds.length > 0) {
           await Promise.all(
             userIds.map((userId: number) =>
@@ -1367,12 +1406,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
         }
 
-        // Add new courses
+        // Add courses
         if (Array.isArray(courseIds) && courseIds.length > 0) {
           await Promise.all(
             courseIds.map((courseId: number) =>
               storage.createGroupCourse({ groupId, courseId })
             )
+          );
+        }
+
+        // Get course list to send in email
+        const groupCourses = await storage.getGroupCoursesByGroup(groupId);
+        const courses = await Promise.all(
+          groupCourses.map(async (gc) => {
+            const course = await storage.getCourse(gc.courseId);
+            return course ? { id: course.id, title: course.title } : null;
+          })
+        ).then((results) => results.filter(Boolean));
+
+        // Get group details
+        const group = await storage.getGroup(groupId);
+
+        // Send email to only newly added users
+        if (newlyAddedUserIds.length > 0 && courses.length > 0 && group) {
+          await Promise.all(
+            newlyAddedUserIds.map(async (userId: number) => {
+              const user = await storage.getUser(userId);
+              if (user) {
+                await sendGroupAssignmentEmail(
+                  user.email,
+                  user.username,
+                  group.name,
+                  courses
+                );
+              }
+            })
           );
         }
 
@@ -1503,15 +1571,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
-  // Course access
   app.post(
     "/api/course-access",
     isAuthenticated,
     hasRole(["admin"]),
     async (req, res) => {
       try {
-        // Zod validation removed
-        // const accessData = insertCourseAccessSchema.parse(req.body);
         const { courseId, userId, groupId, accessType } = req.body;
 
         if (
@@ -1537,21 +1602,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(404).json({ message: "Course not found" });
         }
 
-        // Check if user or group exists
-        if (userId) {
-          const user = await storage.getUser(userId);
-          if (!user) {
-            return res.status(404).json({ message: "User not found" });
-          }
-        }
-
-        if (groupId) {
-          const group = await storage.getGroup(groupId);
-          if (!group) {
-            return res.status(404).json({ message: "Group not found" });
-          }
-        }
-
+        // Create access
         const newAccess = await storage.createCourseAccess({
           courseId,
           userId: userId || null,
@@ -1559,9 +1610,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
           accessType,
         });
 
+        // Send email(s)
+        if (userId) {
+          const user = await storage.getUser(userId);
+          if (user) {
+            await sendGroupAssignmentEmail(
+              user.email,
+              user.username,
+              "Direct Access", // or some other label if group isn't used
+              [{ id: course.id, title: course.title }]
+            );
+          }
+        }
+
+        if (groupId) {
+          const group = await storage.getGroup(groupId);
+          const members = await storage.getGroupMembersByGroup(groupId); // list of { userId }
+          const users = await Promise.all(
+            members.map((member) => storage.getUser(member.userId))
+          );
+          const validUsers = users.filter((u) => u); // filter out nulls if any
+
+          await Promise.all(
+            validUsers.map((user) =>
+              sendGroupAssignmentEmail(user.email, user.username, group.name, [
+                { id: course.id, title: course.title },
+              ])
+            )
+          );
+        }
+
         res.status(201).json(newAccess);
       } catch (error) {
-        // if (error instanceof z.ZodError) { ... }
         console.error("Error granting course access:", error);
         res.status(500).json({ message: "Internal server error" });
       }
@@ -1664,8 +1744,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const progressPercentage =
               totalLessonsInCourse > 0
                 ? Math.round(
-                  (completedLessonsInCourse / totalLessonsInCourse) * 100
-                )
+                    (completedLessonsInCourse / totalLessonsInCourse) * 100
+                  )
                 : 0; // Avoid division by zero if course has no lessons
 
             // 5. Update enrollment with correct progress and completion status
@@ -2040,35 +2120,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const accessId = parseInt(req.params.id);
         const { courseId, userId, groupId, accessType } = req.body;
-        console.log(req.body);
 
-        if (typeof courseId !== "number" || !accessType || (!userId && !groupId)) {
+        if (
+          typeof courseId !== "number" ||
+          !accessType ||
+          (!userId && !groupId)
+        ) {
           return res.status(400).json({
-            message: "Valid courseId, accessType, and either userId or groupId are required",
+            message:
+              "Valid courseId, accessType, and either userId or groupId are required",
           });
         }
 
-        // Check if the course exists
-        const course = await storage.getCourse(courseId);
-        if (!course) {
-          return res.status(404).json({ message: "Course not found" });
+        // Get existing access
+        const existingAccess = await storage.prisma.courseAccess.findUnique({
+          where: { id: accessId },
+        });
+
+        if (!existingAccess) {
+          return res.status(404).json({ message: "Access record not found" });
         }
 
-        // Check if user or group exists
-        if (userId) {
-          const user = await storage.getUser(userId);
-          if (!user) {
-            return res.status(404).json({ message: "User not found" });
-          }
-        }
+        const oldUserId = existingAccess.userId;
+        const oldGroupId = existingAccess.groupId;
+        const oldCourseId = existingAccess.courseId;
 
-        if (groupId) {
-          const group = await storage.getGroup(groupId);
-          if (!group) {
-            return res.status(404).json({ message: "Group not found" });
-          }
-        }
-
+        // Update the access
         const updatedAccess = await storage.prisma.courseAccess.update({
           where: { id: accessId },
           data: {
@@ -2078,6 +2155,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
             accessType,
           },
         });
+
+        // Compare and send email if user or course changed
+        if (userId && (userId !== oldUserId || courseId !== oldCourseId)) {
+          const user = await storage.getUser(userId);
+          const course = await storage.getCourse(courseId);
+          if (user && course) {
+            await sendGroupAssignmentEmail(
+              user.email,
+              user.username,
+              "Direct Access (Updated)",
+              [{ id: course.id, title: course.title }]
+            );
+          }
+        }
+
+        // Compare and send email to group users if group or course changed
+        if (groupId && (groupId !== oldGroupId || courseId !== oldCourseId)) {
+          const group = await storage.getGroup(groupId);
+          const members = await storage.getGroupMembersByGroup(groupId);
+          const users = await Promise.all(
+            members.map((m) => storage.getUser(m.userId))
+          );
+          const validUsers = users.filter((u) => u);
+
+          const course = await storage.getCourse(courseId);
+          if (group && course) {
+            await Promise.all(
+              validUsers.map((user) =>
+                sendGroupAssignmentEmail(
+                  user.email,
+                  user.username,
+                  group.name,
+                  [{ id: course.id, title: course.title }]
+                )
+              )
+            );
+          }
+        }
 
         res.json(updatedAccess);
       } catch (error) {
