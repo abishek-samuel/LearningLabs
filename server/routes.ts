@@ -823,8 +823,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           title,
           content: content || null,
           videoUrl: videoUrl || null,
-          duration: finalDuration,
-          position,
+          duration: duration || null,
+          position
         });
 
         res.status(201).json(newLesson);
@@ -1117,82 +1117,185 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Group routes
-  app.get(
-    "/api/groups",
-    isAuthenticated,
-    hasRole(["admin"]),
-    async (req, res) => {
-      try {
-        const groups = await storage.getGroups();
-        res.json(groups);
-      } catch (error) {
-        console.error("Error fetching groups:", error);
-        res.status(500).json({ message: "Internal server error" });
-      }
+  app.get('/api/groups', isAuthenticated, hasRole(['admin']), async (req, res) => {
+    try {
+      const groups = await storage.getGroups();
+
+      const detailedGroups = await Promise.all(
+        groups.map(async (group) => {
+          const groupMembers = await storage.getGroupMembersByGroup(group.id);
+          const groupCourses = await storage.getGroupCoursesByGroup(group.id);
+
+          const users = (
+            await Promise.all(
+              groupMembers.map(async (member) => {
+                const user = await storage.getUser(member.userId);
+                return user ? { id: user.id, username: user.username } : null;
+              })
+            )
+          ).filter(Boolean); // remove nulls
+
+          const courses = (
+            await Promise.all(
+              groupCourses.map(async (entry) => {
+                const course = await storage.getCourse(entry.courseId);
+                return course ? { id: course.id, title: course.title } : null;
+              })
+            )
+          ).filter(Boolean); // remove nulls
+
+          return {
+            id: group.id,
+            name: group.name,
+            description: group.description,
+            createdAt: group.createdAt,
+            members: users,
+            courses: courses,
+          };
+        })
+      );
+
+      res.json(detailedGroups);
+    } catch (error) {
+      console.error("Error fetching groups:", error);
+      res.status(500).json({ message: "Internal server error" });
     }
-  );
+  });
 
-  app.post(
-    "/api/groups",
-    isAuthenticated,
-    hasRole(["admin"]),
-    async (req, res) => {
-      try {
-        // Zod validation removed
-        // const groupData = insertGroupSchema.parse(req.body);
-        const { name, description } = req.body;
 
-        if (!name) {
-          return res.status(400).json({ message: "Group name is required" });
-        }
+  app.post('/api/groups', isAuthenticated, hasRole(['admin']), async (req, res) => {
+    try {
+      const { name, description, userIds = [], courseIds = [] } = req.body;
 
-        const newGroup = await storage.createGroup({
-          name,
-          description: description || null,
-        });
-
-        res.status(201).json(newGroup);
-      } catch (error) {
-        // if (error instanceof z.ZodError) { ... }
-        console.error("Error creating group:", error);
-        res.status(500).json({ message: "Internal server error" });
+      if (!name) {
+        return res.status(400).json({ message: "Group name is required" });
       }
+
+      // Create group
+      const newGroup = await storage.createGroup({
+        name,
+        description: description || null,
+      });
+
+      // Link users to group
+      if (Array.isArray(userIds) && userIds.length > 0) {
+        await Promise.all(
+          userIds.map((userId: number) =>
+            storage.createGroupMember({ groupId: newGroup.id, userId })
+          )
+        );
+      }
+
+      // Link courses to group
+      if (Array.isArray(courseIds) && courseIds.length > 0) {
+        await Promise.all(
+          courseIds.map((courseId: number) =>
+            storage.createGroupCourse({ groupId: newGroup.id, courseId })
+          )
+        );
+      }
+
+      res.status(201).json({ message: "Group created successfully", group: newGroup });
+    } catch (error) {
+      console.error("Error creating group:", error);
+      res.status(500).json({ message: "Internal server error" });
     }
-  );
+  });
+
+  app.put('/api/groups/:id', isAuthenticated, hasRole(['admin']), async (req, res) => {
+    try {
+      const groupId = parseInt(req.params.id);
+      const { name, userIds = [], courseIds = [] } = req.body;
+
+      // Update the group name
+      await storage.updateGroup(groupId, { name });
+
+      // Remove existing members & courses first
+      await storage.deleteGroupMembers(groupId);
+      await storage.deleteGroupCourses(groupId);
+
+      // Add new members
+      if (Array.isArray(userIds) && userIds.length > 0) {
+        await Promise.all(
+          userIds.map((userId: number) =>
+            storage.createGroupMember({ groupId, userId })
+          )
+        );
+      }
+
+      // Add new courses
+      if (Array.isArray(courseIds) && courseIds.length > 0) {
+        await Promise.all(
+          courseIds.map((courseId: number) =>
+            storage.createGroupCourse({ groupId, courseId })
+          )
+        );
+      }
+
+      res.status(200).json({ message: 'Group updated successfully' });
+    } catch (error) {
+      console.error('Error updating group:', error);
+      res.status(500).json({ message: 'Failed to update group' });
+    }
+  });
+
+  app.delete('/api/groups/:id', isAuthenticated, hasRole(['admin']), async (req, res) => {
+    const groupId = parseInt(req.params.id);
+
+    if (isNaN(groupId)) {
+      return res.status(400).json({ message: 'Invalid group ID' });
+    }
+
+    try {
+      // Delete all group members and courses first
+      await storage.deleteGroupMembersByGroupId(groupId);
+      await storage.deleteGroupCoursesByGroupId(groupId);
+
+      // Now delete the group itself
+      const success = await storage.deleteGroup(groupId);
+
+      if (!success) {
+        return res.status(404).json({ message: 'Group not found or already deleted' });
+      }
+
+      res.status(200).json({ message: 'Group deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting group:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+
 
   // Group members
-  app.get(
-    "/api/groups/:groupId/members",
-    isAuthenticated,
-    hasRole(["admin"]),
-    async (req, res) => {
-      try {
-        const groupId = parseInt(req.params.groupId);
-        if (isNaN(groupId)) {
-          return res.status(400).json({ message: "Invalid group ID" });
-        }
-        const groupMembers = await storage.getGroupMembersByGroup(groupId);
-
-        // TODO: Consider using Prisma include to fetch user details efficiently
-        // For now, keep separate fetches
-        const membersWithUserDetails = await Promise.all(
-          groupMembers.map(async (member) => {
-            const user = await storage.getUser(member.userId);
-            // Explicitly handle null user case
-            const { password, ...userWithoutPassword } = user ?? {};
-            return {
-              ...member,
-              user: user ? userWithoutPassword : null,
-            };
-          })
-        );
-
-        res.json(membersWithUserDetails);
-      } catch (error) {
-        console.error("Error fetching group members:", error);
-        res.status(500).json({ message: "Internal server error" });
+  app.get('/api/groups/:groupId/members', isAuthenticated, hasRole(['admin']), async (req, res) => {
+    try {
+      const groupId = parseInt(req.params.groupId);
+      if (isNaN(groupId)) {
+        return res.status(400).json({ message: "Invalid group ID" });
       }
+      const groupMembers = await storage.getGroupMembersByGroup(groupId);
+
+      // TODO: Consider using Prisma include to fetch user details efficiently
+      // For now, keep separate fetches
+      const membersWithUserDetails = await Promise.all(
+        groupMembers.map(async (member) => {
+          const user = await storage.getUser(member.userId);
+          // Explicitly handle null user case
+          const { password, ...userWithoutPassword } = user ?? {};
+          return {
+            ...member,
+            user: user ? userWithoutPassword : null,
+          };
+        })
+      );
+
+      res.json(membersWithUserDetails);
+    } catch (error) {
+      console.error("Error fetching group members:", error);
+      res.status(500).json({ message: "Internal server error" });
     }
+  }
   );
 
   app.post(
@@ -1257,20 +1360,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // const accessData = insertCourseAccessSchema.parse(req.body);
         const { courseId, userId, groupId, accessType } = req.body;
 
-        if (
-          typeof courseId !== "number" ||
-          !accessType ||
-          (!userId && !groupId)
-        ) {
-          return res.status(400).json({
-            message:
-              "Valid courseId, accessType, and either userId or groupId are required",
-          });
+        if (typeof courseId !== 'number' || !accessType || (!userId && !groupId)) {
+          return res.status(400).json({ message: "Valid courseId, accessType, and either userId or groupId are required" });
         }
-        if (userId && typeof userId !== "number") {
+        if (userId && typeof userId !== 'number') {
           return res.status(400).json({ message: "Invalid userId provided" });
         }
-        if (groupId && typeof groupId !== "number") {
+        if (groupId && typeof groupId !== 'number') {
           return res.status(400).json({ message: "Invalid groupId provided" });
         }
 
@@ -1407,8 +1503,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const progressPercentage =
               totalLessonsInCourse > 0
                 ? Math.round(
-                    (completedLessonsInCourse / totalLessonsInCourse) * 100
-                  )
+                  (completedLessonsInCourse / totalLessonsInCourse) * 100
+                )
                 : 0; // Avoid division by zero if course has no lessons
 
             // 5. Update enrollment with correct progress and completion status
