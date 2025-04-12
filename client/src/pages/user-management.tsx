@@ -315,6 +315,7 @@ export default function UserManagement() {
                       <TableHead>Name</TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead>Role</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead className="w-14"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -322,12 +323,11 @@ export default function UserManagement() {
                     {filteredUsers.map((user) => (
                       <TableRow key={user.id}>
                         <TableCell className="font-medium">
-                          {user.firstName && user.lastName
-                            ? `${user.firstName} ${user.lastName}`
-                            : user.username}
+                          {user.username}
                         </TableCell>
                         <TableCell>{user.email}</TableCell>
                         <TableCell className="capitalize">{user.role}</TableCell>
+                        <TableCell className="capitalize">{user.status}</TableCell>
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
