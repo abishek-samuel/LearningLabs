@@ -31,6 +31,7 @@ import CreateCoursePage from "./pages/create-course";
 import EditCoursePage from "./pages/edit-course";
 import CategoryManagement from "./pages/category-management";
 import AddUser from "./pages/add-user";
+import { ErrorBoundary } from "./components/ui/error-boundary";
 
 function Router() {
   return (
@@ -47,7 +48,10 @@ function Router() {
       <ProtectedRoute path="/analytics" component={Analytics} />
       <ProtectedRoute path="/user-management" component={UserManagement} />
       <ProtectedRoute path="/group-management" component={GroupManagement} />
-      <ProtectedRoute path="/category-management" component={CategoryManagement} />
+      <ProtectedRoute
+        path="/category-management"
+        component={CategoryManagement}
+      />
       <ProtectedRoute path="/course-approval" component={CourseApproval} />
       <ProtectedRoute path="/access-control" component={AccessControl} />
       <ProtectedRoute path="/system-settings" component={SystemSettings} />
@@ -55,7 +59,8 @@ function Router() {
       <ProtectedRoute path="/course-content" component={CourseContent} />
       <ProtectedRoute path="/add-user" component={AddUser} />
       <ProtectedRoute path="/create-course" component={CreateCoursePage} />
-      <ProtectedRoute path="/edit-course/:id" component={EditCoursePage} /> {/* Add Edit Course Route */}
+      <ProtectedRoute path="/edit-course/:id" component={EditCoursePage} />{" "}
+      {/* Add Edit Course Route */}
       <ProtectedRoute path="/quiz" component={Quiz} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/forgot-password" component={ForgotPassword} />
@@ -69,8 +74,10 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
-          <Router />
-          <Toaster />
+          <ErrorBoundary>
+            <Router />
+            <Toaster />
+          </ErrorBoundary>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>

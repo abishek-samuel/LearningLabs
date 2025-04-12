@@ -1,11 +1,11 @@
-import dotenv from 'dotenv';
+import dotenv from "dotenv";
 dotenv.config(); // Load environment variables from .env file
 
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import path from "path"; // Import path
-import { fileURLToPath } from 'url'; // Import fileURLToPath
+import { fileURLToPath } from "url"; // Import fileURLToPath
 
 // Get current directory in ES module scope
 const __filename = fileURLToPath(import.meta.url);
@@ -49,10 +49,9 @@ app.use((req, res, next) => {
 // --- Serve Uploaded Files ---
 // Serve files from the 'uploads' directory (relative to project root)
 // Adjust '..' if server/index.ts is nested deeper (e.g., src/server/index.ts needs '../..')
-const uploadsDir = path.join(__dirname, '..', 'uploads'); 
-app.use('/uploads', express.static(uploadsDir));
+const uploadsDir = path.join(__dirname, "..", "uploads");
+app.use("/uploads", express.static(uploadsDir));
 // --- End Serve Uploaded Files ---
-
 
 (async () => {
   const server = await registerRoutes(app);
@@ -61,11 +60,28 @@ app.use('/uploads', express.static(uploadsDir));
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
+    const code = err.code || "UNKNOWN_ERROR";
 
-    res.status(status).json({ message });
-    // Consider not re-throwing in production? Depends on error handling strategy.
-    // throw err; 
-    console.error("Unhandled error:", err); // Log the error
+    // Log detailed error for debugging
+    console.error("Unhandled error:", {
+      status,
+      message,
+      code,
+      stack: err.stack,
+      originalError: err,
+    });
+
+    // Send sanitized error response to client
+    res.status(status).json({
+      message:
+        process.env.NODE_ENV === "production"
+          ? status === 500
+            ? "Internal Server Error"
+            : message
+          : message,
+      code,
+      status,
+    });
   });
 
   // importantly only setup vite in development and after

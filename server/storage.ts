@@ -915,6 +915,44 @@ export class PrismaStorage implements IStorage {
     return this.prisma.certificate.create({ data: certificate });
   }
 
+  async getAllCourseAccessByUser(user: { id: number; role: string }) {
+    const isAdmin = user.role === "admin";
+
+    return this.prisma.courseAccess.findMany({
+      where: isAdmin
+        ? undefined
+        : {
+            OR: [
+              { userId: user.id },
+              {
+                group: {
+                  members: {
+                    some: {
+                      userId: user.id,
+                    },
+                  },
+                },
+              },
+            ],
+          },
+      include: {
+        course: true,
+        user: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+        group: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+  }
+
   // Optional: Method to disconnect Prisma client when server shuts down
   async disconnect(): Promise<void> {
     await this.prisma.$disconnect();

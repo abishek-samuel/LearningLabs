@@ -9,9 +9,9 @@ import type { User } from ".prisma/client"; // Import User type from Prisma
 // Zod is still useful for API input validation, but insertUserSchema is gone from storage.ts
 // We might redefine validation schemas here or in routes.ts later.
 // import { z } from "zod";
-
 // Define the Prisma User type alias to avoid naming conflict in the global scope
 import type { User as PrismaUser } from ".prisma/client";
+import { sendWelcomeEmail } from "./utils/email";
 
 declare global {
   namespace Express {
@@ -137,14 +137,24 @@ export async function setupAuth(app: Express): Promise<void> {
         status: "active"
       });
 
-      // Log the user in automatically
-      req.login(newUser, (err) => {
-        if (err) return next(err);
+      // Send welcome email if created by admin
+      // if (req.user?.role === "admin") {
+      try {
+        await sendWelcomeEmail(email, username, password, role || "employee");
+      } catch (error) {
+        console.error("Failed to send welcome email:", error);
+        // Continue with user creation even if email fails
+      }
+      // }
 
-        // Remove password from response
-        const { password, ...userWithoutPassword } = newUser;
-        return res.status(201).json(userWithoutPassword);
-      });
+      // Log the user in automatically
+      // req.login(newUser, (err) => {
+      //   if (err) return next(err);
+
+      //   // Remove password from response
+      //   const { password, ...userWithoutPassword } = newUser;
+      return res.status(200).json({ message: "User Created Successfully" });
+      // });
     } catch (error) {
       // if (error instanceof z.ZodError) { // Re-enable if using Zod validation
       //   return res.status(400).json({
@@ -152,7 +162,9 @@ export async function setupAuth(app: Express): Promise<void> {
       //     errors: error.errors
       //   });
       // }
-      next(error);
+      // next(error);
+      console.error("Registration error:", error);
+      return res.status(500).json({ message: "Internal server error" });
     }
   });
 

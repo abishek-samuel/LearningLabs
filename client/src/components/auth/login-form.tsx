@@ -4,7 +4,14 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Mail, Lock, Eye, EyeOff } from "lucide-react";
@@ -12,7 +19,9 @@ import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 import { jwtDecode } from "jwt-decode";
-const clientId = "986989868035-bbbpdr11ndnft9igim3p4oj5ha9mc658.apps.googleusercontent.com";
+const clientId =
+  "986989868035-bbbpdr11ndnft9igim3p4oj5ha9mc658.apps.googleusercontent.com";
+import { useErrorHandler } from "@/hooks/use-error-handler";
 
 const formSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -23,6 +32,7 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 export function LoginForm() {
+  const { handleError } = useErrorHandler();
   const { loginMutation } = useAuth();
   const [, setLocation] = useLocation();
   const [showPassword, setShowPassword] = useState(false);
@@ -47,9 +57,9 @@ export function LoginForm() {
         description: "Please check your email and password and try again.",
         variant: "destructive",
       });
+      handleError(error);
     }
   };
-
 
   const handleGoogleLoginSuccess = async (response) => {
     try {
@@ -61,14 +71,14 @@ export function LoginForm() {
         email: user.email,
         username: user.name,
         password: "",
-        firstName: user.given_name,  // First name from Google profile
-        lastName: user.family_name,  // Last name from Google profile
-        profilePicture: user.picture || null  // Optional profile picture
+        firstName: user.given_name, // First name from Google profile
+        lastName: user.family_name, // Last name from Google profile
+        profilePicture: user.picture || null, // Optional profile picture
       };
 
-      const apiResponse = await fetch('/api/auth/google', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const apiResponse = await fetch("/api/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
@@ -77,7 +87,8 @@ export function LoginForm() {
       if (apiResponse.ok && data.success) {
         // If the response is successful, show success toast
         toast({
-          title: "Sign up successful! You will receive an email after approval from the admin.",
+          title:
+            "Sign up successful! You will receive an email after approval from the admin.",
           description: "Please check your email",
         });
         // Redirect to home or login page after successful sign-up
@@ -86,19 +97,17 @@ export function LoginForm() {
         // If the response is not successful, show the error message
         toast({
           title: "Already Registered",
-          description: data.message,  // Error message from the server
+          description: data.message, // Error message from the server
         });
       }
     } catch (error) {
-      console.error('Google login error:', error);
+      console.error("Google login error:", error);
       toast({
         title: "Error",
         description: "Something went wrong. Please try again!",
       });
     }
   };
-
-
 
   const handleGoogleLoginFailure = () => {
     toast({
@@ -112,7 +121,9 @@ export function LoginForm() {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
         <div className="flex items-center gap-2 mb-2">
           <Mail className="text-blue-600 dark:text-blue-400 h-5 w-5" />
-          <h3 className="text-sm font-medium text-slate-900 dark:text-white">Account Details</h3>
+          <h3 className="text-sm font-medium text-slate-900 dark:text-white">
+            Account Details
+          </h3>
         </div>
 
         <FormField
@@ -187,7 +198,9 @@ export function LoginForm() {
                   />
                 </FormControl>
                 <div className="space-y-1 leading-none">
-                  <FormLabel className="text-slate-900 dark:text-white">Remember me</FormLabel>
+                  <FormLabel className="text-slate-900 dark:text-white">
+                    Remember me
+                  </FormLabel>
                 </div>
               </FormItem>
             )}
@@ -222,18 +235,20 @@ export function LoginForm() {
             <div className="w-full border-t border-gray-300 dark:border-gray-700"></div>
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white dark:bg-slate-900 text-gray-500 dark:text-gray-400">Or</span>
+            <span className="px-2 bg-white dark:bg-slate-900 text-gray-500 dark:text-gray-400">
+              Or
+            </span>
           </div>
         </div>
 
         <GoogleOAuthProvider clientId={clientId}>
-          <GoogleLogin onSuccess={handleGoogleLoginSuccess}
+          <GoogleLogin
+            onSuccess={handleGoogleLoginSuccess}
             onError={handleGoogleLoginFailure}
           />
         </GoogleOAuthProvider>
-
-      </form >
-    </Form >
+      </form>
+    </Form>
   );
 }
 

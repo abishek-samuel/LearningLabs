@@ -4,9 +4,7 @@ import {
   useMutation,
   UseMutationResult,
 } from "@tanstack/react-query";
-import {
-  InsertUser, LoginUser, User, ForgotPassword
-} from "@shared/schema";
+import { InsertUser, LoginUser, User, ForgotPassword } from "@shared/schema";
 import { apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -29,7 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     data: user,
     error,
     isLoading,
-    refetch
+    refetch,
   } = useQuery<User | null, Error>({
     queryKey: ["/api/user"],
     queryFn: async ({ queryKey }) => {
@@ -79,7 +77,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const registerMutation = useMutation({
     mutationFn: async (credentials: InsertUser) => {
       const res = await apiRequest("POST", "/api/register", credentials);
-      return await res.json();
+      // const text = await res.text();
+
+      try {
+        // const data = JSON.parse(text);
+        if (!res.ok) throw new Error("Registration failed");
+        // return data;
+      } catch (e) {
+        console.error("Invalid JSON response:");
+        // throw new Error("Unexpected server response");
+      }
     },
     onSuccess: (user: User) => {
       queryClient.setQueryData(["/api/user"], user);
@@ -125,7 +132,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onSuccess: () => {
       toast({
         title: "Password reset email sent",
-        description: "If an account with that email exists, you will receive a password reset link shortly.",
+        description:
+          "If an account with that email exists, you will receive a password reset link shortly.",
       });
     },
     onError: (error: Error) => {
