@@ -17,7 +17,7 @@ declare global {
   namespace Express {
     // Augment Express.User with the Prisma User type
     // eslint-disable-next-line @typescript-eslint/no-empty-interface
-    interface User extends PrismaUser {}
+    interface User extends PrismaUser { }
   }
 }
 
@@ -230,7 +230,7 @@ export async function setupAuth(app: Express): Promise<void> {
         // Update the user's password
         await storage.updateUser(user.id, { password: hashedPassword });
 
-        console.log(`Password reset for ${email}: ${newPassword}`);
+        console.log(`Password reset for ${email}: ${newPassword} ${hashedPassword}`);
         // Later: send this via email
       }
 

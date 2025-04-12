@@ -1664,8 +1664,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const progressPercentage =
               totalLessonsInCourse > 0
                 ? Math.round(
-                    (completedLessonsInCourse / totalLessonsInCourse) * 100
-                  )
+                  (completedLessonsInCourse / totalLessonsInCourse) * 100
+                )
                 : 0; // Avoid division by zero if course has no lessons
 
             // 5. Update enrollment with correct progress and completion status
@@ -2031,6 +2031,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Internal server error" });
     }
   });
+
+  app.put(
+    "/api/course-access/:id",
+    isAuthenticated,
+    hasRole(["admin"]),
+    async (req, res) => {
+      try {
+        const accessId = parseInt(req.params.id);
+        const { courseId, userId, groupId, accessType } = req.body;
+        console.log(req.body);
+
+        if (typeof courseId !== "number" || !accessType || (!userId && !groupId)) {
+          return res.status(400).json({
+            message: "Valid courseId, accessType, and either userId or groupId are required",
+          });
+        }
+
+        // Check if the course exists
+        const course = await storage.getCourse(courseId);
+        if (!course) {
+          return res.status(404).json({ message: "Course not found" });
+        }
+
+        // Check if user or group exists
+        if (userId) {
+          const user = await storage.getUser(userId);
+          if (!user) {
+            return res.status(404).json({ message: "User not found" });
+          }
+        }
+
+        if (groupId) {
+          const group = await storage.getGroup(groupId);
+          if (!group) {
+            return res.status(404).json({ message: "Group not found" });
+          }
+        }
+
+        const updatedAccess = await storage.prisma.courseAccess.update({
+          where: { id: accessId },
+          data: {
+            courseId,
+            userId: userId || null,
+            groupId: groupId || null,
+            accessType,
+          },
+        });
+
+        res.json(updatedAccess);
+      } catch (error) {
+        console.error("Error updating course access:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  );
 
   app.delete(
     "/api/course-access/:id",
