@@ -218,10 +218,11 @@ export async function setupAuth(app: Express): Promise<void> {
 
   app.post("/api/auth/google", async (req, res) => {
     try {
-      const { email, username, firstName, lastName, profilePicture } = req.body;
+      const { email, username, firstName, lastName, password, profilePicture } = req.body;
 
       const existingEmailUser = await storage.getUserByEmail(email);
       const existingUsernameUser = await storage.getUserByUsername(username);
+      const hashedPassword = await hashPassword(password);
 
       if (existingEmailUser || existingUsernameUser) {
         return res.json({
@@ -233,7 +234,7 @@ export async function setupAuth(app: Express): Promise<void> {
       const newUser = await storage.createUser({
         email,
         username,
-        password: "",
+        password: hashedPassword,
         firstName,
         lastName,
         status: "draft",

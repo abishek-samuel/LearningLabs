@@ -50,6 +50,29 @@ export function LoginForm() {
     }
   };
 
+  const generateRandomPassword = () => {
+    const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const lower = "abcdefghijklmnopqrstuvwxyz";
+    const numbers = "0123456789";
+    const special = "!@#$%^&*()";
+
+    let password = "";
+    password += upper.charAt(Math.floor(Math.random() * upper.length));
+    password += lower.charAt(Math.floor(Math.random() * lower.length));
+    password += numbers.charAt(Math.floor(Math.random() * numbers.length));
+    password += special.charAt(Math.floor(Math.random() * special.length));
+
+    const allChars = upper + lower + numbers + special;
+    for (let i = 0; i < 2; i++) {  // fill remaining to reach 6
+      password += allChars.charAt(Math.floor(Math.random() * allChars.length));
+    }
+
+    return password
+      .split('')
+      .sort(() => 0.5 - Math.random())  // shuffle the result
+      .join('');
+  };
+
   const handleGoogleLoginSuccess = async (response) => {
     try {
       const token = response.credential;
@@ -59,7 +82,7 @@ export function LoginForm() {
       const payload = {
         email: user.email,
         username: user.name,
-        password: "GoogleUser",  // Set a default password as "GoogleUser" (optional)
+        password: generateRandomPassword(),
         firstName: user.given_name,  // First name from Google profile
         lastName: user.family_name,  // Last name from Google profile
         profilePicture: user.picture || null  // Optional profile picture
