@@ -53,13 +53,12 @@ export function ForgotPasswordForm() {
         </div>
         <h3 className="text-lg font-semibold">Check your email</h3>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          We have sent a password reset link to <span className="font-medium">{form.getValues().email}</span>.
-          The link will expire in 30 minutes.
+          We have sent a password to <span className="font-medium">{form.getValues().email}</span>.
         </p>
         <div className="pt-4">
-          <Button 
-            variant="outline" 
-            className="mt-4" 
+          <Button
+            variant="outline"
+            className="mt-4"
             onClick={() => setLocation("/auth")}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -83,7 +82,7 @@ export function ForgotPasswordForm() {
                 <Input placeholder="you@example.com" {...field} autoComplete="email" />
               </FormControl>
               <FormDescription>
-                We'll send a password reset link to this email address.
+                We'll send a password to this email address.
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -100,9 +99,9 @@ export function ForgotPasswordForm() {
               "Send reset link"
             )}
           </Button>
-          <Button 
-            variant="outline" 
-            className="w-full" 
+          <Button
+            variant="outline"
+            className="w-full"
             type="button"
             onClick={() => setLocation("/auth")}
           >

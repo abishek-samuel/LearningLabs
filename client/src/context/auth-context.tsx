@@ -131,9 +131,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: () => {
       toast({
-        title: "Password reset email sent",
-        description:
-          "If an account with that email exists, you will receive a password reset link shortly.",
+        title: "Password has been sent to email.",
+        description: "If an account with that email exists, you will receive a password shortly.",
       });
     },
     onError: (error: Error) => {

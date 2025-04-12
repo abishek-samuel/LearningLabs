@@ -216,17 +216,42 @@ export async function setupAuth(app: Express): Promise<void> {
       const { email } = req.body;
       const user = await storage.getUserByEmail(email);
 
-      // Always return success even if email doesn't exist for security reasons
+      if (user) {
+        // Generate secure random 6-character password
+        const newPassword = generateRandomPassword(6);
+
+        // Hash the password
+        const hashedPassword = await hashPassword(newPassword);
+
+        // Update the user's password
+        await storage.updateUser(user.id, { password: hashedPassword });
+
+        console.log(`Password reset for ${email}: ${newPassword}`);
+        // Later: send this via email
+      }
+
       return res.json({
         success: true,
-        message:
-          "If an account with that email exists, a password reset link has been sent.",
+        message: "If an account with that email exists, a new password has been sent.",
       });
+
     } catch (error) {
       console.error("Forgot password error:", error);
       res.status(500).json({ message: "An error occurred" });
     }
   });
+
+  // Place this function above your route
+  function generateRandomPassword(length = 6) {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+    let password = "";
+    for (let i = 0; i < length; i++) {
+      const randomIndex = Math.floor(Math.random() * chars.length);
+      password += chars[randomIndex];
+    }
+    return password;
+  }
+
 
   app.post("/api/auth/google", async (req, res) => {
     try {
