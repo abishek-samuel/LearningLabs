@@ -17,7 +17,7 @@ declare global {
   namespace Express {
     // Augment Express.User with the Prisma User type
     // eslint-disable-next-line @typescript-eslint/no-empty-interface
-    interface User extends PrismaUser { }
+    interface User extends PrismaUser {}
   }
 }
 
@@ -59,24 +59,28 @@ export async function setupAuth(app: Express): Promise<void> {
   app.use(passport.session());
 
   passport.use(
-    new LocalStrategy({
-      usernameField: "email",
-      passwordField: "password",
-    },
+    new LocalStrategy(
+      {
+        usernameField: "email",
+        passwordField: "password",
+      },
       async (email, password, done) => {
         try {
           const user = await storage.getUserByEmail(email);
           if (!user || !(await comparePasswords(password, user.password))) {
             return done(null, false, { message: "Invalid email or password" });
           }
-          if (user.status !== 'active') {
-            return done(null, false, { message: "Account is not active. Please contact support." });
+          if (user.status !== "active") {
+            return done(null, false, {
+              message: "Account is not active. Please contact support.",
+            });
           }
           return done(null, user);
         } catch (error) {
           return done(error);
         }
-      }),
+      }
+    )
   );
 
   passport.serializeUser((user, done) => {
@@ -134,7 +138,7 @@ export async function setupAuth(app: Express): Promise<void> {
         lastName: lastName || null,
         role: role || "employee", // Default role if not provided
         profilePicture: profilePicture || null,
-        status: "active"
+        status: "active",
       });
 
       // Send welcome email if created by admin
@@ -255,7 +259,8 @@ export async function setupAuth(app: Express): Promise<void> {
 
   app.post("/api/auth/google", async (req, res) => {
     try {
-      const { email, username, firstName, lastName, password, profilePicture } = req.body;
+      const { email, username, firstName, lastName, password, profilePicture } =
+        req.body;
 
       const existingEmailUser = await storage.getUserByEmail(email);
       const existingUsernameUser = await storage.getUserByUsername(username);
@@ -263,7 +268,7 @@ export async function setupAuth(app: Express): Promise<void> {
       if (existingEmailUser || existingUsernameUser) {
         return res.json({
           success: false,
-          message: "Email or Username already registered! Please sign in."
+          message: "Email or Username already registered! Please sign in.",
         });
       }
 
@@ -279,7 +284,6 @@ export async function setupAuth(app: Express): Promise<void> {
       });
 
       return res.json({ success: true, user: newUser });
-
     } catch (error) {
       console.error("Error saving Google user:", error);
       res.status(500).json({ error: "Something went wrong!" });

@@ -7,6 +7,8 @@ import multer from "multer"; // Import multer
 import path from "path"; // Import path for handling file paths
 import fs from "fs"; // Import fs for creating directories
 import { fileURLToPath } from "url"; // Import fileURLToPath
+import { sendApproveEmail, sendRejectionEmail } from "./utils/email";
+
 // Zod validation removed for now, can be added back based on Prisma types
 // import { z } from "zod";
 // Drizzle schema imports removed
@@ -116,7 +118,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let filteredUsers = users.map(({ password, ...user }) => user);
 
         // Filter for active users
-        filteredUsers = filteredUsers.filter(user => user.status === "active");
+        filteredUsers = filteredUsers.filter(
+          (user) => user.status === "active"
+        );
 
         if (search) {
           const searchStr = search.toString().toLowerCase();
@@ -154,7 +158,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let filteredUsers = users.map(({ password, ...user }) => user);
 
         // Filter for active users
-        filteredUsers = filteredUsers.filter(user => user.status === "draft");
+        filteredUsers = filteredUsers.filter((user) => user.status === "draft");
 
         if (search) {
           const searchStr = search.toString().toLowerCase();
@@ -179,7 +183,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
-
   // Approve user
   app.post(
     "/api/users/:id/approve",
@@ -197,16 +200,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(404).json({ message: "User not found" });
         }
 
-        // Logging before updating
-        console.log("Approving user:", userId, existingUser);
-
         // Await hashed password before updating
         const hashedPassword = await hashPassword(password);
 
         // Proceed with updating the user if they exist
         const updatedUser = await storage.updateUser(userId, {
           status: "active",
-          password: hashedPassword,  // Use the resolved hashed password
+          password: hashedPassword, // Use the resolved hashed password
         });
 
         if (!updatedUser) {
@@ -214,10 +214,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(500).json({ message: "Failed to update user" });
         }
 
-        // Log the result of update
-        console.log("Updated user:", updatedUser);
+        // Send welcome email with credentials
+        try {
+          await sendApproveEmail(
+            updatedUser.email,
+            updatedUser.username,
+            password, // Send the original unhashed password
+            updatedUser.role
+          );
+        } catch (emailError) {
+          console.error("Failed to send welcome email:", emailError);
+          // Continue with the response even if email fails
+        }
 
-        const { password: pw, ...userWithoutPassword } = updatedUser;  // Omit password
+        const { password: pw, ...userWithoutPassword } = updatedUser; // Omit password
         res.json(userWithoutPassword);
       } catch (error) {
         console.error("Error approving user:", error);
@@ -226,7 +236,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
+  app.post(
+    "/api/users/:id/reject",
+    isAuthenticated,
+    hasRole(["admin"]),
+    async (req, res) => {
+      try {
+        const userId = parseInt(req.params.id);
+        const user = await storage.getUser(userId);
 
+        if (!user) {
+          return res.status(404).json({ message: "User not found" });
+        }
+
+        // Send rejection email before deleting the user
+        try {
+          await sendRejectionEmail(user.email, user.username);
+        } catch (emailError) {
+          console.error("Failed to send rejection email:", emailError);
+          // Continue with deletion even if email fails
+        }
+
+        await storage.deleteUser(userId);
+        res.status(200).json({ message: "User rejected successfully" });
+      } catch (error) {
+        console.error("Error rejecting user:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  );
 
   app.get(
     "/api/users/:id",

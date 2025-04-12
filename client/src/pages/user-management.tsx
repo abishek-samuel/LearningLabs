@@ -27,12 +27,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  UserPlus,
-  Search,
-  MoreHorizontal,
-  Loader2,
-} from "lucide-react";
+import { UserPlus, Search, MoreHorizontal, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -127,7 +122,10 @@ export default function UserManagement() {
       password += allChars.charAt(Math.floor(Math.random() * allChars.length));
     }
 
-    return password.split('').sort(() => 0.5 - Math.random()).join('');
+    return password
+      .split("")
+      .sort(() => 0.5 - Math.random())
+      .join("");
   };
 
   const handleApproveUser = async (userId: number) => {
@@ -136,29 +134,54 @@ export default function UserManagement() {
       const response = await fetch(`/api/users/${userId}/approve`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ password: generatedPassword })
+        body: JSON.stringify({ password: generatedPassword }),
       });
-      if (!response.ok) throw new Error("Failed to approve user");
-      toast({ title: "User Approved", description: "The user has been approved.", variant: "success" });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to approve user");
+      }
+      toast({
+        title: "User Approved",
+        description: "The user has been approved and notified via email.",
+        variant: "success",
+      });
       fetchDraftUsers(); // Refresh the list after approval
     } catch (error) {
       console.error("Error approving user:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error ? error.message : "Failed to approve user",
+        variant: "destructive",
+      });
     }
   };
 
-
   const handleRejectUser = async (userId: number) => {
     try {
-      const response = await fetch(`/api/users/${userId}`, {
-        method: "DELETE",
+      const response = await fetch(`/api/users/${userId}/reject`, {
+        method: "POST",
       });
-      if (!response.ok) throw new Error("Failed to reject user");
-      toast({ title: "User Rejected", description: "The user has been rejected.", variant: "success" });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to reject user");
+      }
+      toast({
+        title: "User Rejected",
+        description: "The user has been rejected and notified via email.",
+        variant: "success",
+      });
       fetchDraftUsers(); // Refresh the list after rejection
     } catch (error) {
       console.error("Error rejecting user:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error ? error.message : "Failed to reject user",
+        variant: "destructive",
+      });
     }
   };
 
@@ -253,7 +276,7 @@ export default function UserManagement() {
 
     const matchesRole = roleFilter === "all" || user.role === roleFilter;
 
-    return matchesSearch && matchesRole && user.status !== 'draft'; //Exclude draft users from main list
+    return matchesSearch && matchesRole && user.status !== "draft"; //Exclude draft users from main list
   });
 
   return (
@@ -326,8 +349,12 @@ export default function UserManagement() {
                           {user.username}
                         </TableCell>
                         <TableCell>{user.email}</TableCell>
-                        <TableCell className="capitalize">{user.role}</TableCell>
-                        <TableCell className="capitalize">{user.status}</TableCell>
+                        <TableCell className="capitalize">
+                          {user.role}
+                        </TableCell>
+                        <TableCell className="capitalize">
+                          {user.status}
+                        </TableCell>
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -342,7 +369,9 @@ export default function UserManagement() {
                               >
                                 View Details
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleEdit(user)}>
+                              <DropdownMenuItem
+                                onClick={() => handleEdit(user)}
+                              >
                                 Edit
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
@@ -379,28 +408,38 @@ export default function UserManagement() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {users.filter(user => user.status === 'draft').map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell className="font-medium">
-                          {user.firstName && user.lastName
-                            ? `${user.firstName} ${user.lastName}`
-                            : user.username}
-                        </TableCell>
-                        <TableCell>{user.email}</TableCell>
-                        <TableCell className="capitalize">{user.role}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button size="sm" onClick={() => handleApproveUser(user.id)}>
-                              Approve
-                            </Button>
-                            <Button variant="destructive" size="sm" onClick={() => handleRejectUser(user.id)}>
-                              Reject
-                            </Button>
-                          </div>
-                        </TableCell>
-
-                      </TableRow>
-                    ))}
+                    {users
+                      .filter((user) => user.status === "draft")
+                      .map((user) => (
+                        <TableRow key={user.id}>
+                          <TableCell className="font-medium">
+                            {user.firstName && user.lastName
+                              ? `${user.firstName} ${user.lastName}`
+                              : user.username}
+                          </TableCell>
+                          <TableCell>{user.email}</TableCell>
+                          <TableCell className="capitalize">
+                            {user.role}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => handleApproveUser(user.id)}
+                              >
+                                Approve
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => handleRejectUser(user.id)}
+                              >
+                                Reject
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
                   </TableBody>
                 </Table>
               )}
@@ -496,7 +535,10 @@ export default function UserManagement() {
               <option value="admin">Admin</option>
             </select>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setEditDialogOpen(false)}
+              >
                 Cancel
               </Button>
               <Button type="submit">Save</Button>
@@ -516,7 +558,10 @@ export default function UserManagement() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+            >
               No
             </Button>
             <Button variant="destructive" onClick={confirmDelete}>
