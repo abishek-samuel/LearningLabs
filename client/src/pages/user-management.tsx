@@ -48,6 +48,7 @@ export default function UserManagement() {
   const { toast } = useToast();
 
   const [users, setUsers] = useState<User[]>([]);
+  const [draftUsers, setDraftUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -68,6 +69,7 @@ export default function UserManagement() {
 
   useEffect(() => {
     fetchUsers();
+    fetchDraftUsers();
   }, []);
 
   const fetchUsers = async () => {
@@ -88,7 +90,7 @@ export default function UserManagement() {
       const response = await fetch("/api/draft-users");
       if (!response.ok) throw new Error("Failed to fetch draft users");
       const data = await response.json();
-      setUsers(data);
+      setDraftUsers(data);
     } catch (error) {
       console.error("Error fetching draft users:", error);
     } finally {
@@ -323,7 +325,14 @@ export default function UserManagement() {
         <Tabs defaultValue="active" onValueChange={handleTabChange}>
           <TabsList>
             <TabsTrigger value="active">Active Users</TabsTrigger>
-            <TabsTrigger value="pending">Pending Approvals</TabsTrigger>
+            <div className="relative">
+              <TabsTrigger value="pending">Pending Approvals</TabsTrigger>
+              {draftUsers.length > 0 && (
+                <span className="absolute -top-1 -right-2 bg-red-500 text-white text-xs font-semibold px-1.5 rounded-full">
+                  {draftUsers.length}
+                </span>
+              )}
+            </div>
           </TabsList>
           <TabsContent value="active">
             <div className="bg-white dark:bg-slate-800 overflow-hidden shadow rounded-lg">
@@ -352,8 +361,10 @@ export default function UserManagement() {
                         <TableCell className="capitalize">
                           {user.role}
                         </TableCell>
-                        <TableCell className="capitalize">
-                          {user.status}
+                        <TableCell>
+                          <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full capitalize">
+                            {user.status}
+                          </span>
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>
@@ -408,39 +419,45 @@ export default function UserManagement() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {users
-                      .filter((user) => user.status === "draft")
-                      .map((user) => (
-                        <TableRow key={user.id}>
-                          <TableCell className="font-medium">
-                            {user.firstName && user.lastName
-                              ? `${user.firstName} ${user.lastName}`
-                              : user.username}
-                          </TableCell>
-                          <TableCell>{user.email}</TableCell>
-                          <TableCell className="capitalize">
-                            {user.role}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                onClick={() => handleApproveUser(user.id)}
-                              >
-                                Approve
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => handleRejectUser(user.id)}
-                              >
-                                Reject
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                    {draftUsers.filter((user) => user.status === "draft").length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-4 text-slate-500">
+                          No data available
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      draftUsers
+                        .filter((user) => user.status === "draft")
+                        .map((user) => (
+                          <TableRow key={user.id}>
+                            <TableCell className="font-medium">
+                              {user.firstName && user.lastName
+                                ? `${user.firstName} ${user.lastName}`
+                                : user.username}
+                            </TableCell>
+                            <TableCell>{user.email}</TableCell>
+                            <TableCell className="capitalize">
+                              {user.role}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Button size="sm" onClick={() => handleApproveUser(user.id)}>
+                                  Approve
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => handleRejectUser(user.id)}
+                                >
+                                  Reject
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                    )}
                   </TableBody>
+
                 </Table>
               )}
             </div>

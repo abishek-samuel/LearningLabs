@@ -1,7 +1,7 @@
 import { type Express, Request, Response, NextFunction } from "express"; // Keep original import
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { hashPassword, setupAuth } from "./auth";
+import { comparePasswords, hashPassword, setupAuth } from "./auth";
 import { Prisma } from "@prisma/client"; // Import Prisma namespace
 import multer from "multer"; // Import multer
 import path from "path"; // Import path for handling file paths
@@ -109,6 +109,121 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.status(403).json({ message: "Forbidden" });
     };
+
+
+  // Profile routes
+  app.get("/api/profile", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const { password, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Profile routes
+  const upload = multer({ dest: "uploads/" }); // You can customize destination
+
+  app.put("/api/profile", isAuthenticated, upload.single("profilePicture"), async (req, res) => {
+    try {
+      const userId = parseInt(req.body.id);
+      if (userId !== req.user!.id) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const { firstName, lastName } = req.body;
+
+      let profilePictureUrl = undefined;
+      if (req.file) {
+        // You can store req.file.path or handle cloud storage upload here
+        profilePictureUrl = `/uploads/${req.file.filename}`;
+      }
+
+      const updatedUser = await storage.updateUser(userId, {
+        firstName,
+        lastName,
+        ...(profilePictureUrl && { profilePicture: profilePictureUrl })
+      });
+
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { password, ...userWithoutPassword } = updatedUser;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.put("/api/profile/password", isAuthenticated, async (req, res) => {
+    try {
+      const userId = parseInt(req.body.id);
+      if (userId !== req.user!.id) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const { currentPassword, newPassword } = req.body;
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Verify current password
+      const isValid = await comparePasswords(currentPassword, user.password);
+      if (!isValid) {
+        return res.status(400).json({ message: "Current password is incorrect" });
+      }
+
+      // Hash new password
+      const hashedPassword = await hashPassword(newPassword);
+
+      // Update password
+      await storage.updateUser(userId, { password: hashedPassword });
+
+      res.json({ message: "Password updated successfully" });
+    } catch (error) {
+      console.error("Error updating password:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // app.put("/api/profile/password", isAuthenticated, async (req, res) => {
+  //   try {
+  //     const userId = req.user!.id;
+  //     const { currentPassword, newPassword } = req.body;
+
+  //     const user = await storage.getUser(userId);
+  //     if (!user) {
+  //       return res.status(404).json({ message: "User not found" });
+  //     }
+
+  //     // Verify current password
+  //     const isValid = await bcrypt.compare(currentPassword, user.password);
+  //     if (!isValid) {
+  //       return res.status(400).json({ message: "Current password is incorrect" });
+  //     }
+
+  //     // Hash new password
+  //     const hashedPassword = await hashPassword(newPassword);
+
+  //     // Update password
+  //     await storage.updateUser(userId, { password: hashedPassword });
+
+  //     res.json({ message: "Password updated successfully" });
+  //   } catch (error) {
+  //     console.error("Error updating password:", error);
+  //     res.status(500).json({ message: "Internal server error" });
+  //   }
+  // });
 
   // User routes
   app.get(
