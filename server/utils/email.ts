@@ -109,7 +109,7 @@ export async function sendGroupAssignmentEmail(
   const mailOptions = {
     from: process.env.SMTP_FROM,
     to: email,
-    subject: "Course Access Granted - Group Assignment",
+    subject: "Course Access Granted",
     html: `
       <h1>Course Assignment Notification</h1>
       <p>Hello ${username},</p>

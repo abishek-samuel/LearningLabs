@@ -24,72 +24,84 @@ import {
   Grid3X3,
   List,
   ChevronDown,
-  Loader2
+  Loader2,
 } from "lucide-react";
-import { Link, useLocation } from "wouter"; // Import Link and useLocation
+import { useAuth } from "@/context/auth-context";
+import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
-// This should ideally match the structure returned by your /api/courses endpoint
 type CourseType = {
   id: number;
   title: string;
   description: string;
   thumbnail?: string | null;
-  category?: string | null; // Assuming category is available for filtering
-  createdAt: string; // Assuming date is string from JSON
+  category?: string | null;
+  createdAt: string;
   difficulty?: string | null;
   duration?: number | null;
-  // Add other fields as needed based on API response and usage
 };
 
-
 export default function CourseCatalog() {
-  const [, navigate] = useLocation(); // Get navigate function
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [category, setCategory] = useState("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [sortOrder, setSortOrder] = useState("newest");
-
-  // Add type hint to useQuery
   const [currentPage, setCurrentPage] = useState(1);
   const coursesPerPage = 8;
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ["/api/courses", user?.id] });
+  }, [user?.id]);
 
   const { data: courses = [], isLoading } = useQuery<CourseType[]>({
-    queryKey: ["/api/courses"],
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
-    staleTime: 0,
-    cacheTime: 0,
+    queryKey: ["/api/courses", user?.id],
+    queryFn: async () => {
+      const res = await fetch("/api/courses");
+      if (!res.ok) {
+        throw new Error("Failed to fetch courses");
+      }
+      return res.json();
+    },
+    enabled: !!user,
   });
 
   // Filter courses based on search query and category
   const filteredCourses = courses?.filter((course) => {
-    const matchesSearch = !searchQuery || 
-      (course.title && course.title.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (course.description && course.description.toLowerCase().includes(searchQuery.toLowerCase()));
-    
-    // Assuming category is a field on the course object from the API
-    const matchesCategory = category === "all" || course.category === category; 
-    
+    const matchesSearch =
+      !searchQuery ||
+      (course.title &&
+        course.title.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (course.description &&
+        course.description.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    const matchesCategory = category === "all" || course.category === category;
+
     return matchesSearch && matchesCategory;
   });
 
   // Sort courses based on sort order
-  const sortedCourses = filteredCourses ? [...filteredCourses].sort((a, b) => {
-    if (sortOrder === "newest") {
-      // Ensure createdAt exists and is valid before comparing
-      return (new Date(b.createdAt || 0)).getTime() - (new Date(a.createdAt || 0)).getTime();
-    } else if (sortOrder === "oldest") {
-      return (new Date(a.createdAt || 0)).getTime() - (new Date(b.createdAt || 0)).getTime();
-    } else if (sortOrder === "az") {
-      return (a.title || "").localeCompare(b.title || "");
-    } else if (sortOrder === "za") {
-      return (b.title || "").localeCompare(a.title || "");
-    } else if (sortOrder === "popular") {
-      // In a real app, we'd sort by enrollment count or rating
-      return 0;
-    }
-    return 0;
-  }) : [];
+  const sortedCourses = filteredCourses
+    ? [...filteredCourses].sort((a, b) => {
+        if (sortOrder === "newest") {
+          return (
+            new Date(b.createdAt || 0).getTime() -
+            new Date(a.createdAt || 0).getTime()
+          );
+        } else if (sortOrder === "oldest") {
+          return (
+            new Date(a.createdAt || 0).getTime() -
+            new Date(b.createdAt || 0).getTime()
+          );
+        } else if (sortOrder === "az") {
+          return (a.title || "").localeCompare(b.title || "");
+        } else if (sortOrder === "za") {
+          return (b.title || "").localeCompare(a.title || "");
+        }
+        return 0;
+      })
+    : [];
 
   return (
     <MainLayout>
@@ -100,14 +112,13 @@ export default function CourseCatalog() {
               Course Catalog
             </h1>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Browse and discover courses to enhance your skills
+              Browse your available courses
             </p>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Search and filter section */}
         <div className="flex flex-col sm:flex-row gap-4 mb-8">
           <div className="relative flex-1">
             <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
@@ -128,7 +139,6 @@ export default function CourseCatalog() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
-                {/* TODO: Populate categories dynamically if possible */}
                 <SelectItem value="development">Development</SelectItem>
                 <SelectItem value="business">Business</SelectItem>
                 <SelectItem value="design">Design</SelectItem>
@@ -145,12 +155,18 @@ export default function CourseCatalog() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                <DropdownMenuRadioGroup value={sortOrder} onValueChange={setSortOrder}>
-                  <DropdownMenuRadioItem value="newest">Newest</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="oldest">Oldest</DropdownMenuRadioItem>
+                <DropdownMenuRadioGroup
+                  value={sortOrder}
+                  onValueChange={setSortOrder}
+                >
+                  <DropdownMenuRadioItem value="newest">
+                    Newest
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="oldest">
+                    Oldest
+                  </DropdownMenuRadioItem>
                   <DropdownMenuRadioItem value="az">A-Z</DropdownMenuRadioItem>
                   <DropdownMenuRadioItem value="za">Z-A</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="popular">Most Popular</DropdownMenuRadioItem>
                 </DropdownMenuRadioGroup>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -177,12 +193,13 @@ export default function CourseCatalog() {
           </div>
         </div>
 
-        {/* Course list */}
         {isLoading ? (
           <div className="flex justify-center py-20">
             <div className="flex flex-col items-center">
               <Loader2 className="h-10 w-10 animate-spin text-accent" />
-              <p className="mt-4 text-slate-500 dark:text-slate-400">Loading courses...</p>
+              <p className="mt-4 text-slate-500 dark:text-slate-400">
+                Loading courses...
+              </p>
             </div>
           </div>
         ) : sortedCourses.length === 0 ? (
@@ -190,28 +207,38 @@ export default function CourseCatalog() {
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700">
               <Search className="h-6 w-6 text-slate-500 dark:text-slate-400" />
             </div>
-            <h3 className="mt-2 text-sm font-semibold text-slate-900 dark:text-white">No courses found</h3>
+            <h3 className="mt-2 text-sm font-semibold text-slate-900 dark:text-white">
+              No courses found
+            </h3>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Try adjusting your search or filter to find what you're looking for.
+              Try adjusting your search or filter to find what you're looking
+              for.
             </p>
             <div className="mt-6">
-              <Button onClick={() => {
-                setSearchQuery("");
-                setCategory("all");
-              }}>
+              <Button
+                onClick={() => {
+                  setSearchQuery("");
+                  setCategory("all");
+                }}
+              >
                 Clear filters
               </Button>
             </div>
           </div>
         ) : (
           <>
-            <div className={
-              viewMode === "grid" 
-                ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" 
-                : "flex flex-col space-y-4"
-            }>
+            <div
+              className={
+                viewMode === "grid"
+                  ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                  : "flex flex-col space-y-4"
+              }
+            >
               {sortedCourses
-                .slice((currentPage - 1) * coursesPerPage, currentPage * coursesPerPage)
+                .slice(
+                  (currentPage - 1) * coursesPerPage,
+                  currentPage * coursesPerPage
+                )
                 .map((course) => (
                   <CourseCard
                     key={course.id}
@@ -221,7 +248,7 @@ export default function CourseCatalog() {
                     thumbnailUrl={course.thumbnail ?? undefined}
                     rating={4.5}
                   />
-              ))}
+                ))}
             </div>
 
             <div className="mt-8 flex justify-center">
@@ -234,21 +261,34 @@ export default function CourseCatalog() {
                 >
                   Previous
                 </Button>
-                {Array.from({ length: Math.ceil(sortedCourses.length / coursesPerPage) }, (_, i) => (
-                  <Button
-                    key={i + 1}
-                    variant={currentPage === i + 1 ? "default" : "outline"}
-                    className="rounded-none"
-                    onClick={() => setCurrentPage(i + 1)}
-                  >
-                    {i + 1}
-                  </Button>
-                ))}
+                {Array.from(
+                  { length: Math.ceil(sortedCourses.length / coursesPerPage) },
+                  (_, i) => (
+                    <Button
+                      key={i + 1}
+                      variant={currentPage === i + 1 ? "default" : "outline"}
+                      className="rounded-none"
+                      onClick={() => setCurrentPage(i + 1)}
+                    >
+                      {i + 1}
+                    </Button>
+                  )
+                )}
                 <Button
                   variant="outline"
                   className="rounded-r-md rounded-l-none"
-                  disabled={currentPage === Math.ceil(sortedCourses.length / coursesPerPage)}
-                  onClick={() => setCurrentPage((p) => Math.min(p + 1, Math.ceil(sortedCourses.length / coursesPerPage)))}
+                  disabled={
+                    currentPage ===
+                    Math.ceil(sortedCourses.length / coursesPerPage)
+                  }
+                  onClick={() =>
+                    setCurrentPage((p) =>
+                      Math.min(
+                        p + 1,
+                        Math.ceil(sortedCourses.length / coursesPerPage)
+                      )
+                    )
+                  }
                 >
                   Next
                 </Button>

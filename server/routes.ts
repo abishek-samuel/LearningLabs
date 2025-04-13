@@ -218,6 +218,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(500).json({ message: "Failed to update user" });
         }
 
+        const { password: pw, ...userWithoutPassword } = updatedUser; // Omit password
+        res.json(userWithoutPassword);
         // Send welcome email with credentials
         try {
           await sendApproveEmail(
@@ -230,9 +232,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error("Failed to send welcome email:", emailError);
           // Continue with the response even if email fails
         }
-
-        const { password: pw, ...userWithoutPassword } = updatedUser; // Omit password
-        res.json(userWithoutPassword);
       } catch (error) {
         console.error("Error approving user:", error);
         res.status(500).json({ message: "Internal server error" });
@@ -252,6 +251,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!user) {
           return res.status(404).json({ message: "User not found" });
         }
+        res.status(200).json({ message: "User rejected successfully" });
 
         // Send rejection email before deleting the user
         try {
@@ -262,7 +262,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         await storage.deleteUser(userId);
-        res.status(200).json({ message: "User rejected successfully" });
       } catch (error) {
         console.error("Error rejecting user:", error);
         res.status(500).json({ message: "Internal server error" });
@@ -504,11 +503,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/courses", isAuthenticated, async (req, res) => {
     try {
-      const courses = (await storage.getCourses()).filter(
+      const userId = req.user!.id;
+      const userRole = req.user!.role;
+
+      if (userRole === "admin") {
+        const courses = (await storage.getCourses()).filter(
+          (course) => course.status === "published"
+        );
+        return res.json(courses);
+      }
+
+      const accessData = await storage.getAllCourseAccessByUser({
+        id: userId,
+        role: userRole,
+      });
+
+      // Get all published courses
+      const allPublishedCourses = (await storage.getCourses()).filter(
         (course) => course.status === "published"
       );
 
-      res.json(courses);
+      // Direct course access
+      const directAccessCourseIds = accessData
+        .filter((access) => access.userId === userId)
+        .map((access) => access.courseId);
+
+      // Get user's groups
+      const userGroups = await storage.getGroupMembersByUser(userId);
+      const userGroupIds = userGroups.map((gm) => gm.groupId);
+
+      // Courses accessed via group, only if:
+      // - user is in that group
+      // - group is assigned to that course
+      const groupAccessCourseIds: number[] = [];
+
+      for (const access of accessData) {
+        if (access.groupId && userGroupIds.includes(access.groupId)) {
+          const groupCourses = await storage.getGroupCoursesByGroup(
+            access.groupId
+          );
+          const matched = groupCourses.find(
+            (gc) => gc.courseId === access.courseId
+          );
+          if (matched) {
+            groupAccessCourseIds.push(access.courseId);
+          }
+        }
+      }
+
+      const accessibleCourseIds = new Set([
+        ...directAccessCourseIds,
+        ...groupAccessCourseIds,
+      ]);
+
+      const accessibleCourses = allPublishedCourses.filter((course) =>
+        accessibleCourseIds.has(course.id)
+      );
+
+      res.json(accessibleCourses);
     } catch (error) {
       console.error("Error fetching courses:", error);
       res.status(500).json({ message: "Internal server error" });
@@ -1318,13 +1370,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           description: description || null,
         });
 
-        // Link users to group
-        if (Array.isArray(userIds) && userIds.length > 0) {
-          await Promise.all(
-            userIds.map((userId: number) =>
-              storage.createGroupMember({ groupId: newGroup.id, userId })
-            )
-          );
+        // Create course access mappings for each course-user combination
+        if (Array.isArray(courseIds) && courseIds.length > 0) {
+          const courseAccessPromises = [];
+          for (const userId of userIds) {
+            for (const courseId of courseIds) {
+              courseAccessPromises.push(
+                storage.createCourseAccess({
+                  courseId,
+                  userId,
+                  groupId: newGroup.id,
+                  accessType: "view",
+                })
+              );
+            }
+          }
+          await Promise.all(courseAccessPromises);
         }
 
         // Link courses to group
@@ -1344,6 +1405,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return course ? { id: course.id, title: course.title } : null;
           })
         ).then((results) => results.filter(Boolean));
+        res
+          .status(201)
+          .json({ message: "Group created successfully", group: newGroup });
 
         // Send email to each user
         if (userIds.length > 0 && courses.length > 0) {
@@ -1361,10 +1425,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             })
           );
         }
-
-        res
-          .status(201)
-          .json({ message: "Group created successfully", group: newGroup });
       } catch (error) {
         console.error("Error creating group:", error);
         res.status(500).json({ message: "Internal server error" });
@@ -1381,13 +1441,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const groupId = parseInt(req.params.id);
         const { name, userIds = [], courseIds = [] } = req.body;
 
-        // Get existing users before update
-        const existingMembers = await storage.getGroupMembersByGroup(groupId); // You need to have this method
+        // Get existing users and courses before update
+        const existingMembers = await storage.getGroupMembersByGroup(groupId);
         const existingUserIds = existingMembers.map((member) => member.userId);
 
-        // Determine newly added users
+        const existingGroupCourses = await storage.getGroupCoursesByGroup(
+          groupId
+        );
+        const existingCourseIds = existingGroupCourses.map((gc) => gc.courseId);
+
+        // Determine newly added users and courses
         const newlyAddedUserIds = userIds.filter(
           (userId) => !existingUserIds.includes(userId)
+        );
+        const newlyAddedCourseIds = courseIds.filter(
+          (courseId) => !existingCourseIds.includes(courseId)
         );
 
         // Update group name
@@ -1398,24 +1466,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.deleteGroupCourses(groupId);
 
         // Add members
-        if (Array.isArray(userIds) && userIds.length > 0) {
+        if (userIds.length > 0) {
           await Promise.all(
-            userIds.map((userId: number) =>
+            userIds.map((userId) =>
               storage.createGroupMember({ groupId, userId })
             )
           );
         }
 
         // Add courses
-        if (Array.isArray(courseIds) && courseIds.length > 0) {
+        if (courseIds.length > 0) {
           await Promise.all(
-            courseIds.map((courseId: number) =>
+            courseIds.map((courseId) =>
               storage.createGroupCourse({ groupId, courseId })
             )
           );
         }
 
-        // Get course list to send in email
+        // ✅ Recreate course access mappings
+        if (userIds.length > 0 && courseIds.length > 0) {
+          await Promise.all(
+            userIds.flatMap((userId) =>
+              courseIds.map((courseId) =>
+                storage.createCourseAccess({
+                  courseId,
+                  userId,
+                  groupId,
+                  accessType: "view",
+                })
+              )
+            )
+          );
+        }
+
+        // Get updated course details
         const groupCourses = await storage.getGroupCoursesByGroup(groupId);
         const courses = await Promise.all(
           groupCourses.map(async (gc) => {
@@ -1427,10 +1511,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Get group details
         const group = await storage.getGroup(groupId);
 
-        // Send email to only newly added users
+        res.status(200).json({ message: "Group updated successfully" });
+
+        // ✉️ Send email to newly added users (only)
         if (newlyAddedUserIds.length > 0 && courses.length > 0 && group) {
           await Promise.all(
-            newlyAddedUserIds.map(async (userId: number) => {
+            newlyAddedUserIds.map(async (userId) => {
               const user = await storage.getUser(userId);
               if (user) {
                 await sendGroupAssignmentEmail(
@@ -1444,7 +1530,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
         }
 
-        res.status(200).json({ message: "Group updated successfully" });
+        // ✉️ Send email to ALL users if new course(s) were added
+        if (
+          newlyAddedCourseIds.length > 0 &&
+          group &&
+          existingMembers.length > 0
+        ) {
+          await Promise.all(
+            existingMembers.map(async (member) => {
+              const user = await storage.getUser(member.userId);
+              if (user) {
+                await sendGroupAssignmentEmail(
+                  user.email,
+                  user.username,
+                  group.name,
+                  courses
+                );
+              }
+            })
+          );
+        }
       } catch (error) {
         console.error("Error updating group:", error);
         res.status(500).json({ message: "Failed to update group" });
@@ -1464,11 +1569,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       try {
-        // Delete all group members and courses first
+        // 1. Delete all course access mappings associated with this group
+        await storage.deleteCourseAccessByGroupId(groupId);
+
+        // 2. Delete all group members and group-course links
         await storage.deleteGroupMembersByGroupId(groupId);
         await storage.deleteGroupCoursesByGroupId(groupId);
 
-        // Now delete the group itself
+        // 3. Delete the group itself
         const success = await storage.deleteGroup(groupId);
 
         if (!success) {
@@ -1610,6 +1718,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           accessType,
         });
 
+        res.status(201).json(newAccess);
+
         // Send email(s)
         if (userId) {
           const user = await storage.getUser(userId);
@@ -1639,8 +1749,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             )
           );
         }
-
-        res.status(201).json(newAccess);
       } catch (error) {
         console.error("Error granting course access:", error);
         res.status(500).json({ message: "Internal server error" });
@@ -2156,6 +2264,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           },
         });
 
+        res.json(updatedAccess);
+
         // Compare and send email if user or course changed
         if (userId && (userId !== oldUserId || courseId !== oldCourseId)) {
           const user = await storage.getUser(userId);
@@ -2193,8 +2303,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             );
           }
         }
-
-        res.json(updatedAccess);
       } catch (error) {
         console.error("Error updating course access:", error);
         res.status(500).json({ message: "Internal server error" });

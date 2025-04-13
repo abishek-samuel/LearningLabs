@@ -821,6 +821,18 @@ export class PrismaStorage implements IStorage {
     }
   }
 
+  async deleteCourseAccessByGroupId(groupId: number): Promise<boolean> {
+    try {
+      await this.prisma.courseAccess.deleteMany({
+        where: { groupId },
+      });
+      return true;
+    } catch (error) {
+      console.error("Error deleting course access by groupId:", error);
+      return false;
+    }
+  }
+
   // --- Lesson Progress Methods ---
   async getLessonProgress(id: number): Promise<LessonProgress | null> {
     return this.prisma.lessonProgress.findUnique({ where: { id } });

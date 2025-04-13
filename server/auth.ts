@@ -142,23 +142,13 @@ export async function setupAuth(app: Express): Promise<void> {
       });
 
       // Send welcome email if created by admin
-      // if (req.user?.role === "admin") {
       try {
         await sendWelcomeEmail(email, username, password, role || "employee");
       } catch (error) {
         console.error("Failed to send welcome email:", error);
         // Continue with user creation even if email fails
       }
-      // }
-
-      // Log the user in automatically
-      // req.login(newUser, (err) => {
-      //   if (err) return next(err);
-
-      //   // Remove password from response
-      //   const { password, ...userWithoutPassword } = newUser;
       return res.status(200).json({ message: "User Created Successfully" });
-      // });
     } catch (error) {
       // if (error instanceof z.ZodError) { // Re-enable if using Zod validation
       //   return res.status(400).json({
