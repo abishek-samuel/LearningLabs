@@ -44,8 +44,10 @@ export default function MyCourses() {
       if (!res.ok) throw new Error('Failed to fetch enrollments');
       return res.json();
     },
-    // Enable query only if user is logged in
-    enabled: !!user, 
+    enabled: !!user,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   });
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -174,7 +176,15 @@ export default function MyCourses() {
                             <div className="grid grid-cols-2 gap-4 text-sm">
                               <div className="flex items-center gap-2">
                                 <Clock className="h-4 w-4 text-slate-400" />
-                                <span>{enrollment.course?.duration ? `${Math.round(enrollment.course.duration / 60)} hours` : 'N/A'}</span>
+                                <span>
+                                  {enrollment.course?.duration
+                                    ? (() => {
+                                        const hours = Math.floor(enrollment.course.duration / 60);
+                                        const minutes = enrollment.course.duration % 60;
+                                        return `${hours}h ${minutes}m`;
+                                      })()
+                                    : 'N/A'}
+                                </span>
                               </div>
                               <div className="flex items-center gap-2">
                                 <BookOpen className="h-4 w-4 text-slate-400" />

@@ -40,12 +40,16 @@ const projectRoot = path.join(
 );
 const videoUploadDir = path.join(projectRoot, "uploads", "videos");
 const imageUploadDir = path.join(projectRoot, "uploads", "course-images");
+const resourceUploadDir = path.join(projectRoot, "uploads", "resources");
 
 if (!fs.existsSync(videoUploadDir)) {
   fs.mkdirSync(videoUploadDir, { recursive: true });
 }
 if (!fs.existsSync(imageUploadDir)) {
   fs.mkdirSync(imageUploadDir, { recursive: true });
+}
+if (!fs.existsSync(resourceUploadDir)) {
+  fs.mkdirSync(resourceUploadDir, { recursive: true });
 }
 
 const videoStorage = multer.diskStorage({
@@ -83,7 +87,40 @@ const uploadImage = multer({
   storage: imageStorage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
 });
+
+const resourceStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, resourceUploadDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(
+      null,
+      file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname)
+    );
+  },
+});
+
+const uploadResource = multer({
+  storage: resourceStorage,
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit for resources (PDFs, docs, etc.)
+});
 // --- End Multer Configuration ---
+
+async function updateCourseDuration(courseId: number) {
+  const modules = await storage.getModulesByCourse(courseId);
+  let totalDuration = 0;
+  for (const module of modules) {
+    const lessons = await storage.getLessonsByModule(module.id);
+    for (const lesson of lessons) {
+      if (lesson.duration) {
+        totalDuration += lesson.duration;
+      }
+    }
+  }
+  const totalMinutes = Math.ceil(totalDuration / 60);
+  await storage.updateCourse(courseId, { duration: totalMinutes });
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication
@@ -110,7 +147,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(403).json({ message: "Forbidden" });
     };
 
-
   // Profile routes
   app.get("/api/profile", isAuthenticated, async (req, res) => {
     try {
@@ -130,38 +166,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Profile routes
   const upload = multer({ dest: "uploads/" }); // You can customize destination
 
-  app.put("/api/profile", isAuthenticated, upload.single("profilePicture"), async (req, res) => {
-    try {
-      const userId = parseInt(req.body.id);
-      if (userId !== req.user!.id) {
-        return res.status(403).json({ message: "Unauthorized" });
+  app.put(
+    "/api/profile",
+    isAuthenticated,
+    upload.single("profilePicture"),
+    async (req, res) => {
+      try {
+        const userId = parseInt(req.body.id);
+        if (userId !== req.user!.id) {
+          return res.status(403).json({ message: "Unauthorized" });
+        }
+
+        const { firstName, lastName } = req.body;
+
+        let profilePictureUrl = undefined;
+        if (req.file) {
+          // You can store req.file.path or handle cloud storage upload here
+          profilePictureUrl = `/uploads/${req.file.filename}`;
+        }
+
+        const updatedUser = await storage.updateUser(userId, {
+          firstName,
+          lastName,
+          ...(profilePictureUrl && { profilePicture: profilePictureUrl }),
+        });
+
+        if (!updatedUser) {
+          return res.status(404).json({ message: "User not found" });
+        }
+
+        const { password, ...userWithoutPassword } = updatedUser;
+        res.json(userWithoutPassword);
+      } catch (error) {
+        console.error("Error updating profile:", error);
+        res.status(500).json({ message: "Internal server error" });
       }
-
-      const { firstName, lastName } = req.body;
-
-      let profilePictureUrl = undefined;
-      if (req.file) {
-        // You can store req.file.path or handle cloud storage upload here
-        profilePictureUrl = `/uploads/${req.file.filename}`;
-      }
-
-      const updatedUser = await storage.updateUser(userId, {
-        firstName,
-        lastName,
-        ...(profilePictureUrl && { profilePicture: profilePictureUrl })
-      });
-
-      if (!updatedUser) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      const { password, ...userWithoutPassword } = updatedUser;
-      res.json(userWithoutPassword);
-    } catch (error) {
-      console.error("Error updating profile:", error);
-      res.status(500).json({ message: "Internal server error" });
     }
-  });
+  );
 
   app.put("/api/profile/password", isAuthenticated, async (req, res) => {
     try {
@@ -180,7 +221,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Verify current password
       const isValid = await comparePasswords(currentPassword, user.password);
       if (!isValid) {
-        return res.status(400).json({ message: "Current password is incorrect" });
+        return res
+          .status(400)
+          .json({ message: "Current password is incorrect" });
       }
 
       // Hash new password
@@ -535,6 +578,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Course routes
   // --- Comments API ---
+
+  // Reorder modules within a course
+  app.post(
+    "/api/courses/:courseId/reorder-modules",
+    isAuthenticated,
+    async (req, res) => {
+      try {
+        const courseId = parseInt(req.params.courseId);
+        const { moduleOrder } = req.body;
+        if (!Array.isArray(moduleOrder)) {
+          return res
+            .status(400)
+            .json({ message: "moduleOrder array is required" });
+        }
+
+        for (let i = 0; i < moduleOrder.length; i++) {
+          const moduleId = moduleOrder[i];
+          await storage.prisma.module.update({
+            where: { id: moduleId, courseId },
+            data: { position: i + 1 },
+          });
+        }
+
+        res.json({ message: "Modules reordered successfully" });
+      } catch (error) {
+        console.error("Error reordering modules:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  );
+
+  // Reorder lessons within a module
+  app.post(
+    "/api/modules/:moduleId/reorder-lessons",
+    isAuthenticated,
+    async (req, res) => {
+      try {
+        const moduleId = parseInt(req.params.moduleId);
+        const { lessonOrder } = req.body;
+        if (!Array.isArray(lessonOrder)) {
+          return res
+            .status(400)
+            .json({ message: "lessonOrder array is required" });
+        }
+
+        for (let i = 0; i < lessonOrder.length; i++) {
+          const lessonId = lessonOrder[i];
+          await storage.prisma.lesson.update({
+            where: { id: lessonId, moduleId },
+            data: { position: i + 1 },
+          });
+        }
+
+        res.json({ message: "Lessons reordered successfully" });
+      } catch (error) {
+        console.error("Error reordering lessons:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  );
+
   app.get("/api/comments", isAuthenticated, async (req, res) => {
     try {
       const lessonId = parseInt(req.query.lessonId as string);
@@ -1037,7 +1141,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (isNaN(moduleId)) {
           return res.status(400).json({ message: "Invalid module ID" });
         }
-        const lessons = await storage.getLessonsByModule(moduleId);
+        // For course-content page, include all lessons (assessment last)
+        const lessons = await storage.getAllLessonsByModule(moduleId);
 
         res.json(lessons);
       } catch (error) {
@@ -1118,12 +1223,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
+        let estimatedDuration = finalDuration;
+
+        if ((!videoUrl || videoUrl === "") && content) {
+          const wordCount = content.trim().split(/\s+/).length;
+          estimatedDuration = Math.ceil(wordCount / 200); // 200 words per minute
+          estimatedDuration = Math.max(1, estimatedDuration); // Minimum 1 minute
+        }
+
         const newLesson = await storage.createLesson({
           moduleId,
           title,
           content: content || null,
           videoUrl: videoUrl || null,
-          duration: duration || null,
+          duration: estimatedDuration,
           position,
         });
 
@@ -1131,6 +1244,363 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (error) {
         // if (error instanceof z.ZodError) { ... }
         console.error("Error creating lesson:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  );
+
+  // Lesson update route (PUT /api/lessons/:id)
+  app.put(
+    "/api/lessons/:id",
+    isAuthenticated,
+    hasRole(["contributor", "admin"]),
+    async (req, res) => {
+      try {
+        const lessonId = parseInt(req.params.id);
+        if (isNaN(lessonId)) {
+          return res.status(400).json({ message: "Invalid lesson ID" });
+        }
+        const lesson = await storage.getLesson(lessonId);
+        if (!lesson) {
+          return res.status(404).json({ message: "Lesson not found" });
+        }
+        // Only allow instructor or admin to update
+        const module = await storage.getModule(lesson.moduleId);
+        if (!module) {
+          return res.status(404).json({ message: "Module not found" });
+        }
+        const course = await storage.getCourse(module.courseId);
+        if (!course) {
+          return res.status(404).json({ message: "Course not found" });
+        }
+        if (
+          course.instructorId !== req.user!.id &&
+          req.user!.role !== "admin"
+        ) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+        // Update lesson
+        const updateData = req.body;
+        const updatedLesson = await storage.updateLesson(lessonId, updateData);
+        if (!updatedLesson) {
+          return res
+            .status(404)
+            .json({ message: "Lesson not found or update failed" });
+        }
+        // Update course duration after lesson edit
+        await updateCourseDuration(course.id);
+        res.json(updatedLesson);
+      } catch (error) {
+        console.error("Error updating lesson:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  );
+
+  // Start a new assessment attempt for a module
+  app.post(
+    "/api/modules/:moduleId/assessment-attempts/start",
+    isAuthenticated,
+    async (req, res) => {
+      try {
+        const moduleId = parseInt(req.params.moduleId);
+        if (isNaN(moduleId)) {
+          return res.status(400).json({ message: "Invalid module ID" });
+        }
+        // Fetch all questions for the module
+        const allQuestions = await storage.prisma.question.findMany({
+          where: { moduleId },
+        });
+        if (allQuestions.length < 10) {
+          return res
+            .status(400)
+            .json({ message: "Not enough questions for assessment" });
+        }
+        // Group questions by difficulty
+        const byDifficulty: Record<string, any[]> = {
+          beginner: [],
+          intermediate: [],
+          advanced: [],
+        };
+        for (const q of allQuestions) {
+          byDifficulty[q.difficulty].push(q);
+        }
+        // Calculate how many questions per difficulty (as equal as possible)
+        const perLevel = Math.floor(10 / 3);
+        let counts = {
+          beginner: perLevel,
+          intermediate: perLevel,
+          advanced: 10 - 2 * perLevel,
+        };
+        // If any level has fewer than needed, redistribute
+        for (const level of ["beginner", "intermediate", "advanced"]) {
+          if (byDifficulty[level].length < counts[level]) {
+            const deficit = counts[level] - byDifficulty[level].length;
+            counts[level] = byDifficulty[level].length;
+            // Redistribute deficit to other levels
+            const others = ["beginner", "intermediate", "advanced"].filter(
+              (l) => l !== level
+            );
+            for (const other of others) {
+              const available = byDifficulty[other].length - counts[other];
+              const take = Math.min(deficit, available);
+              counts[other] += take;
+              if (deficit - take <= 0) break;
+            }
+          }
+        }
+        // Randomly select questions for each difficulty
+        function pickRandom(arr: any[], n: number) {
+          const copy = [...arr];
+          const result = [];
+          for (let i = 0; i < n && copy.length > 0; i++) {
+            const idx = Math.floor(Math.random() * copy.length);
+            result.push(copy.splice(idx, 1)[0]);
+          }
+          return result;
+        }
+        let selected: any[] = [];
+        for (const level of ["beginner", "intermediate", "advanced"]) {
+          selected = selected.concat(
+            pickRandom(byDifficulty[level], counts[level])
+          );
+        }
+        // Shuffle selected questions
+        selected = pickRandom(selected, selected.length);
+
+        // Create AssessmentAttempt
+        const attempt = await storage.prisma.assessmentAttempt.create({
+          data: {
+            userId: req.user!.id,
+            moduleId,
+            status: "in_progress",
+            passed: false,
+            answers: [],
+            questionIds: selected.map((q) => q.id),
+          },
+        });
+        res.status(201).json({
+          attemptId: attempt.id,
+          questions: selected.map((q) => ({
+            id: q.id,
+            questionText: q.questionText,
+            options: q.options,
+            difficulty: q.difficulty,
+          })),
+        });
+      } catch (error) {
+        console.error("Error starting assessment attempt:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  );
+
+  // Get the user's latest assessment attempt for a module
+  app.get(
+    "/api/modules/:moduleId/assessment-attempts/me",
+    isAuthenticated,
+    async (req, res) => {
+      try {
+        const moduleId = parseInt(req.params.moduleId);
+        if (isNaN(moduleId)) {
+          return res.status(400).json({ message: "Invalid module ID" });
+        }
+        const userId = req.user!.id;
+        // Get the latest attempt for this user and module, ordered by completedAt desc
+        const latestAttempt = await storage.prisma.assessmentAttempt.findFirst({
+          where: {
+            userId,
+            moduleId,
+            completedAt: { not: null },
+          },
+          orderBy: { completedAt: "desc" },
+        });
+        if (!latestAttempt) {
+          return res.json(null);
+        }
+        res.json({
+          id: latestAttempt.id,
+          score: latestAttempt.score,
+          passed: latestAttempt.passed,
+          status: latestAttempt.status,
+          completedAt: latestAttempt.completedAt,
+        });
+      } catch (error) {
+        console.error("Error fetching latest assessment attempt:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  );
+
+  // Submit an assessment attempt for a module
+  app.post(
+    "/api/assessment-attempts/:id/submit",
+    isAuthenticated,
+    async (req, res) => {
+      try {
+        const attemptId = parseInt(req.params.id);
+        if (isNaN(attemptId)) {
+          return res.status(400).json({ message: "Invalid attempt ID" });
+        }
+        const attempt = await storage.prisma.assessmentAttempt.findUnique({
+          where: { id: attemptId },
+        });
+        if (!attempt) {
+          return res
+            .status(404)
+            .json({ message: "Assessment attempt not found" });
+        }
+        if (attempt.userId !== req.user!.id) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+        if (
+          attempt.status === "completed" ||
+          attempt.status === "passed" ||
+          attempt.status === "failed"
+        ) {
+          return res.status(400).json({ message: "Attempt already completed" });
+        }
+        const { answers } = req.body; // Array of {questionId, selectedOption}
+        if (!Array.isArray(answers) || answers.length !== 10) {
+          return res.status(400).json({ message: "Must submit 10 answers" });
+        }
+        // Fetch the questions for this attempt
+        const questionIds = attempt.questionIds as number[] | undefined;
+        if (!questionIds || questionIds.length !== 10) {
+          return res
+            .status(400)
+            .json({ message: "Invalid question set for attempt" });
+        }
+        const questions = await storage.prisma.question.findMany({
+          where: { id: { in: questionIds } },
+        });
+        // Score the answers
+        let correct = 0;
+        const answerResults = answers.map((ans: any) => {
+          const q = questions.find((q) => q.id === ans.questionId);
+          const isCorrect = q && ans.selectedOption === q.correctAnswer;
+          if (isCorrect) correct++;
+          return {
+            questionId: ans.questionId,
+            selectedOption: ans.selectedOption,
+            isCorrect,
+          };
+        });
+        const score = Math.round((correct / 10) * 100);
+        const passed = score >= 80;
+        // Update attempt
+        await storage.prisma.assessmentAttempt.update({
+          where: { id: attemptId },
+          data: {
+            completedAt: new Date(),
+            score,
+            status: passed ? "passed" : "failed",
+            passed,
+            answers: answerResults,
+          },
+        });
+
+        // If passed, check if all module assessments for the course are passed and update course progress
+        if (passed) {
+          // Mark the assessment lesson as completed in lesson_progress
+          const assessmentLesson = await storage.prisma.lesson.findFirst({
+            where: {
+              moduleId: attempt.moduleId,
+              type: "assessment",
+            },
+          });
+          if (assessmentLesson) {
+            // Check if a lesson progress record exists
+            const existingProgress =
+              await storage.prisma.lessonProgress.findFirst({
+                where: {
+                  userId: req.user!.id,
+                  lessonId: assessmentLesson.id,
+                },
+              });
+            if (existingProgress) {
+              await storage.prisma.lessonProgress.update({
+                where: { id: existingProgress.id },
+                data: { status: "completed", completedAt: new Date() },
+              });
+            } else {
+              await storage.prisma.lessonProgress.create({
+                data: {
+                  userId: req.user!.id,
+                  lessonId: assessmentLesson.id,
+                  status: "completed",
+                  completedAt: new Date(),
+                },
+              });
+            }
+          }
+
+          // Get the module and course
+          const module = await storage.prisma.module.findUnique({
+            where: { id: attempt.moduleId },
+          });
+          if (module) {
+            const courseId = module.courseId;
+            // Get all modules for the course
+            const allModules = await storage.prisma.module.findMany({
+              where: { courseId },
+            });
+            const allModuleIds = allModules.map((m) => m.id);
+            // For each module, check if the user has a passed attempt
+            let allPassed = true;
+            for (const modId of allModuleIds) {
+              const passedAttempt =
+                await storage.prisma.assessmentAttempt.findFirst({
+                  where: {
+                    userId: req.user!.id,
+                    moduleId: modId,
+                    passed: true,
+                  },
+                });
+              if (!passedAttempt) {
+                allPassed = false;
+                break;
+              }
+            }
+            // If all passed, update enrollment progress to 100%
+            if (allPassed) {
+              const enrollment = await storage.prisma.enrollment.findFirst({
+                where: { userId: req.user!.id, courseId },
+              });
+              if (enrollment) {
+                await storage.prisma.enrollment.update({
+                  where: { id: enrollment.id },
+                  data: { progress: 100, completedAt: new Date() },
+                });
+              }
+            }
+          }
+        }
+
+        res.json({ score, passed, correct, total: 10 });
+      } catch (error) {
+        console.error("Error submitting assessment attempt:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  );
+
+  // Get all questions for a module
+  app.get(
+    "/api/modules/:moduleId/questions",
+    isAuthenticated,
+    async (req, res) => {
+      try {
+        const moduleId = parseInt(req.params.moduleId);
+        if (isNaN(moduleId)) {
+          return res.status(400).json({ message: "Invalid module ID" });
+        }
+        const questions = await storage.prisma.question.findMany({
+          where: { moduleId },
+        });
+        res.json(questions);
+      } catch (error) {
+        console.error("Error fetching questions for module:", error);
         res.status(500).json({ message: "Internal server error" });
       }
     }
@@ -2174,6 +2644,176 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json({ message: "Image uploaded successfully", url });
     }
   );
+
+  // --- Resource Upload Route ---
+  app.post(
+    "/api/resources",
+    isAuthenticated,
+    hasRole(["contributor", "admin"]),
+    uploadResource.single("file"),
+    async (req, res) => {
+      try {
+        if (!req.file) {
+          return res
+            .status(400)
+            .json({ message: "No resource file uploaded." });
+        }
+        const { courseId, lessonId, description } = req.body;
+        if (!courseId) {
+          return res.status(400).json({ message: "courseId is required" });
+        }
+        const courseIdNum = parseInt(courseId);
+        if (isNaN(courseIdNum)) {
+          return res.status(400).json({ message: "Invalid courseId" });
+        }
+        let lessonIdNum: number | null = null;
+        if (lessonId) {
+          lessonIdNum = parseInt(lessonId);
+          if (isNaN(lessonIdNum)) {
+            return res.status(400).json({ message: "Invalid lessonId" });
+          }
+        }
+        // Check course exists
+        const course = await storage.getCourse(courseIdNum);
+        if (!course) {
+          return res.status(404).json({ message: "Course not found" });
+        }
+        // Only allow instructor or admin to upload
+        if (
+          course.instructorId !== req.user!.id &&
+          req.user!.role !== "admin"
+        ) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+        // Save resource metadata
+        const resource = await storage.createResource({
+          courseId: courseIdNum,
+          lessonId: lessonIdNum,
+          uploaderId: req.user!.id,
+          filename: req.file.originalname,
+          mimetype: req.file.mimetype,
+          storagePath: `/uploads/resources/${req.file.filename}`,
+          description: description || null,
+        });
+        res.status(201).json(resource);
+      } catch (error) {
+        console.error("Error uploading resource:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  );
+
+  // --- List Resources for a Course ---
+  app.get(
+    "/api/courses/:courseId/resources",
+    isAuthenticated,
+    async (req, res) => {
+      try {
+        const courseId = parseInt(req.params.courseId);
+        if (isNaN(courseId)) {
+          return res.status(400).json({ message: "Invalid course ID" });
+        }
+        // Only allow enrolled users, instructor, or admin to view
+        const course = await storage.getCourse(courseId);
+        if (!course) {
+          return res.status(404).json({ message: "Course not found" });
+        }
+        if (
+          req.user!.role !== "admin" &&
+          course.instructorId !== req.user!.id
+        ) {
+          // Check enrollment
+          const enrollments = await storage.getEnrollmentsByUser(req.user!.id);
+          const enrolled = enrollments.some((e) => e.courseId === courseId);
+          if (!enrolled) {
+            return res.status(403).json({ message: "Forbidden" });
+          }
+        }
+        const resources = await storage.getResourcesByCourse(courseId);
+        res.json(resources);
+      } catch (error) {
+        console.error("Error fetching resources:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  );
+
+  // --- Download Resource File ---
+  app.get("/api/resources/:id/download", isAuthenticated, async (req, res) => {
+    try {
+      const resourceId = parseInt(req.params.id);
+      if (isNaN(resourceId)) {
+        return res.status(400).json({ message: "Invalid resource ID" });
+      }
+      const resource = await storage.getResourceById(resourceId);
+      if (!resource) {
+        return res.status(404).json({ message: "Resource not found" });
+      }
+      // Only allow enrolled users, instructor, or admin to download
+      const course = await storage.getCourse(resource.courseId);
+      if (!course) {
+        return res.status(404).json({ message: "Course not found" });
+      }
+      if (req.user!.role !== "admin" && course.instructorId !== req.user!.id) {
+        // Check enrollment
+        const enrollments = await storage.getEnrollmentsByUser(req.user!.id);
+        const enrolled = enrollments.some((e) => e.courseId === course.id);
+        if (!enrolled) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+      }
+      // Send file
+      const absPath = path.join(projectRoot, resource.storagePath);
+      if (!fs.existsSync(absPath)) {
+        return res.status(404).json({ message: "File not found on server" });
+      }
+      res.download(absPath, resource.filename);
+    } catch (error) {
+      console.error("Error downloading resource:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // --- Delete Resource File ---
+  app.delete("/api/resources/:id", isAuthenticated, async (req, res) => {
+    try {
+      const resourceId = parseInt(req.params.id);
+      if (isNaN(resourceId)) {
+        return res.status(400).json({ message: "Invalid resource ID" });
+      }
+      const resource = await storage.getResourceById(resourceId);
+      if (!resource) {
+        return res.status(404).json({ message: "Resource not found" });
+      }
+      // Only allow instructor, admin, or uploader to delete
+      const course = await storage.getCourse(resource.courseId);
+      if (!course) {
+        return res.status(404).json({ message: "Course not found" });
+      }
+      if (
+        req.user!.role !== "admin" &&
+        course.instructorId !== req.user!.id &&
+        resource.uploaderId !== req.user!.id
+      ) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      // Delete file from disk
+      const absPath = path.join(projectRoot, resource.storagePath);
+      if (fs.existsSync(absPath)) {
+        try {
+          fs.unlinkSync(absPath);
+        } catch (err) {
+          console.warn("Failed to delete file from disk:", err);
+        }
+      }
+      // Delete from DB
+      await storage.deleteResource(resourceId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting resource:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
   // --- End Upload Routes ---
 
   // --- Certificate Creation Route ---

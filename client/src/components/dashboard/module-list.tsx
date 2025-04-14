@@ -1,4 +1,10 @@
 import { useState, useEffect } from "react";
+import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+  DropResult,
+} from "react-beautiful-dnd";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -150,65 +156,110 @@ export function ModuleList({ courseId }: ModuleListProps) {
           <Skeleton className="h-16 w-full" />
         </div>
       ) : (
-        <div className="space-y-3">
-          {modules.map((module) => (
-            <Card key={module.id} className="bg-slate-50 dark:bg-slate-800/50">
-              <CardHeader className="flex flex-row items-center justify-between p-4 space-y-0">
-                <div className="flex items-center gap-3 flex-grow">
-                  <GripVertical className="h-5 w-5 text-slate-400 cursor-grab" />{" "}
-                  {/* Drag handle */}
-                  {editingModuleId === module.id ? (
-                    <Input
-                      value={editingModuleTitle}
-                      onChange={(e) => setEditingModuleTitle(e.target.value)}
-                      onBlur={() => handleSaveEdit(module.id)}
-                      onKeyDown={(e) =>
-                        e.key === "Enter" && handleSaveEdit(module.id)
-                      }
-                      className="h-8 flex-grow"
-                      autoFocus
-                    />
-                  ) : (
-                    <CardTitle className="text-lg font-medium flex-grow">
-                      {module.title}
-                    </CardTitle>
-                  )}
-                </div>
-                <div className="flex items-center gap-1">
-                  {editingModuleId === module.id ? (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setEditingModuleId(null)}
-                    >
-                      Cancel
-                    </Button>
-                  ) : (
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => handleEditModule(module)}
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                  )}
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="text-red-500 hover:text-red-600"
-                    onClick={() => handleDeleteModule(module.id)}
+        <DragDropContext
+          onDragEnd={async (result: DropResult) => {
+            if (!result.destination) return;
+            const reordered = Array.from(modules);
+            const [removed] = reordered.splice(result.source.index, 1);
+            reordered.splice(result.destination.index, 0, removed);
+            setModules(reordered);
+            try {
+              await fetch(`/api/courses/${courseId}/reorder-modules`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  moduleOrder: reordered.map((m) => m.id),
+                }),
+              });
+            } catch (error) {
+              console.error("Failed to update module order:", error);
+            }
+          }}
+        >
+          <Droppable droppableId="modules-droppable">
+            {(provided) => (
+              <div
+                className="space-y-3"
+                {...provided.droppableProps}
+                ref={provided.innerRef}
+              >
+                {modules.map((module, index) => (
+                  <Draggable
+                    key={module.id}
+                    draggableId={module.id.toString()}
+                    index={index}
                   >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="p-4 pt-0">
-                {/* Render LessonList for this module */}
-                <LessonList moduleId={module.id} />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        {...provided.dragHandleProps}
+                      >
+                        <Card className="bg-slate-50 dark:bg-slate-800/50">
+                          <CardHeader className="flex flex-row items-center justify-between p-4 space-y-0">
+                            <div className="flex items-center gap-3 flex-grow">
+                              <GripVertical className="h-5 w-5 text-slate-400 cursor-grab" />
+                              {editingModuleId === module.id ? (
+                                <Input
+                                  value={editingModuleTitle}
+                                  onChange={(e) =>
+                                    setEditingModuleTitle(e.target.value)
+                                  }
+                                  onBlur={() => handleSaveEdit(module.id)}
+                                  onKeyDown={(e) =>
+                                    e.key === "Enter" &&
+                                    handleSaveEdit(module.id)
+                                  }
+                                  className="h-8 flex-grow"
+                                  autoFocus
+                                />
+                              ) : (
+                                <CardTitle className="text-lg font-medium flex-grow">
+                                  {module.title}
+                                </CardTitle>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {editingModuleId === module.id ? (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setEditingModuleId(null)}
+                                >
+                                  Cancel
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => handleEditModule(module)}
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="text-red-500 hover:text-red-600"
+                                onClick={() => handleDeleteModule(module.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="p-4 pt-0">
+                            <LessonList moduleId={module.id} />
+                          </CardContent>
+                        </Card>
+                      </div>
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
       )}
 
       {/* Add New Module Form */}
@@ -229,6 +280,13 @@ export function ModuleList({ courseId }: ModuleListProps) {
       </Card>
     </div>
   );
+}
+
+function moveArrayItem<T>(arr: T[], fromIndex: number, toIndex: number): T[] {
+  const newArr = [...arr];
+  const item = newArr.splice(fromIndex, 1)[0];
+  newArr.splice(toIndex, 0, item);
+  return newArr;
 }
 
 export default ModuleList;

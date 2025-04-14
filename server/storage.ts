@@ -214,7 +214,12 @@ export interface IStorage {
   sessionStore: session.Store;
 }
 
-// Implementation using Prisma
+// Resource insert type
+type InsertResource = Omit<
+  import(".prisma/client").Resource,
+  "id" | "uploadedAt"
+>;
+
 export class PrismaStorage implements IStorage {
   private prisma: PrismaClient;
   sessionStore: session.Store;
@@ -393,7 +398,24 @@ export class PrismaStorage implements IStorage {
     });
   }
   async createModule(module: InsertModule): Promise<Module> {
-    return this.prisma.module.create({ data: module });
+    // Use a transaction to ensure both module and assessment lesson are created atomically
+    return await this.prisma.$transaction(async (prisma) => {
+      const createdModule = await prisma.module.create({ data: module });
+      // Find the max position of existing lessons (should be 0 at creation, but supports future extensibility)
+      // Always use position: -1 for assessment lesson so it can be sorted last in the frontend
+      await prisma.lesson.create({
+        data: {
+          moduleId: createdModule.id,
+          type: "assessment",
+          title: "Assessment",
+          content: null,
+          videoUrl: null,
+          duration: null,
+          position: -1,
+        },
+      });
+      return createdModule;
+    });
   }
   async updateModule(
     id: number,
@@ -423,10 +445,28 @@ export class PrismaStorage implements IStorage {
     return this.prisma.lesson.findUnique({ where: { id } });
   }
   async getLessonsByModule(moduleId: number): Promise<Lesson[]> {
+    // Exclude assessment lessons (for edit-course and similar use cases)
     return this.prisma.lesson.findMany({
+      where: {
+        moduleId,
+        NOT: { type: "assessment" },
+      },
+      orderBy: { position: "asc" },
+    });
+  }
+
+  // Returns all lessons for a module, with assessment lesson always last (for course-content page)
+  async getAllLessonsByModule(moduleId: number): Promise<Lesson[]> {
+    const lessons = await this.prisma.lesson.findMany({
       where: { moduleId },
       orderBy: { position: "asc" },
     });
+    // Move assessment lesson to the end
+    const normalLessons = lessons.filter((l) => l.type !== "assessment");
+    const assessmentLesson = lessons.find((l) => l.type === "assessment");
+    return assessmentLesson
+      ? [...normalLessons, assessmentLesson]
+      : normalLessons;
   }
   async createLesson(lesson: InsertLesson): Promise<Lesson> {
     return this.prisma.lesson.create({ data: lesson });
@@ -963,6 +1003,37 @@ export class PrismaStorage implements IStorage {
         },
       },
     });
+  }
+
+  // --- Resource Methods ---
+  async createResource(
+    resource: InsertResource
+  ): Promise<import(".prisma/client").Resource> {
+    return this.prisma.resource.create({ data: resource });
+  }
+
+  async getResourcesByCourse(
+    courseId: number
+  ): Promise<import(".prisma/client").Resource[]> {
+    return this.prisma.resource.findMany({
+      where: { courseId },
+      orderBy: { uploadedAt: "desc" },
+    });
+  }
+
+  async getResourceById(
+    id: number
+  ): Promise<import(".prisma/client").Resource | null> {
+    return this.prisma.resource.findUnique({ where: { id } });
+  }
+
+  async deleteResource(id: number): Promise<boolean> {
+    try {
+      await this.prisma.resource.delete({ where: { id } });
+      return true;
+    } catch (error) {
+      return false;
+    }
   }
 
   // Optional: Method to disconnect Prisma client when server shuts down

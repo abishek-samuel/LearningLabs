@@ -1,9 +1,10 @@
 import { useState, useEffect, ChangeEvent } from 'react';
+import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Edit2, Trash2, GripVertical, Video, FileText, Loader2, UploadCloud } from 'lucide-react';
+import { Plus, Edit2, Trash2, GripVertical, Video, FileText, Loader2, UploadCloud, Paperclip } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 // Placeholder types - replace with actual Prisma types later
@@ -16,11 +17,33 @@ type Lesson = {
   duration?: number | null; // Optional duration in seconds
 };
 
+type Resource = {
+  id: number;
+  courseId: number;
+  lessonId: number | null;
+  uploaderId: number;
+  filename: string;
+  mimetype: string;
+  storagePath: string;
+  uploadedAt: string;
+  description?: string | null;
+};
+
 interface LessonListProps {
   moduleId: number;
 }
 
+import { useRef } from 'react';
+
 export function LessonList({ moduleId }: LessonListProps) {
+  // Ref for file inputs by lessonId
+  const resourceInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
+
+  // New: Track resources for each lesson
+  const [lessonResources, setLessonResources] = useState<Record<number, Resource[]>>({});
+  const [resourceLoading, setResourceLoading] = useState<Record<number, boolean>>({});
+  const [resourceUploadState, setResourceUploadState] = useState<Record<number, { files: File[]; uploading: boolean }> >({});
+
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -33,14 +56,14 @@ export function LessonList({ moduleId }: LessonListProps) {
   // State for editing lessons
   const [editingLessonId, setEditingLessonId] = useState<number | null>(null);
   const [editingLessonTitle, setEditingLessonTitle] = useState('');
-  // Add state for editing content/video if needed later
+  const [editingLessonContent, setEditingLessonContent] = useState('');
+  const [editingLessonVideoUrl, setEditingLessonVideoUrl] = useState('');
 
   // Fetch lessons for the module
   useEffect(() => {
     const fetchLessons = async () => {
       if (!moduleId) return;
       setIsLoading(true);
-      console.log(`Fetching lessons for module ID: ${moduleId}`);
       try {
         const response = await fetch(`/api/modules/${moduleId}/lessons`);
         if (!response.ok) {
@@ -50,13 +73,38 @@ export function LessonList({ moduleId }: LessonListProps) {
         setLessons(data.sort((a, b) => a.position - b.position));
       } catch (error) {
         console.error("Failed to fetch lessons:", error);
-        // TODO: Add user-facing error handling
       } finally {
         setIsLoading(false);
       }
     };
     fetchLessons();
   }, [moduleId]);
+
+  // Fetch resources for all lessons in this module
+  useEffect(() => {
+    const fetchResources = async () => {
+      if (!lessons.length) return;
+      // Find courseId from first lesson (API requires courseId)
+      // In real app, pass courseId as prop or fetch from context
+      const courseId = (window as any).currentEditCourseId; // HACK: set this in edit-course page if needed
+      if (!courseId) return;
+      try {
+        const response = await fetch(`/api/courses/${courseId}/resources`);
+        if (!response.ok) return;
+        const allResources: Resource[] = await response.json();
+        // Group by lessonId
+        const byLesson: Record<number, Resource[]> = {};
+        for (const lesson of lessons) {
+          byLesson[lesson.id] = allResources.filter(r => r.lessonId === lesson.id);
+        }
+        setLessonResources(byLesson);
+      } catch (error) {
+        console.error("Failed to fetch resources:", error);
+      }
+    };
+    fetchResources();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lessons]);
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -176,37 +224,93 @@ export function LessonList({ moduleId }: LessonListProps) {
   const handleEditLesson = (lesson: Lesson) => {
     setEditingLessonId(lesson.id);
     setEditingLessonTitle(lesson.title);
-    // TODO: Set state for editing content/video if needed
+    setEditingLessonContent(lesson.content || '');
+    setEditingLessonVideoUrl(lesson.videoUrl || '');
   };
 
   const handleSaveLessonEdit = async (lessonId: number) => {
-    if (!editingLessonTitle.trim()) return; // Maybe allow empty if needed?
-    console.log(`Saving edit for lesson ID ${lessonId}: ${editingLessonTitle}`);
+    if (!editingLessonTitle.trim()) return;
+    console.log(`Saving edit for lesson ID ${lessonId}`);
     try {
-      // Replace with actual API call: PUT /api/lessons/:lessonId (body: { title, ... })
-      await new Promise(resolve => setTimeout(resolve, 300)); // Simulate API call
-      
-      // Assuming backend returns the updated lesson
-      const updatedLessonFromServer: Lesson = { 
-          id: lessonId, 
-          title: editingLessonTitle, 
-          position: lessons.find(l => l.id === lessonId)?.position ?? 0, // Keep original position
-          // Include other fields from backend response
-      }; 
-
-      setLessons(lessons.map(l => 
-          l.id === lessonId ? updatedLessonFromServer : l
-      ).sort((a, b) => a.position - b.position)); // Maintain sort order
-      
-      setEditingLessonId(null); // Exit editing mode
+      const response = await fetch(`/api/lessons/${lessonId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: editingLessonTitle,
+          content: editingLessonContent,
+          videoUrl: editingLessonVideoUrl,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const updatedLesson: Lesson = await response.json();
+      setLessons(lessons.map(l => l.id === lessonId ? updatedLesson : l).sort((a, b) => a.position - b.position));
+      setEditingLessonId(null);
       setEditingLessonTitle('');
+      setEditingLessonContent('');
+      setEditingLessonVideoUrl('');
     } catch (error) {
       console.error("Failed to save lesson edit:", error);
-      // TODO: Add user-facing error handling
     }
   };
 
   // TODO: Implement drag-and-drop reordering
+
+  // Resource upload handler for a lesson (multiple files)
+  const handleResourceFileChange = (lessonId: number, files: File[] | null) => {
+    setResourceUploadState((prev) => ({
+      ...prev,
+      [lessonId]: { files: files || [], uploading: false },
+    }));
+  };
+
+  const handleResourceUpload = async (lesson: Lesson) => {
+    const state = resourceUploadState[lesson.id];
+    if (!state || !state.files || state.files.length === 0) return;
+    setResourceUploadState((prev) => ({
+      ...prev,
+      [lesson.id]: { ...prev[lesson.id], uploading: true },
+    }));
+    try {
+      const courseId = (window as any).currentEditCourseId;
+      if (!courseId) throw new Error("Course ID not found");
+      const uploadedResources: Resource[] = [];
+      for (const file of state.files) {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("courseId", courseId);
+        formData.append("lessonId", lesson.id.toString());
+        const response = await fetch("/api/resources", {
+          method: "POST",
+          body: formData,
+        });
+        if (!response.ok) {
+          throw new Error("Resource upload failed");
+        }
+        const resource: Resource = await response.json();
+        uploadedResources.push(resource);
+      }
+      setLessonResources((prev) => ({
+        ...prev,
+        [lesson.id]: [...uploadedResources, ...(prev[lesson.id] || [])],
+      }));
+      setResourceUploadState((prev) => ({
+        ...prev,
+        [lesson.id]: { files: [], uploading: false },
+      }));
+      // Clear the file input
+      if (resourceInputRefs.current[lesson.id]) {
+        resourceInputRefs.current[lesson.id]!.value = "";
+      }
+    } catch (error) {
+      alert("Resource upload failed");
+      setResourceUploadState((prev) => ({
+        ...prev,
+        [lesson.id]: { ...prev[lesson.id], uploading: false },
+      }));
+    }
+  };
 
   return (
     <div className="pl-8 mt-3 space-y-3 border-l border-dashed ml-4">
@@ -215,45 +319,232 @@ export function LessonList({ moduleId }: LessonListProps) {
           <Skeleton className="h-10 w-full" />
         </div>
       ) : (
-        lessons.map((lesson) => (
-          <div key={lesson.id} className="flex items-center justify-between p-2 rounded bg-white dark:bg-slate-900/50 shadow-sm">
-             <div className="flex items-center gap-3 flex-grow min-w-0"> {/* Added min-w-0 for flex truncation */}
-                <GripVertical className="h-4 w-4 text-slate-400 cursor-grab flex-shrink-0" />
-                {lesson.videoUrl ? <Video className="h-4 w-4 text-blue-500 flex-shrink-0" /> : <FileText className="h-4 w-4 text-slate-500 flex-shrink-0" />}
-                
-                {/* Display Input or Title based on editing state */}
-                {editingLessonId === lesson.id ? (
-                  <Input 
-                    value={editingLessonTitle}
-                    onChange={(e) => setEditingLessonTitle(e.target.value)}
-                    onBlur={() => handleSaveLessonEdit(lesson.id)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSaveLessonEdit(lesson.id)}
-                    className="h-7 text-sm flex-grow" // Adjusted height and added flex-grow
-                    autoFocus
-                  />
-                ) : (
-                  <span className="text-sm font-medium flex-grow truncate" title={lesson.title}>{lesson.title}</span>
-                )}
-
-                {lesson.duration && editingLessonId !== lesson.id && ( // Hide duration while editing title
-                   <span className="text-xs text-slate-500 flex-shrink-0 ml-2">{Math.floor(lesson.duration / 60)} min</span>
-                )}
-             </div>
-             <div className="flex items-center gap-1 flex-shrink-0">
-                {/* Edit/Cancel Button */}
-                {editingLessonId === lesson.id ? (
-                   <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setEditingLessonId(null)}>Cancel</Button>
-                ) : (
-                   <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleEditLesson(lesson)}>
-                      <Edit2 className="h-3.5 w-3.5" />
-                   </Button>
-                )}
-                <Button size="icon" variant="ghost" className="text-red-500 hover:text-red-600 h-7 w-7" onClick={() => handleDeleteLesson(lesson.id)}>
-                   <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-             </div>
-          </div>
-        ))
+        <DragDropContext
+          onDragEnd={async (result: DropResult) => {
+            if (!result.destination) return;
+            const reordered = Array.from(lessons);
+            const [removed] = reordered.splice(result.source.index, 1);
+            reordered.splice(result.destination.index, 0, removed);
+            setLessons(reordered);
+            try {
+              await fetch(`/api/modules/${moduleId}/reorder-lessons`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ lessonOrder: reordered.map((l) => l.id) }),
+              });
+            } catch (error) {
+              console.error('Failed to update lesson order:', error);
+            }
+          }}
+        >
+          <Droppable droppableId={`lessons-droppable-${moduleId}`}>
+            {(provided) => (
+              <div
+                {...provided.droppableProps}
+                ref={provided.innerRef}
+                className="space-y-2"
+              >
+                {lessons.map((lesson, index) => (
+                  <Draggable key={lesson.id} draggableId={lesson.id.toString()} index={index}>
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        {...provided.dragHandleProps}
+                      >
+                        <div className="flex items-center justify-between p-2 rounded bg-white dark:bg-slate-900/50 shadow-sm">
+                          <div className="flex items-center gap-3 flex-grow min-w-0">
+                            <GripVertical className="h-4 w-4 text-slate-400 cursor-grab flex-shrink-0" />
+                            {lesson.videoUrl ? <Video className="h-4 w-4 text-blue-500 flex-shrink-0" /> : <FileText className="h-4 w-4 text-slate-500 flex-shrink-0" />}
+                            {editingLessonId === lesson.id ? (
+                              <Card className="w-full bg-white dark:bg-slate-900/50 shadow-sm">
+                                <CardHeader className="p-3">
+                                  <CardTitle className="text-base">Edit Lesson</CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-3 space-y-3">
+                                  <Input
+                                    placeholder="Lesson Title"
+                                    value={editingLessonTitle}
+                                    onChange={(e) => setEditingLessonTitle(e.target.value)}
+                                    className="h-9"
+                                  />
+                                  <Textarea
+                                    placeholder="Lesson content (optional, if not using video)"
+                                    value={editingLessonContent}
+                                    onChange={(e) => setEditingLessonContent(e.target.value)}
+                                    rows={3}
+                                  />
+                                  <div>
+                                    <label className="text-sm font-medium block mb-1.5">Replace Video (Optional)</label>
+                                    <div className="flex items-center gap-2">
+                                      <label className="flex-grow cursor-pointer border border-dashed rounded-md p-2 text-center text-sm text-slate-500 hover:border-slate-400">
+                                        <UploadCloud className="h-5 w-5 mx-auto mb-1 text-slate-400" />
+                                        {editingLessonVideoUrl
+                              ? editingLessonVideoUrl.split('/').pop()
+                              : "Click or drag to upload"}
+                                        <Input
+                                          type="file"
+                                          accept="video/*"
+                                          className="hidden"
+                                          onChange={async (e) => {
+                                            const file = e.target.files?.[0];
+                                            if (!file) return;
+                                            const formData = new FormData();
+                                            formData.append('video', file);
+                                            try {
+                                              const uploadResponse = await fetch('/api/upload/video', {
+                                                method: 'POST',
+                                                body: formData,
+                                              });
+                                              if (!uploadResponse.ok) {
+                                                throw new Error('Video upload failed');
+                                              }
+                                              const uploadResult = await uploadResponse.json();
+                                              setEditingLessonVideoUrl(uploadResult.videoUrl);
+                                            } catch (error) {
+                                              console.error('Video upload error:', error);
+                                              alert('Video upload failed');
+                                            }
+                                          }}
+                                        />
+                                      </label>
+                                      {editingLessonVideoUrl && (
+                                        <Button size="icon" variant="ghost" className="text-red-500 h-8 w-8" onClick={() => setEditingLessonVideoUrl('')}>
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="flex justify-end gap-2">
+                                    <Button variant="ghost" size="sm" onClick={() => setEditingLessonId(null)}>Cancel</Button>
+                                    <Button size="sm" onClick={() => handleSaveLessonEdit(lesson.id)}>
+                                      Save
+                                    </Button>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ) : (
+                              <span className="text-sm font-medium flex-grow truncate" title={lesson.title}>{lesson.title}</span>
+                            )}
+                            {lesson.duration && editingLessonId !== lesson.id && (
+                              <span className="text-xs text-slate-500 flex-shrink-0 ml-2">{Math.floor(lesson.duration / 60)} min</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            {editingLessonId === lesson.id ? (
+                              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setEditingLessonId(null)}>Cancel</Button>
+                            ) : (
+                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleEditLesson(lesson)}>
+                                <Edit2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                            <Button size="icon" variant="ghost" className="text-red-500 hover:text-red-600 h-7 w-7" onClick={() => handleDeleteLesson(lesson.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                        {/* Resource Upload and List Section */}
+                        <div className="pl-8 mt-2">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Paperclip className="h-4 w-4 text-slate-400" />
+                            <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Lesson Resources</span>
+                          </div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Input
+                              type="file"
+                              accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,.rar,.csv"
+                              className="w-auto"
+                              multiple
+                              ref={el => (resourceInputRefs.current[lesson.id] = el)}
+                              onChange={e =>
+                                handleResourceFileChange(
+                                  lesson.id,
+                                  e.target.files ? Array.from(e.target.files) : []
+                                )
+                              }
+                              disabled={resourceUploadState[lesson.id]?.uploading}
+                            />
+                            <Button
+                              size="sm"
+                              onClick={() => handleResourceUpload(lesson)}
+                              disabled={
+                                !resourceUploadState[lesson.id]?.files ||
+                                resourceUploadState[lesson.id]?.files.length === 0 ||
+                                resourceUploadState[lesson.id]?.uploading
+                              }
+                            >
+                              {resourceUploadState[lesson.id]?.uploading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <UploadCloud className="h-4 w-4" />
+                              )}
+                              <span className="ml-1">Upload</span>
+                            </Button>
+                          </div>
+                          {/* Show selected files before upload */}
+                          {resourceUploadState[lesson.id]?.files &&
+                            resourceUploadState[lesson.id]?.files.length > 0 && (
+                              <ul className="mb-2 text-xs text-slate-500">
+                                {resourceUploadState[lesson.id]?.files.map((file, idx) => (
+                                  <li key={idx}>{file.name}</li>
+                                ))}
+                              </ul>
+                            )}
+                          {/* List resources for this lesson */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                            {(lessonResources[lesson.id] || []).length === 0 ? (
+                              <div className="text-xs text-slate-400 col-span-full">No resources uploaded for this lesson.</div>
+                            ) : (
+                              lessonResources[lesson.id].map(resource => (
+                                <div key={resource.id} className="flex items-center gap-2 text-xs border rounded-md p-2 bg-slate-50 dark:bg-slate-800/40">
+                                  <a
+                                    href={`/api/resources/${resource.id}/download`}
+                                    className="flex-1 text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    <Paperclip className="h-4 w-4" />
+                                    <span className="font-medium">{resource.filename}</span>
+                                  </a>
+                                  <span className="text-slate-400 ml-2">{new Date(resource.uploadedAt).toLocaleDateString()}</span>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="text-red-500 hover:text-red-600 h-6 w-6 ml-1"
+                                    title="Delete resource"
+                                    onClick={async () => {
+                                      if (!window.confirm("Are you sure you want to delete this resource?")) return;
+                                      try {
+                                        const resp = await fetch(`/api/resources/${resource.id}`, { method: "DELETE" });
+                                        if (resp.ok) {
+                                          setLessonResources(prev => ({
+                                            ...prev,
+                                            [lesson.id]: (prev[lesson.id] || []).filter(r => r.id !== resource.id),
+                                          }));
+                                        } else {
+                                          alert("Failed to delete resource");
+                                        }
+                                      } catch {
+                                        alert("Failed to delete resource");
+                                      }
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
       )}
 
       {/* Add New Lesson Form Toggle/Display */}

@@ -76,6 +76,8 @@ export default function EditCoursePage() {
         }
 
         setCourseData(data);
+        // Set global courseId for resource upload in lesson list
+        (window as any).currentEditCourseId = data.id;
       } catch (error) {
         console.error("Failed to fetch course data:", error);
         // TODO: Add user-facing error handling (e.g., show toast)

@@ -32,6 +32,7 @@ import EditCoursePage from "./pages/edit-course";
 import CategoryManagement from "./pages/category-management";
 import AddUser from "./pages/add-user";
 import { ErrorBoundary } from "./components/ui/error-boundary";
+import AssessmentPage from "@/pages/assessment";
 
 function Router() {
   return (
@@ -62,6 +63,7 @@ function Router() {
       <ProtectedRoute path="/edit-course/:id" component={EditCoursePage} />{" "}
       {/* Add Edit Course Route */}
       <ProtectedRoute path="/quiz" component={Quiz} />
+      <ProtectedRoute path="/assessment" component={AssessmentPage} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route component={NotFound} />
