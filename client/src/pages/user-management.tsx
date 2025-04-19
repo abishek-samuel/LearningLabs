@@ -74,7 +74,7 @@ export default function UserManagement() {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch("/api/users");
+      const response = await fetch("/api/all/users");
       if (!response.ok) throw new Error("Failed to fetch users");
       const data = await response.json();
       setUsers(data);
@@ -249,10 +249,13 @@ export default function UserManagement() {
         method: "DELETE",
       });
       if (!response.ok) throw new Error("Failed to delete user");
+
+      const result = await response.json();
+
       fetchUsers();
       toast({
         title: "Success",
-        description: "User deleted successfully",
+        description: result.message || "User marked as inactive",
       });
     } catch (error) {
       console.error("Error deleting user:", error);
@@ -266,6 +269,40 @@ export default function UserManagement() {
       setUserToDelete(null);
     }
   };
+
+  const confirmStatusChange = async () => {
+    if (!userToDelete) return;
+    const newStatus = userToDelete.status === "active" ? "inactive" : "active";
+
+    try {
+      const response = await fetch(`/api/users/${userToDelete.id}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (!response.ok) throw new Error("Failed to update user status");
+
+      const result = await response.json();
+
+      fetchUsers();
+      toast({
+        title: "Success",
+        description: result.message || `User marked as ${newStatus}`,
+      });
+    } catch (error) {
+      console.error("Error updating user status:", error);
+      toast({
+        title: "Error",
+        description: "Something went wrong",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteDialogOpen(false);
+      setUserToDelete(null);
+    }
+  };
+
 
   const filteredUsers = users.filter((user) => {
     const term = searchTerm.toLowerCase();
@@ -362,10 +399,16 @@ export default function UserManagement() {
                           {user.role}
                         </TableCell>
                         <TableCell>
-                          <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full capitalize">
+                          <span
+                            className={`px-2 py-1 rounded-full capitalize 
+      ${user.status === "active"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"}`}
+                          >
                             {user.status}
                           </span>
                         </TableCell>
+
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -390,7 +433,7 @@ export default function UserManagement() {
                                 className="text-red-600 dark:text-red-400"
                                 onClick={() => handleDeletePrompt(user)}
                               >
-                                Delete
+                                {user.status === "active" ? "Inactivate" : "Activate"}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -568,10 +611,13 @@ export default function UserManagement() {
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogTitle>
+              {userToDelete?.status === "active" ? "Mark as Inactive" : "Activate User"}
+            </DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete{" "}
-              <span className="font-semibold">{userToDelete?.username}</span>?
+              Are you sure you want to {userToDelete?.status === "active" ? "mark" : "activate"}{" "}
+              <span className="font-semibold">{userToDelete?.username}</span>{" "}
+              {userToDelete?.status === "active" ? "as inactive" : "as active"}?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex justify-end gap-2">
@@ -581,8 +627,8 @@ export default function UserManagement() {
             >
               No
             </Button>
-            <Button variant="destructive" onClick={confirmDelete}>
-              Yes, Delete
+            <Button variant={userToDelete?.status === "active" ? "destructive" : "default"} onClick={confirmStatusChange}>
+              {userToDelete?.status === "active" ? "Yes, Mark Inactive" : "Yes, Activate"}
             </Button>
           </DialogFooter>
         </DialogContent>

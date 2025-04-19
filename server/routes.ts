@@ -270,6 +270,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // User routes
   app.get(
+    "/api/all/users",
+    isAuthenticated,
+    hasRole(["admin"]),
+    async (req, res) => {
+      try {
+        const { search, role } = req.query;
+        const users = await storage.getUsers();
+        let filteredUsers = users.map(({ password, ...user }) => user);
+
+        // Filter for active users
+        filteredUsers = filteredUsers.filter(
+          (user) => user.status === "active" || user.status === "inactive"
+        );
+
+        if (search) {
+          const searchStr = search.toString().toLowerCase();
+          filteredUsers = filteredUsers.filter(
+            (user) =>
+              user.username.toLowerCase().includes(searchStr) ||
+              user.email.toLowerCase().includes(searchStr) ||
+              user.firstName?.toLowerCase().includes(searchStr) ||
+              user.lastName?.toLowerCase().includes(searchStr)
+          );
+        }
+
+        if (role && role !== "all") {
+          filteredUsers = filteredUsers.filter((user) => user.role === role);
+        }
+
+        res.json(filteredUsers);
+      } catch (error) {
+        console.error("Error fetching users:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  );
+
+  app.get(
     "/api/users",
     isAuthenticated,
     hasRole(["admin"]),
@@ -473,21 +511,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
-  app.delete(
-    "/api/users/:id",
+  // app.delete(
+  //   "/api/users/:id",
+  //   isAuthenticated,
+  //   hasRole(["admin"]),
+  //   async (req, res) => {
+  //     try {
+  //       const userId = parseInt(req.params.id);
+  //       await storage.deleteUser(userId);
+  //       res.status(204).send();
+  //     } catch (error) {
+  //       console.error("Error deleting user:", error);
+  //       res.status(500).json({ message: "Internal server error" });
+  //     }
+  //   }
+  // );
+
+  app.put(
+    "/api/users/:id/status",
     isAuthenticated,
     hasRole(["admin"]),
     async (req, res) => {
       try {
         const userId = parseInt(req.params.id);
-        await storage.deleteUser(userId);
-        res.status(204).send();
+        const { status } = req.body;
+
+        if (!["active", "inactive"].includes(status)) {
+          return res.status(400).json({ message: "Invalid status value" });
+        }
+
+        const updatedUser = await storage.updateUser(userId, { status });
+        res.json({ message: `User marked as ${status}`, user: updatedUser });
       } catch (error) {
-        console.error("Error deleting user:", error);
+        console.error("Error updating user status:", error);
         res.status(500).json({ message: "Internal server error" });
       }
     }
   );
+
 
   // Get pending courses route
   app.get(
@@ -2437,8 +2498,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const progressPercentage =
               totalLessonsInCourse > 0
                 ? Math.round(
-                    (completedLessonsInCourse / totalLessonsInCourse) * 100
-                  )
+                  (completedLessonsInCourse / totalLessonsInCourse) * 100
+                )
                 : 0; // Avoid division by zero if course has no lessons
 
             // 5. Update enrollment with correct progress and completion status

@@ -56,7 +56,7 @@ export function ModuleList({ courseId }: ModuleListProps) {
   }, [courseId]);
 
   const handleAddModule = async () => {
-    const { handleError } = useErrorHandler();
+    // const { handleError } = useErrorHandler();
     if (!newModuleTitle.trim()) return;
     console.log(`Adding module: ${newModuleTitle}`);
     // Determine the position for the new module
