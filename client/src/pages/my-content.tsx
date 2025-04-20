@@ -2,10 +2,28 @@ import { MainLayout } from "@/components/layout/main-layout";
 import { useAuth } from "@/context/auth-context";
 import { queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { Search, Plus, Edit, Trash2, Eye, MoreHorizontal, FileText, Video, BarChart, ChevronDown } from "lucide-react";
+import {
+  Search,
+  Plus,
+  Edit,
+  Trash2,
+  Eye,
+  MoreHorizontal,
+  FileText,
+  Video,
+  BarChart,
+  ChevronDown,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +37,7 @@ import { useLocation } from "wouter"; // Import useLocation
 import { useQuery } from "@tanstack/react-query"; // Import useQuery
 import { Loader2 } from "lucide-react"; // Import Loader2 for loading state
 import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton
+import { useEffect } from "react";
 
 // Define a type for the course data expected from the API
 type CourseType = {
@@ -31,34 +50,50 @@ type CourseType = {
   createdAt: string; // Assuming this is available for sorting/display
 };
 
-
 export default function MyContent() {
   const { user } = useAuth();
   const [, navigate] = useLocation(); // Get navigate function
 
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ["/api/my-courses"] });
+  }, []);
+
   // Fetch all courses
-  const { data: allCourses = [], isLoading, error, isError } = useQuery<CourseType[]>({
+  const {
+    data: allCourses = [],
+    isLoading,
+    error,
+    isError,
+  } = useQuery<CourseType[]>({
     queryKey: ["/api/my-courses"], // Query key for caching user's courses
     queryFn: async () => {
       if (!user?.id) {
         console.warn("User not available, skipping fetch.");
-        return []; 
+        return [];
       }
-      const res = await fetch('/api/my-courses'); 
+      const res = await fetch("/api/my-courses");
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || `Failed to fetch courses: ${res.statusText}`);
+        throw new Error(
+          errorData.message || `Failed to fetch courses: ${res.statusText}`
+        );
       }
       return res.json();
     },
-    enabled: !!user?.id, 
+    enabled: !!user?.id,
   });
 
   // Filter courses created by the current user
-  const myCourses = allCourses.filter(course => course.instructorId === user?.id);
+  const myCourses = allCourses.filter(
+    (course) => course.instructorId === user?.id
+  );
 
   const handleDeleteCourse = async (courseId: number) => {
-    if (!confirm("Are you sure you want to delete this course? This action cannot be undone.")) {
+    if (
+      !confirm(
+        "Are you sure you want to delete this course? This action cannot be undone."
+      )
+    ) {
       return;
     }
     try {
@@ -73,7 +108,11 @@ export default function MyContent() {
       queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
     } catch (error) {
       console.error("Error deleting course:", error);
-      alert(`Error deleting course: ${error instanceof Error ? error.message : "Unknown error"}`);
+      alert(
+        `Error deleting course: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
   };
 
@@ -84,20 +123,25 @@ export default function MyContent() {
       <div className="bg-white dark:bg-slate-900 shadow">
         <div className="px-4 sm:px-6 lg:px-8 py-6 md:flex md:items-center md:justify-between">
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold leading-7 text-slate-900 dark:text-white">My Content</h1>
+            <h1 className="text-2xl font-bold leading-7 text-slate-900 dark:text-white">
+              My Content
+            </h1>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
               Manage the courses and learning content you've created
             </p>
           </div>
           <div className="mt-4 flex md:mt-0 md:ml-4">
-            <Button variant="default" onClick={() => navigate('/create-course')}>
+            <Button
+              variant="default"
+              onClick={() => navigate("/create-course")}
+            >
               <Plus className="mr-2 h-4 w-4" />
               Create Course
             </Button>
           </div>
         </div>
       </div>
-      
+
       <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6">
           <div className="relative w-full md:w-64">
@@ -124,7 +168,7 @@ export default function MyContent() {
             </div>
           </div>
         </div>
-        
+
         <Tabs defaultValue="courses">
           <TabsList className="mb-6">
             <TabsTrigger value="courses">Courses</TabsTrigger>
@@ -132,7 +176,7 @@ export default function MyContent() {
             <TabsTrigger value="lessons">Lessons</TabsTrigger>
             <TabsTrigger value="assessments">Assessments</TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="courses">
             {isLoading ? (
               // Loading Skeleton
@@ -150,9 +194,18 @@ export default function MyContent() {
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                        <div><Skeleton className="h-4 w-24 mb-1" /><Skeleton className="h-5 w-12" /></div>
-                        <div><Skeleton className="h-4 w-24 mb-1" /><Skeleton className="h-5 w-10" /></div>
-                        <div><Skeleton className="h-4 w-24 mb-1" /><Skeleton className="h-5 w-20" /></div>
+                        <div>
+                          <Skeleton className="h-4 w-24 mb-1" />
+                          <Skeleton className="h-5 w-12" />
+                        </div>
+                        <div>
+                          <Skeleton className="h-4 w-24 mb-1" />
+                          <Skeleton className="h-5 w-10" />
+                        </div>
+                        <div>
+                          <Skeleton className="h-4 w-24 mb-1" />
+                          <Skeleton className="h-5 w-20" />
+                        </div>
                       </div>
                     </CardContent>
                     <CardFooter className="justify-between">
@@ -170,17 +223,23 @@ export default function MyContent() {
               // Error Message
               <div className="text-center py-10 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700/30 rounded-md p-4">
                 <h3 className="font-semibold mb-2">Error Loading Courses</h3>
-                <p className="text-sm">{error instanceof Error ? error.message : 'An unknown error occurred.'}</p>
+                <p className="text-sm">
+                  {error instanceof Error
+                    ? error.message
+                    : "An unknown error occurred."}
+                </p>
               </div>
             ) : myCourses.length === 0 ? (
-               // Empty State
-               <div className="text-center py-16 text-slate-500 dark:text-slate-400 border border-dashed border-slate-300 dark:border-slate-700 rounded-md">
-                 <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-200 mb-2">No Courses Found</h3>
-                 <p className="mb-4">You haven't created any courses yet.</p>
-                 <Button onClick={() => navigate('/create-course')}>
-                   <Plus className="mr-2 h-4 w-4" /> Create Your First Course
-                 </Button>
-               </div>
+              // Empty State
+              <div className="text-center py-16 text-slate-500 dark:text-slate-400 border border-dashed border-slate-300 dark:border-slate-700 rounded-md">
+                <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-200 mb-2">
+                  No Courses Found
+                </h3>
+                <p className="mb-4">You haven't created any courses yet.</p>
+                <Button onClick={() => navigate("/create-course")}>
+                  <Plus className="mr-2 h-4 w-4" /> Create Your First Course
+                </Button>
+              </div>
             ) : (
               // Display Filtered Courses
               <div className="grid grid-cols-1 gap-6">
@@ -190,25 +249,41 @@ export default function MyContent() {
                       <div className="flex justify-between items-start">
                         <div>
                           <CardTitle>{course.title}</CardTitle>
-                          <CardDescription>{course.description || 'No description provided.'}</CardDescription>
+                          <CardDescription>
+                            {course.description || "No description provided."}
+                          </CardDescription>
                         </div>
-                        <StatusBadge status={course.status ? course.status : 'unknown'} /> 
+                        <StatusBadge
+                          status={course.status ? course.status : "unknown"}
+                        />
                       </div>
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                         <div>
-                          <div className="text-slate-500 dark:text-slate-400 mb-1">Status</div>
-                          <div className="font-medium capitalize">{course.status || 'N/A'}</div>
+                          <div className="text-slate-500 dark:text-slate-400 mb-1">
+                            Status
+                          </div>
+                          <div className="font-medium capitalize">
+                            {course.status || "N/A"}
+                          </div>
                         </div>
                         <div>
                           {/* Module count display removed temporarily */}
-                          <div className="text-slate-500 dark:text-slate-400 mb-1">Modules</div>
-                          <div className="font-medium">{course.modules ? course.modules.length : 0}</div> 
+                          <div className="text-slate-500 dark:text-slate-400 mb-1">
+                            Modules
+                          </div>
+                          <div className="font-medium">
+                            {course.modules ? course.modules.length : 0}
+                          </div>
                         </div>
                         <div>
-                          <div className="text-slate-500 dark:text-slate-400 mb-1">Created</div>
-                          <div className="font-medium">{new Date(course.createdAt).toLocaleDateString()}</div>
+                          <div className="text-slate-500 dark:text-slate-400 mb-1">
+                            Created
+                          </div>
+                          <div className="font-medium">
+                            {new Date(course.createdAt).toLocaleDateString()}
+                          </div>
                         </div>
                       </div>
                     </CardContent>
@@ -219,11 +294,20 @@ export default function MyContent() {
                         {/* <span>{course.modules ? course.modules.length : 0} modules</span> */}
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => navigate(`/course-detail/${course.id}`)}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            navigate(`/course-detail/${course.id}`)
+                          }
+                        >
                           <Eye className="mr-2 h-4 w-4" />
                           Preview
                         </Button>
-                        <Button size="sm" onClick={() => navigate(`/edit-course/${course.id}`)}>
+                        <Button
+                          size="sm"
+                          onClick={() => navigate(`/edit-course/${course.id}`)}
+                        >
                           <Edit className="mr-2 h-4 w-4" />
                           Edit
                         </Button>
@@ -260,7 +344,7 @@ export default function MyContent() {
               </div>
             )}
           </TabsContent>
-          
+
           {/* Other TabsContent sections remain unchanged */}
           <TabsContent value="modules">
             <Card>
@@ -272,30 +356,37 @@ export default function MyContent() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  You haven't created any standalone modules yet. Modules are created within courses.
+                  You haven't created any standalone modules yet. Modules are
+                  created within courses.
                 </p>
               </CardContent>
               <CardFooter>
-                <Button onClick={() => navigate('/create-course')}>Create a Course</Button>
+                <Button onClick={() => navigate("/create-course")}>
+                  Create a Course
+                </Button>
               </CardFooter>
             </Card>
           </TabsContent>
-          
+
           <TabsContent value="lessons">
             <Card>
               <CardHeader>
                 <CardTitle>Lessons & Resources</CardTitle>
                 <CardDescription>
-                  Learning content including videos, documents, and other resources
+                  Learning content including videos, documents, and other
+                  resources
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-col items-center justify-center py-8">
                   <Video className="h-16 w-16 text-slate-300 dark:text-slate-600 mb-4" />
-                  <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">No Content Yet</h3>
+                  <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">
+                    No Content Yet
+                  </h3>
                   <p className="text-sm text-slate-500 dark:text-slate-400 text-center max-w-md mb-6">
-                    You haven't uploaded any videos, documents, or other learning resources yet.
-                    Start creating engaging content for your learners!
+                    You haven't uploaded any videos, documents, or other
+                    learning resources yet. Start creating engaging content for
+                    your learners!
                   </p>
                   <div className="flex gap-4">
                     <Button variant="outline">
@@ -311,7 +402,7 @@ export default function MyContent() {
               </CardContent>
             </Card>
           </TabsContent>
-          
+
           <TabsContent value="assessments">
             <Card>
               <CardHeader>
@@ -323,10 +414,12 @@ export default function MyContent() {
               <CardContent>
                 <div className="flex flex-col items-center justify-center py-8">
                   <FileText className="h-16 w-16 text-slate-300 dark:text-slate-600 mb-4" />
-                  <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">No Assessments Yet</h3>
+                  <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">
+                    No Assessments Yet
+                  </h3>
                   <p className="text-sm text-slate-500 dark:text-slate-400 text-center max-w-md mb-6">
-                    You haven't created any quizzes or tests yet. 
-                    Assessments help you evaluate learning outcomes and engage students.
+                    You haven't created any quizzes or tests yet. Assessments
+                    help you evaluate learning outcomes and engage students.
                   </p>
                   <Button>
                     <Plus className="mr-2 h-4 w-4" />
@@ -348,24 +441,32 @@ interface StatusBadgeProps {
 
 function StatusBadge({ status }: StatusBadgeProps) {
   let badgeClasses = "";
-  
+
   switch (status) {
     case "published":
-      badgeClasses = "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
+      badgeClasses =
+        "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
       break;
     case "draft":
-      badgeClasses = "bg-slate-100 text-slate-800 dark:bg-slate-900/50 dark:text-slate-400";
+      badgeClasses =
+        "bg-slate-100 text-slate-800 dark:bg-slate-900/50 dark:text-slate-400";
       break;
     case "under review":
-      badgeClasses = "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400";
+      badgeClasses =
+        "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400";
       break;
     default:
-      badgeClasses = "bg-slate-100 text-slate-800 dark:bg-slate-900/50 dark:text-slate-400";
+      badgeClasses =
+        "bg-slate-100 text-slate-800 dark:bg-slate-900/50 dark:text-slate-400";
   }
-  
+
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${badgeClasses}`}>
-      {status === "under review" ? "Under Review" : status.charAt(0).toUpperCase() + status.slice(1)}
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${badgeClasses}`}
+    >
+      {status === "under review"
+        ? "Under Review"
+        : status.charAt(0).toUpperCase() + status.slice(1)}
     </span>
   );
 }

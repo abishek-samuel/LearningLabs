@@ -22,7 +22,12 @@ export default function AssessmentPage() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState<{ score: number; passed: boolean; correct: number; total: number } | null>(null);
+  const [result, setResult] = useState<{
+    score: number;
+    passed: boolean;
+    correct: number;
+    total: number;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Start assessment attempt on mount
@@ -103,11 +108,16 @@ export default function AssessmentPage() {
               <div className="text-red-600 text-center py-4">{error}</div>
             ) : result ? (
               <div className="text-center space-y-4">
-                <div className={`text-2xl font-bold ${result.passed ? "text-green-600" : "text-red-600"}`}>
+                <div
+                  className={`text-2xl font-bold ${
+                    result.passed ? "text-green-600" : "text-red-600"
+                  }`}
+                >
                   {result.passed ? "Passed!" : "Failed"}
                 </div>
                 <div>
-                  Score: <span className="font-semibold">{result.score}%</span> ({result.correct} / {result.total} correct)
+                  Score: <span className="font-semibold">{result.score}%</span>{" "}
+                  ({result.correct} / {result.total} correct)
                 </div>
                 {!result.passed && (
                   <Button onClick={handleRetake}>Retake Assessment</Button>
@@ -125,12 +135,17 @@ export default function AssessmentPage() {
                   <div key={q.id} className="mb-4">
                     <div className="font-medium mb-2">
                       {idx + 1}. {q.questionText}
-                      <span className="ml-2 text-xs text-slate-400">({q.difficulty})</span>
+                      <span className="ml-2 text-xs text-slate-400">
+                        ({q.difficulty})
+                      </span>
                     </div>
                     <div className="space-y-1">
                       {Array.isArray(q.options)
                         ? q.options.map((opt, i) => (
-                            <label key={i} className="flex items-center gap-2 cursor-pointer">
+                            <label
+                              key={i}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
                               <input
                                 type="radio"
                                 name={`q_${q.id}`}
@@ -146,8 +161,13 @@ export default function AssessmentPage() {
                     </div>
                   </div>
                 ))}
-                <Button type="submit" disabled={submitting || Object.keys(answers).length !== 10}>
-                  {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                <Button
+                  type="submit"
+                  disabled={submitting || Object.keys(answers).length !== 10}
+                >
+                  {submitting ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : null}
                   Submit Assessment
                 </Button>
               </form>
