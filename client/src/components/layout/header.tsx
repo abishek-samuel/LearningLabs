@@ -70,7 +70,8 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
               src="../../../alten.png"
               title="Alten Global Technologies Private Limited"
               alt="Alten Global Technologies Private Limited"
-              className="h-10 w-12 mr-2"
+              className="h-12 w-19 mr-2"
+              style={{ marginLeft: "-30px" }}
             />
             <span className="font-bold text-xl text-slate-900 dark:text-white">LMS</span>
           </Link>

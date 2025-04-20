@@ -13,7 +13,10 @@ import { useQuery } from "@tanstack/react-query";
 const courseFormSchema = z.object({
   title: z.string().min(5, { message: "Title must be at least 5 characters." }),
   description: z.string().min(10, { message: "Description must be at least 10 characters." }).max(500, { message: "Description cannot exceed 500 characters." }),
-  category: z.string().optional(), // Example: Programming, Design, Business
+  categoryId: z.number({
+    required_error: "Category is required.",
+  }).int(),
+  // Changed to number, representing the category ID
   thumbnail: z.string().url("Must be a valid file").or(z.literal("")).optional(),
   // Add other relevant fields like target audience, difficulty level, etc.
 });
@@ -40,11 +43,12 @@ export function CourseForm({ initialData, onSubmit, isSubmitting }: CourseFormPr
     defaultValues: {
       title: initialData?.title || "",
       description: initialData?.description || "",
-      category: initialData?.category || "",
+      categoryId: initialData?.categoryId ?? undefined,
       thumbnail: initialData?.thumbnail || "",
     },
-  });
 
+  });
+  console.log("Initial data:", initialData);
   const handleSubmit = async (data: CourseFormData) => {
     await onSubmit(data);
     // Optionally reset form after successful submission if needed
@@ -89,28 +93,32 @@ export function CourseForm({ initialData, onSubmit, isSubmitting }: CourseFormPr
 
         <FormField
           control={form.control}
-          name="category"
+          name="categoryId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Category (Optional)</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <FormLabel>Category</FormLabel>
+              <Select
+                value={field.value?.toString() || ""}
+                onValueChange={(value) => field.onChange(value ? parseInt(value, 10) : undefined)}
+              >
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a category" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                {categories?.map((category) => (
-                  <SelectItem key={category.id} value={category.name}>
-                    {category.name}
-                  </SelectItem>
-                ))}
+                  {categories?.map((category) => (
+                    <SelectItem key={category.id} value={category.id.toString()}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <FormMessage />
             </FormItem>
           )}
         />
+
 
         {/* Add more fields as needed */}
 

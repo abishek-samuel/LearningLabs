@@ -41,6 +41,12 @@ type CourseType = {
   duration?: number | null;
 };
 
+type Category = {
+  id: number;
+  name: string;
+};
+
+
 export default function CourseCatalog() {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
@@ -50,6 +56,7 @@ export default function CourseCatalog() {
   const [currentPage, setCurrentPage] = useState(1);
   const coursesPerPage = 8;
   const queryClient = useQueryClient();
+  const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
     queryClient.invalidateQueries({ queryKey: ["/api/courses", user?.id] });
@@ -76,7 +83,8 @@ export default function CourseCatalog() {
       (course.description &&
         course.description.toLowerCase().includes(searchQuery.toLowerCase()));
 
-    const matchesCategory = category === "all" || course.category === category;
+    const matchesCategory =
+      category === "all" || course.categoryId === Number(category);
 
     return matchesSearch && matchesCategory;
   });
@@ -84,24 +92,44 @@ export default function CourseCatalog() {
   // Sort courses based on sort order
   const sortedCourses = filteredCourses
     ? [...filteredCourses].sort((a, b) => {
-        if (sortOrder === "newest") {
-          return (
-            new Date(b.createdAt || 0).getTime() -
-            new Date(a.createdAt || 0).getTime()
-          );
-        } else if (sortOrder === "oldest") {
-          return (
-            new Date(a.createdAt || 0).getTime() -
-            new Date(b.createdAt || 0).getTime()
-          );
-        } else if (sortOrder === "az") {
-          return (a.title || "").localeCompare(b.title || "");
-        } else if (sortOrder === "za") {
-          return (b.title || "").localeCompare(a.title || "");
-        }
-        return 0;
-      })
+      if (sortOrder === "newest") {
+        return (
+          new Date(b.createdAt || 0).getTime() -
+          new Date(a.createdAt || 0).getTime()
+        );
+      } else if (sortOrder === "oldest") {
+        return (
+          new Date(a.createdAt || 0).getTime() -
+          new Date(b.createdAt || 0).getTime()
+        );
+      } else if (sortOrder === "az") {
+        return (a.title || "").localeCompare(b.title || "");
+      } else if (sortOrder === "za") {
+        return (b.title || "").localeCompare(a.title || "");
+      }
+      return 0;
+    })
     : [];
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch('/api/categories');
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error('Failed to fetch categories');
+      }
+      setCategories(data);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch categories",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <MainLayout>
@@ -139,12 +167,13 @@ export default function CourseCatalog() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
-                <SelectItem value="development">Development</SelectItem>
-                <SelectItem value="business">Business</SelectItem>
-                <SelectItem value="design">Design</SelectItem>
-                <SelectItem value="marketing">Marketing</SelectItem>
-                <SelectItem value="it">IT & Software</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
+
             </Select>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

@@ -31,7 +31,7 @@ export default function AuthPage() {
             src="../../../alten.png"
             title="Alten Global Technologies Private Limited"
             alt="Alten Global Technologies Private Limited"
-            className="h-12 w-13 mr-2"
+            className="h-12 w-18 mr-2"
           />
           <Button
             variant="ghost"

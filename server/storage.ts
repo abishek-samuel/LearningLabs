@@ -557,8 +557,19 @@ export class PrismaStorage implements IStorage {
 
   // --- Category Methods ---
   async getCategories(): Promise<Category[]> {
-    return this.prisma.category.findMany();
+    return this.prisma.category.findMany({
+      include: {
+        courses: {
+          select: {
+            id: true,
+            title: true,
+            description: true,
+          },
+        },
+      },
+    });
   }
+
 
   async getCategory(id: number): Promise<Category | null> {
     return this.prisma.category.findUnique({ where: { id } });
@@ -974,19 +985,19 @@ export class PrismaStorage implements IStorage {
       where: isAdmin
         ? undefined
         : {
-            OR: [
-              { userId: user.id },
-              {
-                group: {
-                  members: {
-                    some: {
-                      userId: user.id,
-                    },
+          OR: [
+            { userId: user.id },
+            {
+              group: {
+                members: {
+                  some: {
+                    userId: user.id,
                   },
                 },
               },
-            ],
-          },
+            },
+          ],
+        },
       include: {
         course: true,
         user: {

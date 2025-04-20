@@ -910,7 +910,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const {
           title,
           description,
-          category,
+          categoryId,
           thumbnail,
           duration,
           difficulty,
@@ -931,7 +931,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           duration: duration ? parseInt(duration) : null, // Ensure duration is number or null
           difficulty: difficulty || null,
           status: status || "draft",
-          category: category || null, // Include category
+          // category: category || null, 
+          categoryId: categoryId ? parseInt(categoryId) : null,
           instructorId: req.user!.id, // Assert req.user exists
         });
 
@@ -975,7 +976,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const {
           title,
           description,
-          category,
+          categoryId,
           thumbnail,
           duration,
           difficulty,
@@ -984,7 +985,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const courseData: Partial<Course> = {
           title,
           description,
-          category: category || null,
+          categoryId: categoryId ? parseInt(categoryId) : null,
           thumbnail: thumbnail || null,
           duration: duration ? parseInt(duration) : null,
           difficulty: difficulty || null,

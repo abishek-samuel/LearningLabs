@@ -1,18 +1,10 @@
-
 import { MainLayout } from "@/components/layout/main-layout";
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -21,19 +13,40 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
+
+interface Course {
+  id: number;
+  title: string;
+  description: string;
+}
+
+interface Category {
+  id: number;
+  name: string;
+  courses: Course[];
+}
 
 export default function CategoryManagement() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [categories, setCategories] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [newCategory, setNewCategory] = useState('');
-  const [editCategory, setEditCategory] = useState({ id: null, name: '' });
+  const [, navigate] = useLocation();
 
-  
-    useEffect(() => {
-        fetchCategories();
-    }, []);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const [newCategory, setNewCategory] = useState('');
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+
+  const [editCategory, setEditCategory] = useState<{ id: number | null; name: string }>({ id: null, name: '' });
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState<{ id: number | null; open: boolean }>({ id: null, open: false });
+
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
 
   const fetchCategories = async () => {
     try {
@@ -57,21 +70,15 @@ export default function CategoryManagement() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newCategory }),
       });
-      
+
       if (!response.ok) throw new Error('Failed to create category');
-      
+
+      toast({ title: "Success", description: "Category created successfully" });
       setNewCategory('');
+      setIsAddDialogOpen(false);
       await fetchCategories();
-      toast({
-        title: "Success",
-        description: "Category created successfully",
-      });
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create category",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to create category", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -85,46 +92,33 @@ export default function CategoryManagement() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: editCategory.name }),
       });
-      
+
       if (!response.ok) throw new Error('Failed to update category');
-      
-      setEditCategory({ id: null, name: '' });
+
+      toast({ title: "Success", description: "Category updated successfully" });
+      setIsEditDialogOpen({ id: null, open: false });
       await fetchCategories();
-      toast({
-        title: "Success",
-        description: "Category updated successfully",
-      });
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update category",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to update category", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleDeleteCategory = async (id: number) => {
+  const handleDeleteCategory = async () => {
+    if (deleteTarget === null) return;
+
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/categories/${id}`, {
-        method: 'DELETE',
-      });
-      
+      const response = await fetch(`/api/categories/${deleteTarget}`, { method: 'DELETE' });
       if (!response.ok) throw new Error('Failed to delete category');
-      
+
+      toast({ title: "Success", description: "Category deleted successfully" });
+      setIsDeleteConfirmOpen(false);
+      setDeleteTarget(null);
       await fetchCategories();
-      toast({
-        title: "Success",
-        description: "Category deleted successfully",
-      });
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete category",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to delete category", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -133,20 +127,14 @@ export default function CategoryManagement() {
   return (
     <MainLayout>
       <div className="bg-white dark:bg-slate-900 shadow">
-        <div className="px-4 sm:px-6 lg:px-8 py-6">
+        <div className="px-4 sm:px-6 lg:px-8 py-6 flex justify-between items-center">
           <h1 className="text-2xl font-bold leading-7 text-slate-900 dark:text-white">
             Category Management
           </h1>
-        </div>
-      </div>
-
-      <div className="px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <Dialog>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Category
+                <Plus className="mr-2 h-4 w-4" /> Add Category
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -166,22 +154,27 @@ export default function CategoryManagement() {
             </DialogContent>
           </Dialog>
         </div>
+      </div>
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {categories.map((category) => (
-              <TableRow key={category.id}>
-                <TableCell>{category.name}</TableCell>
-                <TableCell className="flex gap-2">
-                  <Dialog>
+      <div className="px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {categories.map((category) => (
+            <Card key={category.id} className="relative">
+              <CardHeader className="flex flex-row justify-between items-start">
+                <CardTitle>{category.name}</CardTitle>
+                <div className="flex gap-2">
+                  <Dialog
+                    open={isEditDialogOpen.open && isEditDialogOpen.id === category.id}
+                    onOpenChange={(open) =>
+                      setIsEditDialogOpen({ id: open ? category.id : null, open })
+                    }
+                  >
                     <DialogTrigger asChild>
-                      <Button variant="outline" size="icon">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setEditCategory({ id: category.id, name: category.name })}
+                      >
                         <Pencil className="h-4 w-4" />
                       </Button>
                     </DialogTrigger>
@@ -192,7 +185,7 @@ export default function CategoryManagement() {
                       <div className="grid gap-4 py-4">
                         <Input
                           placeholder="Category name"
-                          value={editCategory.id === category.id ? editCategory.name : category.name}
+                          value={editCategory.name}
                           onChange={(e) => setEditCategory({ id: category.id, name: e.target.value })}
                         />
                         <Button onClick={() => handleUpdateCategory(category.id)} disabled={isLoading}>
@@ -201,20 +194,62 @@ export default function CategoryManagement() {
                       </div>
                     </DialogContent>
                   </Dialog>
+
                   <Button
                     variant="destructive"
                     size="icon"
-                    onClick={() => handleDeleteCategory(category.id)}
+                    onClick={() => {
+                      setDeleteTarget(category.id);
+                      setIsDeleteConfirmOpen(true);
+                    }}
                     disabled={isLoading}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                </div>
+              </CardHeader>
+
+              <CardContent>
+                <div className="space-y-2">
+                  {category.courses?.length > 0 ? category.courses.map((course) => (
+                    <div
+                      key={course.id}
+                      className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700"
+                      onClick={() => navigate(`/course-detail/${course.id}`)}
+                    >
+                      <h3 className="font-medium">{course.title}</h3>
+                      <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2">
+                        {course.description}
+                      </p>
+                    </div>
+                  )) : (
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      No courses in this category
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
+
+      <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+          </DialogHeader>
+          <p>Are you sure you want to delete this category?</p>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteCategory} disabled={isLoading}>
+              Yes, Delete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }
