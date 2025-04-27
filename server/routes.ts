@@ -114,7 +114,8 @@ async function updateCourseDuration(courseId: number) {
   for (const module of modules) {
     const lessons = await storage.getLessonsByModule(module.id);
     for (const lesson of lessons) {
-      if (lesson.duration) {
+      // Only add duration if it's not null
+      if (lesson.duration != null) {
         totalDuration += lesson.duration;
       }
     }
@@ -641,64 +642,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // --- Comments API ---
 
   // Reorder modules within a course
-  app.post(
-    "/api/courses/:courseId/reorder-modules",
-    isAuthenticated,
-    async (req, res) => {
-      try {
-        const courseId = parseInt(req.params.courseId);
-        const { moduleOrder } = req.body;
-        if (!Array.isArray(moduleOrder)) {
-          return res
-            .status(400)
-            .json({ message: "moduleOrder array is required" });
-        }
-
-        for (let i = 0; i < moduleOrder.length; i++) {
-          const moduleId = moduleOrder[i];
-          await storage.prisma.module.update({
-            where: { id: moduleId, courseId },
-            data: { position: i + 1 },
-          });
-        }
-
-        res.json({ message: "Modules reordered successfully" });
-      } catch (error) {
-        console.error("Error reordering modules:", error);
-        res.status(500).json({ message: "Internal server error" });
+  app.post("/api/courses/:courseId/reorder-modules", isAuthenticated, async (req, res) => {
+    try {
+      const courseId = parseInt(req.params.courseId);
+      const { moduleOrder } = req.body;
+      if (!Array.isArray(moduleOrder)) {
+        return res.status(400).json({ message: "moduleOrder array is required" });
       }
+
+      for (let i = 0; i < moduleOrder.length; i++) {
+        const moduleId = moduleOrder[i];
+        await storage.prisma.module.update({
+          where: { id: moduleId, courseId },
+          data: { position: i + 1 },
+        });
+      }
+
+      res.json({ message: "Modules reordered successfully" });
+    } catch (error) {
+      console.error("Error reordering modules:", error);
+      res.status(500).json({ message: "Internal server error" });
     }
-  );
+  });
 
   // Reorder lessons within a module
-  app.post(
-    "/api/modules/:moduleId/reorder-lessons",
-    isAuthenticated,
-    async (req, res) => {
-      try {
-        const moduleId = parseInt(req.params.moduleId);
-        const { lessonOrder } = req.body;
-        if (!Array.isArray(lessonOrder)) {
-          return res
-            .status(400)
-            .json({ message: "lessonOrder array is required" });
-        }
-
-        for (let i = 0; i < lessonOrder.length; i++) {
-          const lessonId = lessonOrder[i];
-          await storage.prisma.lesson.update({
-            where: { id: lessonId, moduleId },
-            data: { position: i + 1 },
-          });
-        }
-
-        res.json({ message: "Lessons reordered successfully" });
-      } catch (error) {
-        console.error("Error reordering lessons:", error);
-        res.status(500).json({ message: "Internal server error" });
+  app.post("/api/modules/:moduleId/reorder-lessons", isAuthenticated, async (req, res) => {
+    try {
+      const moduleId = parseInt(req.params.moduleId);
+      const { lessonOrder } = req.body;
+      if (!Array.isArray(lessonOrder)) {
+        return res.status(400).json({ message: "lessonOrder array is required" });
       }
+
+      for (let i = 0; i < lessonOrder.length; i++) {
+        const lessonId = lessonOrder[i];
+        await storage.prisma.lesson.update({
+          where: { id: lessonId, moduleId },
+          data: { position: i + 1 },
+        });
+      }
+
+      res.json({ message: "Lessons reordered successfully" });
+    } catch (error) {
+      console.error("Error reordering lessons:", error);
+      res.status(500).json({ message: "Internal server error" });
     }
-  );
+  });
 
   app.get("/api/comments", isAuthenticated, async (req, res) => {
     try {
@@ -1305,6 +1294,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           position,
         });
 
+        // Update course duration after creating lesson
+        if (module?.courseId) {
+          await updateCourseDuration(module.courseId);
+        }
+
         res.status(201).json(newLesson);
       } catch (error) {
         // if (error instanceof z.ZodError) { ... }
@@ -1348,12 +1342,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const updateData = req.body;
         const updatedLesson = await storage.updateLesson(lessonId, updateData);
         if (!updatedLesson) {
-          return res
-            .status(404)
-            .json({ message: "Lesson not found or update failed" });
+          return res.status(404).json({ message: "Lesson not found or update failed" });
         }
         // Update course duration after lesson edit
-        await updateCourseDuration(course.id);
+        if (module?.courseId) {
+          await updateCourseDuration(module.courseId);
+        }
         res.json(updatedLesson);
       } catch (error) {
         console.error("Error updating lesson:", error);
@@ -1377,9 +1371,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           where: { moduleId },
         });
         if (allQuestions.length < 10) {
-          return res
-            .status(400)
-            .json({ message: "Not enough questions for assessment" });
+          return res.status(400).json({ message: "Not enough questions for assessment" });
         }
         // Group questions by difficulty
         const byDifficulty: Record<string, any[]> = {
@@ -1392,25 +1384,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         // Calculate how many questions per difficulty (as equal as possible)
         const perLevel = Math.floor(10 / 3);
-        let counts = {
-          beginner: perLevel,
-          intermediate: perLevel,
-          advanced: 10 - 2 * perLevel,
-        };
+        let counts = { beginner: perLevel, intermediate: perLevel, advanced: 10 - 2 * perLevel };
         // If any level has fewer than needed, redistribute
         for (const level of ["beginner", "intermediate", "advanced"]) {
           if (byDifficulty[level].length < counts[level]) {
             const deficit = counts[level] - byDifficulty[level].length;
             counts[level] = byDifficulty[level].length;
             // Redistribute deficit to other levels
-            const others = ["beginner", "intermediate", "advanced"].filter(
-              (l) => l !== level
-            );
+            const others = ["beginner", "intermediate", "advanced"].filter(l => l !== level);
             for (const other of others) {
               const available = byDifficulty[other].length - counts[other];
               const take = Math.min(deficit, available);
               counts[other] += take;
-              if (deficit - take <= 0) break;
+              if ((deficit - take) <= 0) break;
             }
           }
         }
@@ -1426,9 +1412,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         let selected: any[] = [];
         for (const level of ["beginner", "intermediate", "advanced"]) {
-          selected = selected.concat(
-            pickRandom(byDifficulty[level], counts[level])
-          );
+          selected = selected.concat(pickRandom(byDifficulty[level], counts[level]));
         }
         // Shuffle selected questions
         selected = pickRandom(selected, selected.length);
@@ -1441,12 +1425,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             status: "in_progress",
             passed: false,
             answers: [],
-            questionIds: selected.map((q) => q.id),
+            questionIds: selected.map(q => q.id),
           },
         });
         res.status(201).json({
           attemptId: attempt.id,
-          questions: selected.map((q) => ({
+          questions: selected.map(q => ({
             id: q.id,
             questionText: q.questionText,
             options: q.options,
@@ -1507,87 +1491,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (isNaN(attemptId)) {
           return res.status(400).json({ message: "Invalid attempt ID" });
         }
-
-        // Fetch the assessment attempt details
-        const attempt = await storage.prisma.assessmentAttempt.findUnique({
-          where: { id: attemptId },
-        });
-
+        const attempt = await storage.prisma.assessmentAttempt.findUnique({ where: { id: attemptId } });
         if (!attempt) {
-          return res
-            .status(404)
-            .json({ message: "Assessment attempt not found" });
+          return res.status(404).json({ message: "Assessment attempt not found" });
         }
-
         if (attempt.userId !== req.user!.id) {
           return res.status(403).json({ message: "Forbidden" });
         }
-
-        if (
-          attempt.status === "completed" ||
-          attempt.status === "passed" ||
-          attempt.status === "failed"
-        ) {
+        if (attempt.status === "completed" || attempt.status === "passed" || attempt.status === "failed") {
           return res.status(400).json({ message: "Attempt already completed" });
         }
-
-        // Extract the answers array from the request body
         const { answers } = req.body; // Array of {questionId, selectedOption}
         if (!Array.isArray(answers) || answers.length !== 10) {
           return res.status(400).json({ message: "Must submit 10 answers" });
         }
-
         // Fetch the questions for this attempt
         const questionIds = attempt.questionIds as number[] | undefined;
         if (!questionIds || questionIds.length !== 10) {
-          return res
-            .status(400)
-            .json({ message: "Invalid question set for attempt" });
+          return res.status(400).json({ message: "Invalid question set for attempt" });
         }
-
-        // Fetch the question details from the database
         const questions = await storage.prisma.question.findMany({
           where: { id: { in: questionIds } },
         });
-
-        // Log the fetched questions and received answers for debugging
-        console.log("Fetched Questions:", questions);
-        console.log("Answers Received:", answers);
-
-        // Map options to actual answer texts
-        const getOptionText = (question, optionKey) =>
-          question.options[optionKey];
-
         // Score the answers
         let correct = 0;
         const answerResults = answers.map((ans: any) => {
-          const q = questions.find((q) => q.id === ans.questionId);
-          const correctOptionText = getOptionText(q, q.correctAnswer); // Get the correct answer text
-          const isCorrect =
-            q &&
-            ans.selectedOption.trim().toLowerCase() ===
-              correctOptionText.trim().toLowerCase(); // Case insensitive and trimming comparison
-          if (isCorrect) {
-            correct++;
-            console.log(`Correct answer for Question ${ans.questionId}`);
-          }
+          const q = questions.find(q => q.id === ans.questionId);
+          const isCorrect = q && ans.selectedOption === q.correctAnswer;
+          if (isCorrect) correct++;
           return {
             questionId: ans.questionId,
             selectedOption: ans.selectedOption,
             isCorrect,
           };
         });
-
-        // Calculate the score and determine if the attempt passed
         const score = Math.round((correct / 10) * 100);
         const passed = score >= 80;
-
-        // Log the score and result for debugging
-        console.log("Score Calculated:", score);
-        console.log("Correct Answers Count:", correct);
-        console.log("Attempt Passed:", passed);
-
-        // Update the assessment attempt in the database
+        // Update attempt
         await storage.prisma.assessmentAttempt.update({
           where: { id: attemptId },
           data: {
@@ -1599,7 +1539,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
           },
         });
 
-        // Respond with the result
+        // If passed, check if all module assessments for the course are passed and update course progress
+        if (passed) {
+          // Mark the assessment lesson as completed in lesson_progress
+          const assessmentLesson = await storage.prisma.lesson.findFirst({
+            where: {
+              moduleId: attempt.moduleId,
+              type: "assessment",
+            },
+          });
+          if (assessmentLesson) {
+            // Check if a lesson progress record exists
+            const existingProgress = await storage.prisma.lessonProgress.findFirst({
+              where: {
+                userId: req.user!.id,
+                lessonId: assessmentLesson.id,
+              },
+            });
+            if (existingProgress) {
+              await storage.prisma.lessonProgress.update({
+                where: { id: existingProgress.id },
+                data: { status: "completed", completedAt: new Date() },
+              });
+            } else {
+              await storage.prisma.lessonProgress.create({
+                data: {
+                  userId: req.user!.id,
+                  lessonId: assessmentLesson.id,
+                  status: "completed",
+                  completedAt: new Date(),
+                },
+              });
+            }
+          }
+
+          // Get the module and course
+          const module = await storage.prisma.module.findUnique({ where: { id: attempt.moduleId } });
+          if (module) {
+            const courseId = module.courseId;
+            // Get all modules for the course
+            const allModules = await storage.prisma.module.findMany({ where: { courseId } });
+            const allModuleIds = allModules.map(m => m.id);
+            // For each module, check if the user has a passed attempt
+            let allPassed = true;
+            for (const modId of allModuleIds) {
+              const passedAttempt = await storage.prisma.assessmentAttempt.findFirst({
+                where: {
+                  userId: req.user!.id,
+                  moduleId: modId,
+                  passed: true,
+                },
+              });
+              if (!passedAttempt) {
+                allPassed = false;
+                break;
+              }
+            }
+            // If all passed, update enrollment progress to 100%
+            if (allPassed) {
+              const enrollment = await storage.prisma.enrollment.findFirst({
+                where: { userId: req.user!.id, courseId },
+              });
+              if (enrollment) {
+                await storage.prisma.enrollment.update({
+                  where: { id: enrollment.id },
+                  data: { progress: 100, completedAt: new Date() },
+                });
+              }
+            }
+          }
+        }
+
         res.json({ score, passed, correct, total: 10 });
       } catch (error) {
         console.error("Error submitting assessment attempt:", error);
@@ -1621,11 +1631,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const questions = await storage.prisma.question.findMany({
           where: { moduleId },
         });
-        const sanitizedQuestions = questions.map(
-          ({ correctAnswer, ...rest }) => rest
-        );
-
-        res.json(sanitizedQuestions);
+        res.json(questions);
       } catch (error) {
         console.error("Error fetching questions for module:", error);
         res.status(500).json({ message: "Internal server error" });
@@ -2681,9 +2687,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req, res) => {
       try {
         if (!req.file) {
-          return res
-            .status(400)
-            .json({ message: "No resource file uploaded." });
+          return res.status(400).json({ message: "No resource file uploaded." });
         }
         const { courseId, lessonId, description } = req.body;
         if (!courseId) {
@@ -2766,81 +2770,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // --- Download Resource File ---
-  app.get("/api/resources/:id/download", isAuthenticated, async (req, res) => {
-    try {
-      const resourceId = parseInt(req.params.id);
-      if (isNaN(resourceId)) {
-        return res.status(400).json({ message: "Invalid resource ID" });
-      }
-      const resource = await storage.getResourceById(resourceId);
-      if (!resource) {
-        return res.status(404).json({ message: "Resource not found" });
-      }
-      // Only allow enrolled users, instructor, or admin to download
-      const course = await storage.getCourse(resource.courseId);
-      if (!course) {
-        return res.status(404).json({ message: "Course not found" });
-      }
-      if (req.user!.role !== "admin" && course.instructorId !== req.user!.id) {
-        // Check enrollment
-        const enrollments = await storage.getEnrollmentsByUser(req.user!.id);
-        const enrolled = enrollments.some((e) => e.courseId === course.id);
-        if (!enrolled) {
-          return res.status(403).json({ message: "Forbidden" });
+  app.get(
+    "/api/resources/:id/download",
+    isAuthenticated,
+    async (req, res) => {
+      try {
+        const resourceId = parseInt(req.params.id);
+        if (isNaN(resourceId)) {
+          return res.status(400).json({ message: "Invalid resource ID" });
         }
+        const resource = await storage.getResourceById(resourceId);
+        if (!resource) {
+          return res.status(404).json({ message: "Resource not found" });
+        }
+        // Only allow enrolled users, instructor, or admin to download
+        const course = await storage.getCourse(resource.courseId);
+        if (!course) {
+          return res.status(404).json({ message: "Course not found" });
+        }
+        if (
+          req.user!.role !== "admin" &&
+          course.instructorId !== req.user!.id
+        ) {
+          // Check enrollment
+          const enrollments = await storage.getEnrollmentsByUser(req.user!.id);
+          const enrolled = enrollments.some((e) => e.courseId === course.id);
+          if (!enrolled) {
+            return res.status(403).json({ message: "Forbidden" });
+          }
+        }
+        // Send file
+        const absPath = path.join(projectRoot, resource.storagePath);
+        if (!fs.existsSync(absPath)) {
+          return res.status(404).json({ message: "File not found on server" });
+        }
+        res.download(absPath, resource.filename);
+      } catch (error) {
+        console.error("Error downloading resource:", error);
+        res.status(500).json({ message: "Internal server error" });
       }
-      // Send file
-      const absPath = path.join(projectRoot, resource.storagePath);
-      if (!fs.existsSync(absPath)) {
-        return res.status(404).json({ message: "File not found on server" });
-      }
-      res.download(absPath, resource.filename);
-    } catch (error) {
-      console.error("Error downloading resource:", error);
-      res.status(500).json({ message: "Internal server error" });
     }
-  });
+  );
 
   // --- Delete Resource File ---
-  app.delete("/api/resources/:id", isAuthenticated, async (req, res) => {
-    try {
-      const resourceId = parseInt(req.params.id);
-      if (isNaN(resourceId)) {
-        return res.status(400).json({ message: "Invalid resource ID" });
-      }
-      const resource = await storage.getResourceById(resourceId);
-      if (!resource) {
-        return res.status(404).json({ message: "Resource not found" });
-      }
-      // Only allow instructor, admin, or uploader to delete
-      const course = await storage.getCourse(resource.courseId);
-      if (!course) {
-        return res.status(404).json({ message: "Course not found" });
-      }
-      if (
-        req.user!.role !== "admin" &&
-        course.instructorId !== req.user!.id &&
-        resource.uploaderId !== req.user!.id
-      ) {
-        return res.status(403).json({ message: "Forbidden" });
-      }
-      // Delete file from disk
-      const absPath = path.join(projectRoot, resource.storagePath);
-      if (fs.existsSync(absPath)) {
-        try {
-          fs.unlinkSync(absPath);
-        } catch (err) {
-          console.warn("Failed to delete file from disk:", err);
+  app.delete(
+    "/api/resources/:id",
+    isAuthenticated,
+    async (req, res) => {
+      try {
+        const resourceId = parseInt(req.params.id);
+        if (isNaN(resourceId)) {
+          return res.status(400).json({ message: "Invalid resource ID" });
         }
+        const resource = await storage.getResourceById(resourceId);
+        if (!resource) {
+          return res.status(404).json({ message: "Resource not found" });
+        }
+        // Only allow instructor, admin, or uploader to delete
+        const course = await storage.getCourse(resource.courseId);
+        if (!course) {
+          return res.status(404).json({ message: "Course not found" });
+        }
+        if (
+          req.user!.role !== "admin" &&
+          course.instructorId !== req.user!.id &&
+          resource.uploaderId !== req.user!.id
+        ) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+        // Delete file from disk
+        const absPath = path.join(projectRoot, resource.storagePath);
+        if (fs.existsSync(absPath)) {
+          try {
+            fs.unlinkSync(absPath);
+          } catch (err) {
+            console.warn("Failed to delete file from disk:", err);
+          }
+        }
+        // Delete from DB
+        await storage.deleteResource(resourceId);
+        res.status(204).send();
+      } catch (error) {
+        console.error("Error deleting resource:", error);
+        res.status(500).json({ message: "Internal server error" });
       }
-      // Delete from DB
-      await storage.deleteResource(resourceId);
-      res.status(204).send();
-    } catch (error) {
-      console.error("Error deleting resource:", error);
-      res.status(500).json({ message: "Internal server error" });
     }
-  });
+  );
   // --- End Upload Routes ---
 
   // --- Certificate Creation Route ---

@@ -36,6 +36,7 @@ async function comparePasswords(
   const [hashed, salt] = stored.split(".");
   const hashedBuf = Buffer.from(hashed, "hex");
   const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+  console.log("suppliedBuf",suppliedBuf.toString("hex"),hashedBuf.toString("hex"))
   return timingSafeEqual(hashedBuf, suppliedBuf);
 }
 

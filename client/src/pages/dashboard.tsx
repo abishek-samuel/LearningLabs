@@ -165,7 +165,7 @@ export default function Dashboard() {
                 Start learning by enrolling in a course.
               </p>
               <div className="mt-6">
-                <Button>
+                <Button onClick={() => navigate('/course-catalog')}>
                   Browse Courses
                 </Button>
               </div>

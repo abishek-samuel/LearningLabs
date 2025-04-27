@@ -3,10 +3,12 @@ import { MainLayout } from "@/components/layout/main-layout";
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Award, Download, Share2, Calendar, FileText } from "lucide-react";
+import { Award, Download, Calendar, FileText, Copy } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Certificates() {
   const { user } = useAuth();
+  const { toast } = useToast();
 
   const { data: certificates = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/certificates-user"],
@@ -16,6 +18,24 @@ export default function Certificates() {
     staleTime: 0,
     cacheTime: 0,
   });
+
+  const handleShare = async (certificateId: string) => {
+    const certificateUrl = `${window.location.origin}/public/certificate/${certificateId}`;
+    try {
+      await navigator.clipboard.writeText(certificateUrl);
+      toast({
+        title: "Link Copied!",
+        description: "Certificate link has been copied to clipboard",
+        variant: "default",
+      });
+    } catch (err) {
+      toast({
+        title: "Failed to Copy",
+        description: "Could not copy the certificate link",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <MainLayout>
@@ -72,9 +92,13 @@ export default function Certificates() {
                 </div>
               </CardContent>
               <CardFooter className="justify-between border-t p-4">
-                <Button variant="outline" size="sm">
-                  <Share2 className="mr-2 h-4 w-4" />
-                  Share
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handleShare(cert.certificateId || cert.id)}
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copy Link
                 </Button>
                 <a
                   href={`/public/certificate/${cert.certificateId}`}

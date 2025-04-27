@@ -214,6 +214,7 @@ export interface IStorage {
   sessionStore: session.Store;
 }
 
+
 // Resource insert type
 type InsertResource = Omit<
   import(".prisma/client").Resource,
@@ -417,16 +418,10 @@ export class PrismaStorage implements IStorage {
       return createdModule;
     });
   }
-  async updateModule(
-    id: number,
-    moduleData: Partial<Module>
-  ): Promise<Module | null> {
-    try {
-      const { id: moduleId, ...updateData } = moduleData; // Exclude id
-      return await this.prisma.module.update({
-        where: { id },
-        data: updateData,
-      });
+  async updateModule(id: number, moduleData: Partial<Module>): Promise<Module | null> {
+     try {
+       const { id: moduleId, ...updateData } = moduleData; // Exclude id
+      return await this.prisma.module.update({ where: { id }, data: updateData });
     } catch (error) {
       return null;
     }
@@ -449,9 +444,9 @@ export class PrismaStorage implements IStorage {
     return this.prisma.lesson.findMany({
       where: {
         moduleId,
-        NOT: { type: "assessment" },
+        // NOT: { type: "assessment" }
       },
-      orderBy: { position: "asc" },
+      orderBy: { position: "asc" }
     });
   }
 
@@ -459,14 +454,12 @@ export class PrismaStorage implements IStorage {
   async getAllLessonsByModule(moduleId: number): Promise<Lesson[]> {
     const lessons = await this.prisma.lesson.findMany({
       where: { moduleId },
-      orderBy: { position: "asc" },
+      orderBy: { position: "asc" }
     });
     // Move assessment lesson to the end
-    const normalLessons = lessons.filter((l) => l.type !== "assessment");
-    const assessmentLesson = lessons.find((l) => l.type === "assessment");
-    return assessmentLesson
-      ? [...normalLessons, assessmentLesson]
-      : normalLessons;
+    const normalLessons = lessons.filter(l => l.type !== "assessment");
+    const assessmentLesson = lessons.find(l => l.type === "assessment");
+    return assessmentLesson ? [...normalLessons, assessmentLesson] : normalLessons;
   }
   async createLesson(lesson: InsertLesson): Promise<Lesson> {
     return this.prisma.lesson.create({ data: lesson });
@@ -1017,24 +1010,18 @@ export class PrismaStorage implements IStorage {
   }
 
   // --- Resource Methods ---
-  async createResource(
-    resource: InsertResource
-  ): Promise<import(".prisma/client").Resource> {
+  async createResource(resource: InsertResource): Promise<import(".prisma/client").Resource> {
     return this.prisma.resource.create({ data: resource });
   }
 
-  async getResourcesByCourse(
-    courseId: number
-  ): Promise<import(".prisma/client").Resource[]> {
+  async getResourcesByCourse(courseId: number): Promise<import(".prisma/client").Resource[]> {
     return this.prisma.resource.findMany({
       where: { courseId },
       orderBy: { uploadedAt: "desc" },
     });
   }
 
-  async getResourceById(
-    id: number
-  ): Promise<import(".prisma/client").Resource | null> {
+  async getResourceById(id: number): Promise<import(".prisma/client").Resource | null> {
     return this.prisma.resource.findUnique({ where: { id } });
   }
 

@@ -63,7 +63,7 @@ model User {
   firstName      String?  @map("first_name")
   lastName       String?  @map("last_name")
   role           UserRole @default(employee)
-  status         String   @default("active") 
+  status         String   @default("active")
   profilePicture String?  @map("profile_picture")
   createdAt      DateTime @default(now()) @map("created_at")
 
@@ -97,8 +97,8 @@ model Course {
   id           Int               @id @default(autoincrement())
   title        String
   description  String
-   categoryId   Int?     @map("category_id")
-  category     Category? @relation(fields: [categoryId], references: [id])
+  categoryId   Int?              @map("category_id")
+  category     Category?         @relation(fields: [categoryId], references: [id])
   thumbnail    String?
   duration     Int? // in minutes
   difficulty   CourseDifficulty?
@@ -332,7 +332,6 @@ model GroupCourse {
 
   @@map("group_course")
 }
-
 
 model Comment {
   id        Int      @id @default(autoincrement())

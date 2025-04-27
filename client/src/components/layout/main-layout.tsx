@@ -19,13 +19,13 @@ export function MainLayout({ children }: MainLayoutProps) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-50">
+    <div className="flex h-screen flex-col bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-50 overflow-hidden">
       <Header onMobileMenuToggle={toggleMobileMenu} />
 
-      <div className="flex flex-1">
+      <div className="flex flex-1 overflow-hidden">
         {/* Desktop sidebar */}
         <div className="hidden lg:block lg:w-64 lg:flex-shrink-0">
-          <Sidebar className="h-[calc(100vh-4rem)] sticky top-16" />
+          <Sidebar className="h-[calc(100vh-4rem)] sticky top-16 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600" />
         </div>
 
         {/* Mobile menu backdrop */}
@@ -69,13 +69,13 @@ export function MainLayout({ children }: MainLayoutProps) {
               </svg>
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600">
             <Sidebar />
           </div>
         </div>
 
         {/* Main content */}
-        <main className="flex-1">
+        <main className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600">
           {children}
         </main>
       </div>

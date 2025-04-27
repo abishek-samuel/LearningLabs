@@ -344,7 +344,7 @@ export function LessonList({ moduleId }: LessonListProps) {
                 ref={provided.innerRef}
                 className="space-y-2"
               >
-                {lessons.map((lesson, index) => (
+                {lessons.filter(l => l.type !== "assessment").map((lesson, index) => (
                   <Draggable key={lesson.id} draggableId={lesson.id.toString()} index={index}>
                     {(provided, snapshot) => (
                       <div

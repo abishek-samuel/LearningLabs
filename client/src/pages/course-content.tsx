@@ -50,7 +50,12 @@ import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // Define types based on Prisma schema (adjust if needed)
-type Instructor = { id: number; firstName?: string | null; lastName?: string | null; profilePicture?: string | null; };
+type Instructor = { 
+  id: number;
+  firstName?: string | null;
+  lastName?: string | null;
+  profilePicture?: string | null;
+};
 type Lesson = { id: number; title: string; content?: string | null; videoUrl?: string | null; duration?: number | null; position: number; type?: string; completed?: boolean; };
 type Module = { id: number; title: string; description?: string | null; lessons: Lesson[]; position: number; };
 type Course = {
@@ -142,7 +147,11 @@ export default function CourseContent() {
 
   const fetchComments = async (lessonId: number) => {
     try {
-      const res = await fetch(`/api/comments?lessonId=${lessonId}`);
+      const res = await fetch(`/api/comments?lessonId=${lessonId}`, {
+        headers: {
+          'Authorization': `Bearer ${user?.token}`, // Add auth header
+        }
+      });
       if (!res.ok) throw new Error("Failed to fetch comments");
       const data = await res.json();
       setComments(data);
@@ -156,7 +165,10 @@ export default function CourseContent() {
     try {
       const res = await fetch("/api/comments", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user?.token}` // Use the token from auth context
+        },
         body: JSON.stringify({
           lessonId: currentLesson.id,
           comment: newComment.trim(),
@@ -165,7 +177,11 @@ export default function CourseContent() {
       });
       if (!res.ok) throw new Error("Failed to post comment");
       setNewComment("");
-      fetchComments(currentLesson.id);
+      await fetchComments(currentLesson.id); // Use await here
+      toast({
+        title: "Success",
+        description: "Comment posted successfully",
+      });
     } catch (error) {
       console.error(error);
     }
@@ -530,18 +546,15 @@ export default function CourseContent() {
                                   aria-current={module.id === currentModule?.id && lesson.id === currentLesson?.id ? "page" : undefined}
                                 >
                                   {getLessonIcon(lesson)}
-                                  <div className="flex-grow min-w-0">
-                                    <div className="line-clamp-1">{lesson.title}</div>
-                                    {lesson.duration && (
-                                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                                        <Clock className="inline h-3 w-3 mr-1" />
-                                        {`${Math.floor(lesson.duration / 60)}m ${(lesson.duration % 60).toString()}s`}
-                                      </div>
-                                    )}
-                                  </div>
-                                  {lesson.id && lessonProgressMap[lesson.id] && (
-                                      <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
-                                  )}
+                  <div className="flex-grow min-w-0">
+                     <div className="line-clamp-1">{lesson.title}</div>
+                     {lesson.duration && (
+                       <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                         <Clock className="inline h-3 w-3 mr-1" />
+                         {`${Math.floor(lesson.duration / 60)}m ${(lesson.duration % 60).toString()}s`}
+                       </div>
+                     )}
+                   </div>
                                 </button>
                               ))}
                           </div>
@@ -651,7 +664,7 @@ export default function CourseContent() {
                    </div>
                 ) : (
                    <div className="p-6 text-center text-slate-500 dark:text-slate-400 flex flex-col items-center gap-2">
-                       <BookOpen className="h-8 w-8 text-slate-400"/>
+                  <BookOpen className="h-8 w-8 text-slate-400" />
                        <span>No content available for this lesson.</span>
                    </div>
                 )}
@@ -665,6 +678,121 @@ export default function CourseContent() {
                         <TabsTrigger value="notes">My Notes</TabsTrigger>
                         <TabsTrigger value="discussion">Discussion</TabsTrigger>
                       </TabsList>
+                      {currentLesson.videoUrl && (
+                        <TabsContent value="transcript">
+                          <div className="prose dark:prose-invert max-w-none text-sm border rounded-md p-4 max-h-60 overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-slate-800/30">
+                            {/* TODO: Fetch or display actual transcript */}
+                            <p className="text-slate-500 dark:text-slate-400 italic">Transcript currently unavailable.</p>
+                          </div>
+                        </TabsContent>
+                      )}
+
+                      <TabsContent value="resources">
+                        <div className="space-y-3 mt-4">
+                          <h3 className="text-base font-medium">Lesson Resources</h3>
+                          {currentLesson?.id && course?.id ? (
+                            <CourseLessonResources lessonId={currentLesson.id} courseId={course.id} />
+                          ) : (
+                            <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 border rounded-md p-3 bg-slate-50 dark:bg-slate-800/30">
+                              <Download className="h-4 w-4" />
+                              <span>No resources attached to this lesson yet.</span>
+                            </div>
+                          )}
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="notes">
+                        <div className="space-y-3">
+                           <h3 className="text-base font-medium">My Notes</h3>
+                          <div className="w-full rounded-md border border-slate-200 dark:border-slate-700 focus-within:ring-1 focus-within:ring-ring">
+                            <textarea
+                              className="w-full h-36 p-3 bg-transparent resize-none focus:outline-none text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                              placeholder="Take notes on this lesson here..."
+                              aria-label="Lesson notes"
+                              // TODO: Implement state and saving logic for notes
+                            ></textarea>
+                          </div>
+                          <Button size="sm" disabled> {/* TODO: Enable when save logic exists */}
+                             {/* TODO: Implement save logic */}
+                             <Loader2 className="mr-2 h-4 w-4 animate-spin hidden" /> {/* Show loader on save */}
+                            Save Notes (Coming Soon)
+                          </Button>
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="discussion">
+                        <div className="space-y-4">
+                          <h3 className="text-base font-medium">Discussion</h3>
+
+                          {/* New comment input */}
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              placeholder="Add a comment..."
+                              className="flex-1 border rounded px-3 py-2 text-sm bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700"
+                              value={newComment}
+                              onChange={(e) => setNewComment(e.target.value)}
+                            />
+                            <Button size="sm" onClick={handlePostComment} disabled={!newComment.trim()}>
+                              Post
+                            </Button>
+                          </div>
+
+                          {/* Comments list */}
+                          <div className="space-y-4 mt-4 max-h-[60rem] overflow-y-auto custom-scrollbar">
+                            {comments.map((comment) => (
+                              <div key={comment.id} className="border rounded p-3 bg-slate-50 dark:bg-slate-800/30">
+                                <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+                                  <span>
+                                    {comment.user?.firstName || comment.user?.username || "User"}
+                                  </span>
+                                  <span>
+                                    {new Date(comment.createdAt).toLocaleString()}
+                                  </span>
+                                </div>
+                                <div className="text-sm">{comment.comment}</div>
+                                <div className="mt-2 flex gap-2">
+                                  <Button size="sm" variant="ghost" onClick={() => toggleReply(comment.id)}>
+                                    Reply
+                                  </Button>
+                                </div>
+                                {replyingTo === comment.id && (
+                                  <div className="mt-2 flex gap-2">
+                                    <input
+                                      type="text"
+                                      placeholder="Write a reply..."
+                                      className="flex-1 border rounded px-3 py-2 text-sm bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700"
+                                      value={replyText}
+                                      onChange={(e) => setReplyText(e.target.value)}
+                                    />
+                                    <Button size="sm" onClick={() => handlePostReply(comment.id)} disabled={!replyText.trim()}>
+                                      Post
+                                    </Button>
+                                  </div>
+                                )}
+                                {/* Replies */}
+                                {comment.replies && comment.replies.length > 0 && (
+                                  <div className="mt-3 space-y-2 pl-4 border-l border-slate-200 dark:border-slate-700">
+                                    {comment.replies.map((reply: any) => (
+                                      <div key={reply.id} className="border rounded p-2 bg-slate-100 dark:bg-slate-800/50">
+                                        <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+                                          <span>
+                                            {reply.user?.firstName || reply.user?.username || "User"}
+                                          </span>
+                                          <span>
+                                            {new Date(reply.createdAt).toLocaleString()}
+                                          </span>
+                                        </div>
+                                        <div className="text-sm">{reply.comment}</div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </TabsContent>
                     </Tabs>
                     {activeAssessmentModuleId === currentModule.id && (
                       <ModuleAssessment moduleId={currentModule.id} />

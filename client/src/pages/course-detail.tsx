@@ -92,28 +92,32 @@ export default function CourseDetail() {
       const data = await response.json();
       // Basic processing
       return {
-        ...data,
-        instructor: data.instructor ? {
-          id: data.instructor.id,
-          name: `${data.instructor.firstName || ''} ${data.instructor.lastName || ''}`.trim() || 'Instructor',
-          avatar: data.instructor.profilePicture || `https://ui-avatars.com/api/?name=${data.instructor.firstName?.[0] || 'N'}+${data.instructor.lastName?.[0] || 'A'}`,
-          title: 'Instructor', bio: 'Bio not available',
-          firstName: data.instructor.firstName, lastName: data.instructor.lastName, profilePicture: data.instructor.profilePicture,
-        } : { id: 0, name: 'Unknown', avatar: '', title: '', bio: '' },
-        lastUpdated: new Date(data.updatedAt).toLocaleDateString(),
-        duration: data.duration ? `${Math.round(data.duration / 60)} hours` : "N/A",
-        level: data.difficulty ? data.difficulty.charAt(0).toUpperCase() + data.difficulty.slice(1) : "All Levels",
-        progress: data.progress || 0,
-        rating: 4.5, reviews: 0, enrolled: 0, // Placeholders
-        prerequisites: data.prerequisites || [],
-        objectives: data.objectives || [],
-        modules: (data.modules || []).sort((a: Module, b: Module) => a.position - b.position).map((mod: Module) => ({
-          ...mod,
-          lessons: (mod.lessons || []).sort((a: Lesson, b: Lesson) => a.position - b.position).map((lesson: Lesson) => ({
-            ...lesson,
-            duration: lesson.duration ? `${Math.floor(Number(lesson.duration) / 60)}:${(Number(lesson.duration) % 60).toString().padStart(2, '0')}` : undefined
-          }))
-        }))
+         ...data, 
+         instructor: data.instructor ? {
+           id: data.instructor.id,
+           name: `${data.instructor.firstName || ''} ${data.instructor.lastName || ''}`.trim() || 'Instructor',
+           avatar: data.instructor.profilePicture || `https://ui-avatars.com/api/?name=${data.instructor.firstName?.[0] || 'N'}+${data.instructor.lastName?.[0] || 'A'}`,
+           title: 'Instructor', bio: 'Bio not available', 
+           firstName: data.instructor.firstName, lastName: data.instructor.lastName, profilePicture: data.instructor.profilePicture,
+         } : { id: 0, name: 'Unknown', avatar: '', title: '', bio: '' }, 
+         lastUpdated: new Date(data.updatedAt).toLocaleDateString(), 
+         duration: data.duration ? (() => {
+           const hours = Math.floor(data.duration / 60);
+           const minutes = data.duration % 60;
+           return `${hours}h ${minutes}m`;
+         })() : "N/A", 
+         level: data.difficulty ? data.difficulty.charAt(0).toUpperCase() + data.difficulty.slice(1) : "All Levels", 
+         progress: data.progress || 0, 
+         rating: 4.5, reviews: 0, enrolled: 0, // Placeholders
+         prerequisites: data.prerequisites || [], 
+         objectives: data.objectives || [], 
+         modules: (data.modules || []).sort((a: Module, b: Module) => a.position - b.position).map((mod: Module) => ({ 
+            ...mod,
+            lessons: (mod.lessons || []).sort((a: Lesson, b: Lesson) => a.position - b.position).map((lesson: Lesson) => ({ 
+                ...lesson,
+                duration: lesson.duration ? `${Math.floor(Number(lesson.duration) / 60)}:${(Number(lesson.duration) % 60).toString().padStart(2, '0')}` : undefined 
+            }))
+         }))
       };
     },
     enabled: !!courseId,
@@ -337,30 +341,43 @@ export default function CourseDetail() {
                         <div key={module.id} className="py-4 px-6">
                           <div className="mb-2"><h3 className="text-lg font-medium">{module.title}</h3><p className="text-sm text-slate-500 dark:text-slate-400">{module.description}</p></div>
                           <div className="space-y-2 mt-3">
-                            {module.lessons?.map((lesson: Lesson) => {
-                              const isCompleted = lessonCompletionMap[lesson.id] ?? false; // Use progress map
-                              return (
-                                <div
-                                  key={lesson.id}
-                                  className={`flex items-center justify-between p-3 rounded-md ${isCompleted ? "bg-green-50 dark:bg-green-900/10 border border-green-100 dark:border-green-900/30" : "bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"}`}
-                                  onClick={() => handleNavigateToLesson(module.id, lesson.id)}
-                                >
-                                  <div className="flex items-center min-w-0">
-                                    {/* Pass only lesson, getLessonIcon uses the map */}
-                                    {getLessonIcon(lesson)}
-                                    <div className="min-w-0">
-                                      <h4 className="text-sm font-medium truncate">{lesson.title}</h4>
-                                      <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                                        {lesson.videoUrl && (<span className="flex items-center gap-1"><Clock className="h-3 w-3" />{lesson.duration}</span>)}
-                                        <span className="capitalize">{lesson.videoUrl ? 'Video' : 'Text'}</span>
+                            {module.lessons
+                              .slice()
+                              .sort((a, b) => {
+                                if (a.type === 'assessment') return 1;
+                                if (b.type === 'assessment') return -1;
+                                return a.position - b.position;
+                              })
+                              .map((lesson, index) => {
+                                const isCompleted = lessonCompletionMap[lesson.id] ?? false;
+                                return (
+                                  <div 
+                                    key={lesson.id} 
+                                    className={`flex items-center justify-between p-3 rounded-md ${isCompleted ? "bg-green-50 dark:bg-green-900/10 border border-green-100 dark:border-green-900/30" : "bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"}`} 
+                                    onClick={() => handleNavigateToLesson(module.id, lesson.id)}
+                                  >
+                                    <div className="flex items-center min-w-0"> 
+                                      {getLessonIcon(lesson)} 
+                                      <div className="min-w-0"> 
+                                        <h4 className="text-sm font-medium truncate">{lesson.title}</h4> 
+                                        <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                                          {lesson.videoUrl && (<span className="flex items-center gap-1"><Clock className="h-3 w-3" />{lesson.duration}</span>)}
+                                          <span className="capitalize">{lesson.videoUrl ? 'Video' : 'Text'}</span>
+                                        </div>
                                       </div>
                                     </div>
+                                    {isCompleted ? (
+                                      <Badge variant="outline" className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 border-green-200 dark:border-green-900/50 flex-shrink-0">
+                                        Completed
+                                      </Badge>
+                                    ) : (
+                                      <Button variant="ghost" size="sm" className="flex-shrink-0">
+                                        Start
+                                      </Button>
+                                    )}
                                   </div>
-                                  {/* Use isCompleted for badge/button */}
-                                  {isCompleted ? (<Badge variant="outline" className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 border-green-200 dark:border-green-900/50 flex-shrink-0">Completed</Badge>) : (<Button variant="ghost" size="sm" className="flex-shrink-0">Start</Button>)}
-                                </div>
-                              );
-                            })}
+                                );
+                              })}
                           </div>
                         </div>
                       ))}

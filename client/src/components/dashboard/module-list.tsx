@@ -165,14 +165,12 @@ export function ModuleList({ courseId }: ModuleListProps) {
             setModules(reordered);
             try {
               await fetch(`/api/courses/${courseId}/reorder-modules`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  moduleOrder: reordered.map((m) => m.id),
-                }),
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ moduleOrder: reordered.map((m) => m.id) }),
               });
             } catch (error) {
-              console.error("Failed to update module order:", error);
+              console.error('Failed to update module order:', error);
             }
           }}
         >
@@ -184,11 +182,7 @@ export function ModuleList({ courseId }: ModuleListProps) {
                 ref={provided.innerRef}
               >
                 {modules.map((module, index) => (
-                  <Draggable
-                    key={module.id}
-                    draggableId={module.id.toString()}
-                    index={index}
-                  >
+                  <Draggable key={module.id} draggableId={module.id.toString()} index={index}>
                     {(provided, snapshot) => (
                       <div
                         ref={provided.innerRef}
@@ -202,47 +196,25 @@ export function ModuleList({ courseId }: ModuleListProps) {
                               {editingModuleId === module.id ? (
                                 <Input
                                   value={editingModuleTitle}
-                                  onChange={(e) =>
-                                    setEditingModuleTitle(e.target.value)
-                                  }
+                                  onChange={(e) => setEditingModuleTitle(e.target.value)}
                                   onBlur={() => handleSaveEdit(module.id)}
-                                  onKeyDown={(e) =>
-                                    e.key === "Enter" &&
-                                    handleSaveEdit(module.id)
-                                  }
+                                  onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit(module.id)}
                                   className="h-8 flex-grow"
                                   autoFocus
                                 />
                               ) : (
-                                <CardTitle className="text-lg font-medium flex-grow">
-                                  {module.title}
-                                </CardTitle>
+                                <CardTitle className="text-lg font-medium flex-grow">{module.title}</CardTitle>
                               )}
                             </div>
                             <div className="flex items-center gap-1">
                               {editingModuleId === module.id ? (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => setEditingModuleId(null)}
-                                >
-                                  Cancel
-                                </Button>
+                                <Button size="sm" variant="ghost" onClick={() => setEditingModuleId(null)}>Cancel</Button>
                               ) : (
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => handleEditModule(module)}
-                                >
+                                <Button size="icon" variant="ghost" onClick={() => handleEditModule(module)}>
                                   <Edit2 className="h-4 w-4" />
                                 </Button>
                               )}
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="text-red-500 hover:text-red-600"
-                                onClick={() => handleDeleteModule(module.id)}
-                              >
+                              <Button size="icon" variant="ghost" className="text-red-500 hover:text-red-600" onClick={() => handleDeleteModule(module.id)}>
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
