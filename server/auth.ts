@@ -67,7 +67,7 @@ export async function setupAuth(app: Express): Promise<void> {
       },
       async (email, password, done) => {
         try {
-          const user = await storage.getUserByEmail(email);
+          const user = await storage.getUserByEmailAndStatus(email);
           if (!user || !(await comparePasswords(password, user.password))) {
             return done(null, false, { message: "Invalid email or password" });
           }
@@ -119,14 +119,51 @@ export async function setupAuth(app: Express): Promise<void> {
       }
 
       // Check if user with the same email or username already exists
-      const existingEmailUser = await storage.getUserByEmail(email);
+      const existingEmailUser = await storage.getUserByEmailAndStatus(
+        email,
+        "active"
+      );
       if (existingEmailUser) {
         return res.status(400).json({ message: "Email already in use" });
       }
 
-      const existingUsernameUser = await storage.getUserByUsername(username);
+      const existingUsernameUser = await storage.getUserByUsernameAndStatus(
+        username,
+        "active"
+      );
       if (existingUsernameUser) {
         return res.status(400).json({ message: "Username already taken" });
+      }
+
+      const inactiveUser = await storage.getUserByEmailAndStatus(
+        email,
+        "inactive"
+      );
+      if (inactiveUser) {
+        const updatedUser = await storage.activateAndUpdateUserByEmail(email, {
+          username,
+          email,
+          password,
+          firstName,
+          lastName,
+          role,
+          profilePicture,
+        });
+        try {
+          await sendWelcomeEmail(email, username, password, role || "employee");
+          // Create notifications
+          if (updatedUser.id) {
+            await storage.createNotification(
+              updatedUser.id,
+              "Welcome to the Application",
+              `You have been granted access to the Application`
+            );
+          }
+        } catch (error) {
+          console.error("Failed to send welcome email:", error);
+          // Continue with user creation even if email fails
+        }
+        return res.status(200).json({ message: "User Created Successfully" });
       }
 
       // Hash password and create user
@@ -141,14 +178,22 @@ export async function setupAuth(app: Express): Promise<void> {
         profilePicture: profilePicture || null,
         status: "active",
       });
-
       // Send welcome email if created by admin
       try {
         await sendWelcomeEmail(email, username, password, role || "employee");
+        // Create notifications
+        if (newUser.id) {
+          await storage.createNotification(
+            newUser.id,
+            "Welcome to the Application",
+            `You have been granted access to the Application`
+          );
+        }
       } catch (error) {
         console.error("Failed to send welcome email:", error);
         // Continue with user creation even if email fails
       }
+
       return res.status(200).json({ message: "User Created Successfully" });
     } catch (error) {
       // if (error instanceof z.ZodError) { // Re-enable if using Zod validation
@@ -209,7 +254,7 @@ export async function setupAuth(app: Express): Promise<void> {
   app.post("/api/forgot-password", async (req, res) => {
     try {
       const { email } = req.body;
-      const user = await storage.getUserByEmail(email);
+      const user = await storage.getUserByEmailAndStatus(email, "active");
 
       if (user) {
         // Generate secure random 6-character password
@@ -222,6 +267,14 @@ export async function setupAuth(app: Express): Promise<void> {
           password: hashedPassword,
         });
         await sendPasswordResetEmail(user.email, user.username, newPassword);
+        // Create notifications
+        if (user.id) {
+          await storage.createNotification(
+            user.id,
+            "Password Reset Success",
+            `You have been reset your password successfully `
+          );
+        }
       }
 
       return res.json({
@@ -252,8 +305,41 @@ export async function setupAuth(app: Express): Promise<void> {
       const { email, username, firstName, lastName, password, profilePicture } =
         req.body;
 
-      const existingEmailUser = await storage.getUserByEmail(email);
-      const existingUsernameUser = await storage.getUserByUsername(username);
+      const existingEmailUser = await storage.getUserByEmailAndStatus(
+        email,
+        "active"
+      );
+      const existingUsernameUser = await storage.getUserByUsernameAndStatus(
+        username,
+        "active"
+      );
+
+      const inactiveUser = await storage.getUserByEmailAndStatus(
+        email,
+        "inactive"
+      );
+      if (inactiveUser) {
+        const updatedUser = await storage.UpdateUserToDraft({
+          username,
+          email,
+          password,
+          firstName,
+          lastName,
+          role: "employee",
+          profilePicture,
+        });
+        try {
+          await sendWelcomeEmail(email, username, password, role || "employee");
+        } catch (error) {
+          console.error("Failed to send welcome email:", error);
+          // Continue with user creation even if email fails
+        }
+        return res.status(200).json({
+          success: true,
+          user: updatedUser,
+          message: "User Created Successfully",
+        });
+      }
 
       if (existingEmailUser || existingUsernameUser) {
         return res.json({

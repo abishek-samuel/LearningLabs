@@ -426,6 +426,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             password, // Send the original unhashed password
             updatedUser.role
           );
+          // Create notifications
+          if (updatedUser.id) {
+            await storage.createNotification(
+              updatedUser.id,
+              "Welcome to the Application",
+              `You have been granted access to the Application`
+            );
+          }
         } catch (emailError) {
           console.error("Failed to send welcome email:", emailError);
           // Continue with the response even if email fails
@@ -920,7 +928,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           duration: duration ? parseInt(duration) : null, // Ensure duration is number or null
           difficulty: difficulty || null,
           status: status || "draft",
-          // category: category || null, 
+          // category: category || null,
           categoryId: categoryId ? parseInt(categoryId) : null,
           instructorId: req.user!.id, // Assert req.user exists
         });
@@ -2039,6 +2047,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   newGroup.name,
                   courses
                 );
+                // Create notifications
+                if (user.id) {
+                  await storage.createNotification(
+                    user.id,
+                    "New Course Access",
+                    `You have been granted access to ${JSON.stringify(
+                      courses.map((course) => course?.title)
+                    )}`
+                  );
+                }
               }
             })
           );
@@ -2144,6 +2162,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   courses
                 );
               }
+              // Create notifications
+              if (user.id) {
+                await storage.createNotification(
+                  user.id,
+                  "New Course Access",
+                  `You have been granted access to ${JSON.stringify(
+                    courses.map((course) => course?.title)
+                  )}`
+                );
+              }
             })
           );
         }
@@ -2163,6 +2191,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   user.username,
                   group.name,
                   courses
+                );
+              }
+              // Create notifications
+              if (user.id) {
+                await storage.createNotification(
+                  user.id,
+                  "New Course Access",
+                  `You have been granted access to ${JSON.stringify(
+                    courses.map((course) => course?.title)
+                  )}`
                 );
               }
             })
@@ -2315,6 +2353,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               "Valid courseId, accessType, and either userId or groupId are required",
           });
         }
+
         if (userId && typeof userId !== "number") {
           return res.status(400).json({ message: "Invalid userId provided" });
         }
@@ -2338,6 +2377,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         res.status(201).json(newAccess);
 
+        // Create notifications
+        if (userId) {
+          await storage.createNotification(
+            userId,
+            "New Course Access",
+            `You have been granted access to ${course.title}`
+          );
+        }
+
+        if (groupId) {
+          const members = await storage.getGroupMembersByGroup(groupId);
+          await Promise.all(
+            members.map((member) =>
+              storage.createNotification(
+                member.userId,
+                "New Course Access",
+                `You have been granted access to ${course.title} through your group`
+              )
+            )
+          );
+        }
+
         // Send email(s)
         if (userId) {
           const user = await storage.getUser(userId);
@@ -2348,6 +2409,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
               "Direct Access", // or some other label if group isn't used
               [{ id: course.id, title: course.title }]
             );
+            // Create notifications
+            if (user.id) {
+              await storage.createNotification(
+                user.id,
+                "New Course Access",
+                `You have been granted access to ${course?.title}`
+              );
+            }
           }
         }
 
@@ -2360,11 +2429,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const validUsers = users.filter((u) => u); // filter out nulls if any
 
           await Promise.all(
-            validUsers.map((user) =>
+            validUsers.map((user) => {
               sendGroupAssignmentEmail(user.email, user.username, group.name, [
                 { id: course.id, title: course.title },
-              ])
-            )
+              ]);
+              // Create notifications
+
+              storage.createNotification(
+                user.id,
+                "New Course Access",
+                `You have been granted access to ${course?.title}`
+              );
+            })
           );
         }
       } catch (error) {
@@ -3002,6 +3078,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   // --- End Get User Certificates Route ---
+
+  // Notification routes
+  app.get("/api/notifications", isAuthenticated, async (req, res) => {
+    try {
+      const notifications = await storage.prisma.notification.findMany({
+        where: { userId: req.user!.id },
+        orderBy: { createdAt: "desc" },
+      });
+      res.json(notifications);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.put("/api/notifications/:id/read", isAuthenticated, async (req, res) => {
+    try {
+      const notificationId = parseInt(req.params.id);
+      await storage.prisma.notification.update({
+        where: { id: notificationId, userId: req.user!.id },
+        data: { isRead: true },
+      });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.put("/api/notifications/read-all", isAuthenticated, async (req, res) => {
+    try {
+      await storage.prisma.notification.updateMany({
+        where: { userId: req.user!.id },
+        data: { isRead: true },
+      });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
 
   app.get("/api/course-access", isAuthenticated, async (req, res) => {
     try {

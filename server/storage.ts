@@ -87,7 +87,27 @@ export interface IStorage {
   // User related methods
   getUser(id: number): Promise<User | null>;
   getUserByUsername(username: string): Promise<User | null>;
+  getUserByUsernameAndStatus(
+    username: string,
+    status: User["status"]
+  ): Promise<User | null>;
   getUserByEmail(email: string): Promise<User | null>;
+  getUserByEmailAndStatus(
+    email: string,
+    status: User["status"]
+  ): Promise<User | null>;
+  activateAndUpdateUserByEmail(
+    email: string,
+    updatedUserData: {
+      username: string;
+      email: string;
+      password: string;
+      firstName: string;
+      lastName: string;
+      role: User["role"];
+      profilePicture: string;
+    }
+  ): Promise<User | null>;
   getUsers(): Promise<User[]>;
   getUsersByRole(role: User["role"]): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
@@ -297,6 +317,117 @@ export class PrismaStorage implements IStorage {
   async getUserByUsername(username: string): Promise<User | null> {
     return this.prisma.user.findUnique({ where: { username } });
   }
+  async getUserByEmailAndStatus(
+    email: string,
+    status: User["status"]
+  ): Promise<User | null> {
+    return this.prisma.user.findFirst({
+      where: {
+        email,
+        status,
+      },
+    });
+  }
+  async getUserByUsernameAndStatus(
+    username: string,
+    status: User["status"]
+  ): Promise<User | null> {
+    return this.prisma.user.findFirst({
+      where: {
+        username,
+        status,
+      },
+    });
+  }
+
+  async activateAndUpdateUserByEmail(
+    email: string,
+    updatedUserData: {
+      username: string;
+      email: string;
+      password: string;
+      firstName: string;
+      lastName: string;
+      role: User["role"];
+      profilePicture: string;
+    }
+  ): Promise<User | null> {
+    const user = await this.prisma.user.findFirst({
+      where: { email, status: "inactive" },
+    });
+
+    if (!user) return null;
+
+    return this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        ...updatedUserData,
+        status: "active",
+      },
+    });
+  }
+
+  async createUserWithDraftStatus(userData: {
+    username: string;
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    role: User["role"];
+    profilePicture: string;
+  }): Promise<User | null> {
+    // Create a new user with status "draft"
+    const newUser = await this.prisma.user.create({
+      data: {
+        ...userData,
+        status: "draft", // Set status as "draft"
+      },
+    });
+
+    return newUser;
+  }
+
+  async createNotification(
+    userId: number,
+    title: string,
+    message: string
+  ): Promise<Notification> {
+    try {
+      const notification = await this.prisma.notification.create({
+        data: {
+          userId,
+          title,
+          message,
+          isRead: false,
+        },
+      });
+
+      return notification;
+    } catch (error) {
+      console.error("Error creating notification:", (error as Error).message);
+      throw new Error("Failed to create notification.");
+    }
+  }
+
+  async UpdateUserToDraft(userData: {
+    username: string;
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    role: User["role"];
+    profilePicture: string;
+  }): Promise<User> {
+    const updatedUser = await this.prisma.user.update({
+      where: { email: userData.email },
+      data: {
+        ...userData,
+        status: "draft",
+      },
+    });
+    return updatedUser;
+  }
+
   async getUserByEmail(email: string): Promise<User | null> {
     return this.prisma.user.findUnique({ where: { email } });
   }
@@ -562,7 +693,6 @@ export class PrismaStorage implements IStorage {
       },
     });
   }
-
 
   async getCategory(id: number): Promise<Category | null> {
     return this.prisma.category.findUnique({ where: { id } });
@@ -978,19 +1108,19 @@ export class PrismaStorage implements IStorage {
       where: isAdmin
         ? undefined
         : {
-          OR: [
-            { userId: user.id },
-            {
-              group: {
-                members: {
-                  some: {
-                    userId: user.id,
+            OR: [
+              { userId: user.id },
+              {
+                group: {
+                  members: {
+                    some: {
+                      userId: user.id,
+                    },
                   },
                 },
               },
-            },
-          ],
-        },
+            ],
+          },
       include: {
         course: true,
         user: {

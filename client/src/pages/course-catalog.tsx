@@ -29,6 +29,7 @@ import {
 import { useAuth } from "@/context/auth-context";
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 type CourseType = {
   id: number;
@@ -46,7 +47,6 @@ type Category = {
   name: string;
 };
 
-
 export default function CourseCatalog() {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
@@ -57,6 +57,7 @@ export default function CourseCatalog() {
   const coursesPerPage = 8;
   const queryClient = useQueryClient();
   const [categories, setCategories] = useState<Category[]>([]);
+  const { toast } = useToast();
 
   useEffect(() => {
     queryClient.invalidateQueries({ queryKey: ["/api/courses", user?.id] });
@@ -92,23 +93,23 @@ export default function CourseCatalog() {
   // Sort courses based on sort order
   const sortedCourses = filteredCourses
     ? [...filteredCourses].sort((a, b) => {
-      if (sortOrder === "newest") {
-        return (
-          new Date(b.createdAt || 0).getTime() -
-          new Date(a.createdAt || 0).getTime()
-        );
-      } else if (sortOrder === "oldest") {
-        return (
-          new Date(a.createdAt || 0).getTime() -
-          new Date(b.createdAt || 0).getTime()
-        );
-      } else if (sortOrder === "az") {
-        return (a.title || "").localeCompare(b.title || "");
-      } else if (sortOrder === "za") {
-        return (b.title || "").localeCompare(a.title || "");
-      }
-      return 0;
-    })
+        if (sortOrder === "newest") {
+          return (
+            new Date(b.createdAt || 0).getTime() -
+            new Date(a.createdAt || 0).getTime()
+          );
+        } else if (sortOrder === "oldest") {
+          return (
+            new Date(a.createdAt || 0).getTime() -
+            new Date(b.createdAt || 0).getTime()
+          );
+        } else if (sortOrder === "az") {
+          return (a.title || "").localeCompare(b.title || "");
+        } else if (sortOrder === "za") {
+          return (b.title || "").localeCompare(a.title || "");
+        }
+        return 0;
+      })
     : [];
   useEffect(() => {
     fetchCategories();
@@ -116,10 +117,10 @@ export default function CourseCatalog() {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch('/api/categories');
+      const response = await fetch("/api/categories");
       const data = await response.json();
       if (!response.ok) {
-        throw new Error('Failed to fetch categories');
+        throw new Error("Failed to fetch categories");
       }
       setCategories(data);
     } catch (error) {
@@ -173,7 +174,6 @@ export default function CourseCatalog() {
                   </SelectItem>
                 ))}
               </SelectContent>
-
             </Select>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
