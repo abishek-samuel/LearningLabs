@@ -50,7 +50,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // Define types based on Prisma schema (adjust if needed)
-type Instructor = { 
+type Instructor = {
   id: number;
   firstName?: string | null;
   lastName?: string | null;
@@ -165,7 +165,7 @@ export default function CourseContent() {
     try {
       const res = await fetch("/api/comments", {
         method: "POST",
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${user?.token}` // Use the token from auth context
         },
@@ -384,15 +384,15 @@ export default function CourseContent() {
         navigateToLesson(nextLesson.moduleId, nextLesson.id);
       }
     } catch (error) {
-       // Revert optimistic update if it failed
-       // setLessonProgressMap(previousProgress);
+      // Revert optimistic update if it failed
+      // setLessonProgressMap(previousProgress);
 
-       console.error("Failed to mark lesson complete:", error);
-       toast({
-         title: "Error",
-         description: `Could not update progress: ${error instanceof Error ? error.message : 'Unknown error'}`,
-         variant: "destructive",
-       });
+      console.error("Failed to mark lesson complete:", error);
+      toast({
+        title: "Error",
+        description: `Could not update progress: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        variant: "destructive",
+      });
     }
   };
 
@@ -400,12 +400,12 @@ export default function CourseContent() {
     if (courseId && typeof moduleId === 'number' && typeof lessonId === 'number') {
       setLocation(`/course-content?id=${courseId}&moduleId=${moduleId}&lessonId=${lessonId}`);
     } else {
-        console.warn("Navigation cancelled: Missing required IDs", { courseId, moduleId, lessonId });
-        toast({
-          title: "Navigation Info",
-          description: "Cannot navigate, missing information.",
-          variant: "default"
-        });
+      console.warn("Navigation cancelled: Missing required IDs", { courseId, moduleId, lessonId });
+      toast({
+        title: "Navigation Info",
+        description: "Cannot navigate, missing information.",
+        variant: "default"
+      });
     }
   };
 
@@ -431,32 +431,32 @@ export default function CourseContent() {
     return (
       <MainLayout>
         <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">
-           <Skeleton className="h-6 w-48 mb-6" />
-           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-             <div className="lg:col-span-1"> <Skeleton className="h-[600px] w-full rounded-lg" /> </div>
-             <div className="lg:col-span-3 space-y-4">
-                <Skeleton className="h-10 w-3/4" />
-                <Skeleton className="h-6 w-1/2" />
-                <Skeleton className="aspect-video w-full rounded-lg" />
-                <Skeleton className="h-40 w-full rounded-lg" />
-             </div>
-           </div>
+          <Skeleton className="h-6 w-48 mb-6" />
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <div className="lg:col-span-1"> <Skeleton className="h-[600px] w-full rounded-lg" /> </div>
+            <div className="lg:col-span-3 space-y-4">
+              <Skeleton className="h-10 w-3/4" />
+              <Skeleton className="h-6 w-1/2" />
+              <Skeleton className="aspect-video w-full rounded-lg" />
+              <Skeleton className="h-40 w-full rounded-lg" />
+            </div>
+          </div>
         </div>
       </MainLayout>
     );
   }
 
   if (!course || !currentModule || !currentLesson) {
-     return (
+    return (
       <MainLayout>
         <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto text-center">
           <HelpCircle className="mx-auto h-12 w-12 text-slate-400 mb-4" />
           <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Content Not Found</h1>
           <p className="mt-2 text-slate-500 dark:text-slate-400">
-            { !courseId ? "No course ID provided." : !course ? "The course could not be loaded." : "The selected module or lesson could not be found." }
+            {!courseId ? "No course ID provided." : !course ? "The course could not be loaded." : "The selected module or lesson could not be found."}
           </p>
           <Button onClick={() => setLocation('/course-catalog')} className="mt-6">
-             <ArrowLeft className="mr-2 h-4 w-4"/> Back to Catalog
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Catalog
           </Button>
         </div>
       </MainLayout>
@@ -470,15 +470,15 @@ export default function CourseContent() {
       <div className="bg-white dark:bg-slate-900 shadow">
         <div className="px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2 md:gap-4 text-sm flex-shrink-0">
-             <Button
-               variant="ghost"
-               size="icon"
-               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-               className="lg:hidden"
-               aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
-             >
-               {isSidebarOpen ? <PanelLeftClose className="h-5 w-5" /> : <PanelRightOpen className="h-5 w-5" />}
-             </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="lg:hidden"
+              aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
+            >
+              {isSidebarOpen ? <PanelLeftClose className="h-5 w-5" /> : <PanelRightOpen className="h-5 w-5" />}
+            </Button>
             <Link href={`/course-detail/${courseId}`}>
               <a className="flex items-center text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors">
                 <ChevronLeft className="h-4 w-4 mr-1" />
@@ -487,7 +487,7 @@ export default function CourseContent() {
               </a>
             </Link>
           </div>
-           <div className="flex-grow mx-4 min-w-0"></div>
+          <div className="flex-grow mx-4 min-w-0"></div>
         </div>
       </div>
 
@@ -546,15 +546,18 @@ export default function CourseContent() {
                                   aria-current={module.id === currentModule?.id && lesson.id === currentLesson?.id ? "page" : undefined}
                                 >
                                   {getLessonIcon(lesson)}
-                  <div className="flex-grow min-w-0">
-                     <div className="line-clamp-1">{lesson.title}</div>
-                     {lesson.duration && (
-                       <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                         <Clock className="inline h-3 w-3 mr-1" />
-                         {`${Math.floor(lesson.duration / 60)}m ${(lesson.duration % 60).toString()}s`}
-                       </div>
-                     )}
-                   </div>
+                                  <div className="flex-grow min-w-0">
+                                    <div className="line-clamp-1">{lesson.title}</div>
+                                    {lesson.duration && (
+                                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                        <Clock className="inline h-3 w-3 mr-1" />
+                                        {`${Math.floor(lesson.duration / 60)}m ${(lesson.duration % 60).toString()}s`}
+                                      </div>
+                                    )}
+                                  </div>
+                                  {lesson.id && lessonProgressMap[lesson.id] && (
+                                    <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                  )}
                                 </button>
                               ))}
                           </div>
@@ -605,7 +608,7 @@ export default function CourseContent() {
                       disabled={!nextLesson}
                       aria-label="Next lesson"
                     >
-                       <span className="hidden sm:inline">Next</span>
+                      <span className="hidden sm:inline">Next</span>
                       <ChevronRight className="h-4 w-4 sm:ml-1" />
                     </Button>
                   </div>
@@ -659,14 +662,14 @@ export default function CourseContent() {
                     ></video>
                   </div>
                 ) : currentLesson.content ? (
-                   <div className="p-6 prose dark:prose-invert max-w-none prose-sm sm:prose-base">
-                     <p>{currentLesson.content}</p>
-                   </div>
+                  <div className="p-6 prose dark:prose-invert max-w-none prose-sm sm:prose-base">
+                    <p>{currentLesson.content}</p>
+                  </div>
                 ) : (
-                   <div className="p-6 text-center text-slate-500 dark:text-slate-400 flex flex-col items-center gap-2">
-                  <BookOpen className="h-8 w-8 text-slate-400" />
-                       <span>No content available for this lesson.</span>
-                   </div>
+                  <div className="p-6 text-center text-slate-500 dark:text-slate-400 flex flex-col items-center gap-2">
+                    <BookOpen className="h-8 w-8 text-slate-400" />
+                    <span>No content available for this lesson.</span>
+                  </div>
                 )}
 
                 {(currentLesson.videoUrl || currentLesson.content) && (
@@ -703,18 +706,18 @@ export default function CourseContent() {
 
                       <TabsContent value="notes">
                         <div className="space-y-3">
-                           <h3 className="text-base font-medium">My Notes</h3>
+                          <h3 className="text-base font-medium">My Notes</h3>
                           <div className="w-full rounded-md border border-slate-200 dark:border-slate-700 focus-within:ring-1 focus-within:ring-ring">
                             <textarea
                               className="w-full h-36 p-3 bg-transparent resize-none focus:outline-none text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500"
                               placeholder="Take notes on this lesson here..."
                               aria-label="Lesson notes"
-                              // TODO: Implement state and saving logic for notes
+                            // TODO: Implement state and saving logic for notes
                             ></textarea>
                           </div>
                           <Button size="sm" disabled> {/* TODO: Enable when save logic exists */}
-                             {/* TODO: Implement save logic */}
-                             <Loader2 className="mr-2 h-4 w-4 animate-spin hidden" /> {/* Show loader on save */}
+                            {/* TODO: Implement save logic */}
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin hidden" /> {/* Show loader on save */}
                             Save Notes (Coming Soon)
                           </Button>
                         </div>
@@ -810,10 +813,10 @@ export default function CourseContent() {
                 <div>
                   {/* Show Checkmark if completed, else show Button */}
                   {currentLesson.type === "assessment" || currentLesson.title.toLowerCase().includes("certificate") ? null : isLessonCompleted ? (
-                      <div className="flex items-center gap-2 text-green-600 dark:text-green-400 font-medium text-sm p-2 rounded-md bg-green-50 dark:bg-green-900/30">
-                        <Check className="h-5 w-5"/>
-                        <span>Completed</span>
-                      </div>
+                    <div className="flex items-center gap-2 text-green-600 dark:text-green-400 font-medium text-sm p-2 rounded-md bg-green-50 dark:bg-green-900/30">
+                      <Check className="h-5 w-5" />
+                      <span>Completed</span>
+                    </div>
                   ) : (
                     <Button variant="default" onClick={handleMarkComplete} disabled={isLoading}>
                       <Check className="mr-2 h-4 w-4" />
@@ -826,7 +829,7 @@ export default function CourseContent() {
           </main>
         </div>
       </div>
-      <ChatbotWidget />
+      <ChatbotWidget currentModuleId={currentModule?.id} />
     </MainLayout>
   );
 }

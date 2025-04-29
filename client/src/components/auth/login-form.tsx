@@ -65,7 +65,6 @@ export function LoginForm() {
     try {
       const token = response.credential;
       const user = jwtDecode(token); // Decode the JWT token
-      console.log("Google User:", user);
 
       const payload = {
         email: user.email,

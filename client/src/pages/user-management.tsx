@@ -166,16 +166,24 @@ export default function UserManagement() {
       const response = await fetch(`/api/users/${userId}/reject`, {
         method: "POST",
       });
+
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || "Failed to reject user");
       }
+
       toast({
         title: "User Rejected",
         description: "The user has been rejected and notified via email.",
         variant: "success",
       });
-      fetchDraftUsers(); // Refresh the list after rejection
+
+      // Delay refreshing the list by 1 second
+      fetchDraftUsers();
+      // setTimeout(() => {
+      //   fetchDraftUsers();
+      // }, 3000);
+
     } catch (error) {
       console.error("Error rejecting user:", error);
       toast({
@@ -184,8 +192,10 @@ export default function UserManagement() {
           error instanceof Error ? error.message : "Failed to reject user",
         variant: "destructive",
       });
+
     }
   };
+
 
   const handleViewDetails = async (userId: number) => {
     try {

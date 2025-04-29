@@ -459,6 +459,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         res.status(200).json({ message: "User rejected successfully" });
 
+        await storage.deleteUser(userId);
         // Send rejection email before deleting the user
         try {
           await sendRejectionEmail(user.email, user.username);
@@ -467,7 +468,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Continue with deletion even if email fails
         }
 
-        await storage.deleteUser(userId);
       } catch (error) {
         console.error("Error rejecting user:", error);
         res.status(500).json({ message: "Internal server error" });
@@ -2587,8 +2587,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const progressPercentage =
               totalLessonsInCourse > 0
                 ? Math.round(
-                    (completedLessonsInCourse / totalLessonsInCourse) * 100
-                  )
+                  (completedLessonsInCourse / totalLessonsInCourse) * 100
+                )
                 : 0; // Avoid division by zero if course has no lessons
 
             // 5. Update enrollment with correct progress and completion status
@@ -2714,8 +2714,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         const deleted = await storage.deleteCategory(categoryId);
+
         if (!deleted) {
-          return res.status(404).json({ message: "Category not found" });
+          return res.status(400).json({ message: "Cannot delete category linked with existing courses" });
         }
 
         res.status(204).send();
@@ -2725,6 +2726,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
   );
+
 
   // Activity logs
   app.get("/api/activity-logs", isAuthenticated, async (req, res) => {

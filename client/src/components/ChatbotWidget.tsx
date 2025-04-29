@@ -4,7 +4,7 @@ import { Sparkles, X, Send } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-export default function ChatbotWidget() {
+export default function ChatbotWidget(props) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<
     { sender: "user" | "bot"; text: string }[]
@@ -36,6 +36,7 @@ export default function ChatbotWidget() {
           question: userText,
           context,
           history: getHistory(),
+          moduleId: props.currentModuleId,
         }),
       });
 
@@ -97,11 +98,10 @@ export default function ChatbotWidget() {
                 }
               >
                 <div
-                  className={`px-3 py-2 rounded-lg max-w-[80%] text-sm whitespace-pre-wrap ${
-                    msg.sender === "user"
+                  className={`px-3 py-2 rounded-lg max-w-[80%] text-sm whitespace-pre-wrap ${msg.sender === "user"
                       ? "bg-emerald-600 text-white"
                       : "bg-slate-200 text-slate-900"
-                  }`}
+                    }`}
                 >
                   {msg.sender === "bot" ? (
                     <ReactMarkdown

@@ -44,7 +44,8 @@ export default function GroupManagement() {
   const [editingGroupId, setEditingGroupId] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [groupToDelete, setGroupToDelete] = useState<any>(null);
-
+  const [groupNameError, setGroupNameError] = useState(false);
+  const [editgroupNameError, setEditGroupNameError] = useState(false);
 
   const handleEditClick = (group) => {
     setEditingGroupId(group.id);
@@ -61,6 +62,11 @@ export default function GroupManagement() {
   };
 
   const handleUpdateGroup = async () => {
+    setEditGroupNameError(!groupName);
+
+    if (!groupName) {
+      return;
+    }
     try {
       const res = await fetch(`/api/groups/${editingGroupId}`, {
         method: "PUT",
@@ -81,6 +87,7 @@ export default function GroupManagement() {
         title: "Success",
         description: "Group updated successfully",
       });
+      setEditGroupNameError(false);
     } catch (err) {
       console.error("Error updating group:", err);
       toast({
@@ -131,7 +138,11 @@ export default function GroupManagement() {
   };
 
   const handleCreateGroup = async () => {
-    if (!groupName) return alert("Please enter group name");
+    setGroupNameError(!groupName);
+
+    if (!groupName) {
+      return;
+    }
 
     const res = await fetch("/api/groups", {
       method: "POST",
@@ -149,6 +160,7 @@ export default function GroupManagement() {
         description: "Group added successfully",
       });
       setGroupName("");
+      setGroupNameError(false);
       setSelectedUsers([]);
       setSelectedCourses([]);
       setOpen(false);
@@ -193,6 +205,19 @@ export default function GroupManagement() {
         description: "Failed to delete group",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleGroupNameChange = (e) => {
+    setGroupName(e.target.value);
+    if (groupNameError) {
+      setGroupNameError(false); // Clear the error message when the user starts typing
+    }
+  };
+  const handleEditGroupNameChange = (e) => {
+    setEditGroupName(e.target.value);
+    if (editgroupNameError) {
+      setEditGroupNameError(false); // Clear the error message when the user starts typing
     }
   };
 
@@ -311,8 +336,12 @@ export default function GroupManagement() {
               <Input
                 placeholder="Enter group name"
                 value={groupName}
-                onChange={(e) => setGroupName(e.target.value)}
+                onChange={handleGroupNameChange}
+                className={groupNameError ? "border-red-500" : ""}
               />
+              {groupNameError && (
+                <div className="text-red-500 text-sm mt-2">Group name is required</div>
+              )}
             </div>
             <MultiSelect
               label="Select Users"
@@ -389,8 +418,12 @@ export default function GroupManagement() {
               <Input
                 placeholder="Enter group name"
                 value={editGroupName}
-                onChange={(e) => setEditGroupName(e.target.value)}
+                onChange={handleEditGroupNameChange}
+                className={editgroupNameError ? "border-red-500" : ""}
               />
+              {editgroupNameError && (
+                <div className="text-red-500 text-sm mt-2">Group name is required</div>
+              )}
             </div>
             <MultiSelect
               label="Select Users"
@@ -433,8 +466,6 @@ export default function GroupManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-
 
     </MainLayout>
   );

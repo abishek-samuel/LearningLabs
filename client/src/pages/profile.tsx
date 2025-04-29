@@ -53,17 +53,12 @@ export default function Profile() {
       const response = await fetch('/api/profile/password', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
+        body: JSON.stringify(data),
       });
-      if (!response.ok) throw new Error('Failed to update password');
-      return response.json();
+      const resData = await response.json(); // 🧹 Parse backend message
+      if (!response.ok) throw new Error(resData.message || 'Failed to update password'); // 🧹 throw backend message
+      return resData;
     },
-    onSuccess: () => {
-      toast({ title: "Success", description: "Password updated successfully" });
-    },
-    onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    }
   });
 
   const handleProfileSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -82,20 +77,46 @@ export default function Profile() {
 
   const handlePasswordSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const formData = new FormData(form);
     const data = {
       ...Object.fromEntries(formData.entries()),
-      id: user?.id
+      id: user?.id,
     };
-    if (data.newPassword !== data.confirmPassword) {
+    if (String(data.newPassword).length < 6) {
       toast({
         title: "Error",
-        description: "New passwords do not match",
+        description: "New password must be at least 6 characters",
         variant: "destructive"
       });
       return;
     }
-    updatePasswordMutation.mutate(data);
+    if (data.newPassword !== data.confirmPassword) {
+      toast({
+        title: "Error",
+        description: "New passwords do not match",
+        variant: "destructive",
+      });
+      return;
+    }
+
+
+    updatePasswordMutation.mutate(data, {
+      onSuccess: (response: any) => {
+        toast({
+          title: "Success",
+          description: response.message, // 🧹 Use backend success message
+        });
+        form.reset(); // 🧹 Clear input fields after success
+      },
+      onError: (error: any) => {
+        toast({
+          title: "Error",
+          description: error?.message || "Failed to update password", // 🧹 Show backend error message
+          variant: "destructive",
+        });
+      },
+    });
   };
 
   if (isLoading) {

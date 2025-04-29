@@ -718,12 +718,25 @@ export class PrismaStorage implements IStorage {
 
   async deleteCategory(id: number): Promise<boolean> {
     try {
+      // First check if any course is linked to this category
+      const courseCount = await this.prisma.course.count({
+        where: { categoryId: id },
+      });
+
+      if (courseCount > 0) {
+        // Category is still linked to one or more courses, don't allow deletion
+        throw new Error('Category is linked to existing courses.');
+      }
+
+      // No linked courses, safe to delete
       await this.prisma.category.delete({ where: { id } });
       return true;
     } catch (error) {
+      console.error("Delete Category Error:", error);
       return false;
     }
   }
+
 
   // --- Assessment Methods ---
   async getAssessment(id: number): Promise<Assessment | null> {
