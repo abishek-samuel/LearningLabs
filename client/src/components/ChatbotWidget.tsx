@@ -11,7 +11,7 @@ export default function ChatbotWidget() {
   >([{ sender: "bot", text: "Hi! How can I help you today?" }]);
   const [input, setInput] = useState("");
   const [context, setContext] = useState();
-  const [loading, setLoading] = useState(false);  // Loading state
+  const [loading, setLoading] = useState(false); // Loading state
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -26,10 +26,10 @@ export default function ChatbotWidget() {
     const userText = input.trim();
     setMessages((msgs) => [...msgs, { sender: "user", text: userText }]);
     setInput("");
-    setLoading(true);  // Set loading to true when sending message
+    setLoading(true); // Set loading to true when sending message
 
     try {
-      const res = await fetch("http://127.0.0.1:5002/api/chat", {
+      const res = await fetch("http://127.0.0.1:5001/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -40,10 +40,7 @@ export default function ChatbotWidget() {
       });
 
       const data = await res.json();
-      setMessages((msgs) => [
-        ...msgs,
-        { sender: "bot", text: data.response },
-      ]);
+      setMessages((msgs) => [...msgs, { sender: "bot", text: data.response }]);
     } catch (err) {
       console.log(err);
       setMessages((msgs) => [
@@ -51,7 +48,7 @@ export default function ChatbotWidget() {
         { sender: "bot", text: "Something went wrong. Please try again." },
       ]);
     } finally {
-      setLoading(false);  // Set loading to false once the response is received
+      setLoading(false); // Set loading to false once the response is received
     }
   };
 
@@ -93,19 +90,30 @@ export default function ChatbotWidget() {
             {messages.map((msg, i) => (
               <div
                 key={msg.text}
-                className={msg.sender === "user" ? "flex justify-end" : "flex justify-start"}
+                className={
+                  msg.sender === "user"
+                    ? "flex justify-end"
+                    : "flex justify-start"
+                }
               >
                 <div
-                  className={`px-3 py-2 rounded-lg max-w-[80%] text-sm whitespace-pre-wrap ${msg.sender === "user"
-                    ? "bg-emerald-600 text-white"
-                    : "bg-slate-200 text-slate-900"
-                    }`}
+                  className={`px-3 py-2 rounded-lg max-w-[80%] text-sm whitespace-pre-wrap ${
+                    msg.sender === "user"
+                      ? "bg-emerald-600 text-white"
+                      : "bg-slate-200 text-slate-900"
+                  }`}
                 >
                   {msg.sender === "bot" ? (
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
-                        code: ({ node, inline, className, children, ...props }) => {
+                        code: ({
+                          node,
+                          inline,
+                          className,
+                          children,
+                          ...props
+                        }) => {
                           return inline ? (
                             <code
                               className="text-emerald-600 bg-slate-100 rounded px-1"
@@ -138,7 +146,6 @@ export default function ChatbotWidget() {
                 </div>
               </div>
             )}
-
 
             <div ref={messagesEndRef} />
           </div>
@@ -183,31 +190,31 @@ export default function ChatbotWidget() {
         .chatbot-scrollbar::-webkit-scrollbar-track {
           background: #f1f5f9;
         }
-           .typing-animation::after {
-    content: '.';
-    animation: typing 1.5s steps(5, end) infinite;
-  }
+        .typing-animation::after {
+          content: ".";
+          animation: typing 1.5s steps(5, end) infinite;
+        }
 
-  @keyframes typing {
-    0% {
-      content: 'typing';
-    }
-    20% {
-      content: 'typing.';
-    }
-    40% {
-      content: 'typing..';
-    }
-    60% {
-      content: 'typing...';
-    }
-    80% {
-      content: 'typing..';
-    }
-    100% {
-      content: 'typing.';
-    }
-  }
+        @keyframes typing {
+          0% {
+            content: "typing";
+          }
+          20% {
+            content: "typing.";
+          }
+          40% {
+            content: "typing..";
+          }
+          60% {
+            content: "typing...";
+          }
+          80% {
+            content: "typing..";
+          }
+          100% {
+            content: "typing.";
+          }
+        }
       `}</style>
     </>
   );

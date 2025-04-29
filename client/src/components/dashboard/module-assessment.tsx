@@ -27,7 +27,7 @@ export function ModuleAssessment({
   // Fetch question count to determine if assessment is available
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/modules/${moduleId}/questions`)
+    fetch(`/api/modules/${moduleId}/questions`, { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : []))
       .then((questions: any[]) => {
         setQuestionCount(Array.isArray(questions) ? questions.length : 0);
@@ -41,7 +41,7 @@ export function ModuleAssessment({
 
   // Start assessment attempt on mount (if available)
   useEffect(() => {
-    if (questionCount === null || questionCount < 10) return;
+    if (questionCount === null || questionCount < 4) return;
     setLoading(true);
     setError(null);
     fetch(`/api/modules/${moduleId}/assessment-attempts/start`, {
@@ -114,7 +114,7 @@ export function ModuleAssessment({
   if (questionCount === null) {
     return null;
   }
-  if (questionCount < 10) {
+  if (questionCount < 1) {
     return (
       <div className="my-6 p-4 rounded bg-slate-50 dark:bg-slate-800/30 text-slate-500 text-center">
         Assessment questions have not been generated for this module yet.
@@ -195,7 +195,7 @@ export function ModuleAssessment({
 
               <Button
                 type="submit"
-                disabled={submitting || Object.keys(answers).length !== 10}
+                disabled={submitting || Object.keys(answers).length !== 1}
               >
                 {submitting ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
