@@ -467,7 +467,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error("Failed to send rejection email:", emailError);
           // Continue with deletion even if email fails
         }
-
       } catch (error) {
         console.error("Error rejecting user:", error);
         res.status(500).json({ message: "Internal server error" });
@@ -1017,9 +1016,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         res.json(updatedCourse);
-        await axios.post("http://localhost:5001/insert_questions", {
-          course_id: courseId,
-        });
+        try {
+          await axios.post("http://localhost:5001/insert_questions", {
+            course_id: courseId,
+          });
+        } catch (error) {
+          console.log(err);
+        }
       } catch (error) {
         // if (error instanceof z.ZodError) { ... }
         console.error("Error updating course:", error);
@@ -1542,12 +1545,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "Attempt already completed" });
         }
         const { answers } = req.body; // Array of {questionId, selectedOption}
-        if (!Array.isArray(answers) || answers.length !== 10) {
-          return res.status(400).json({ message: "Must submit 10 answers" });
+        if (!Array.isArray(answers) || answers.length <= 1) {
+          return res.status(400).json({ message: "Must submit 1 answers" });
         }
         // Fetch the questions for this attempt
         const questionIds = attempt.questionIds as number[] | undefined;
-        if (!questionIds || questionIds.length !== 10) {
+        if (!questionIds || questionIds.length !== 1) {
           return res
             .status(400)
             .json({ message: "Invalid question set for attempt" });
@@ -2075,32 +2078,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res
           .status(201)
           .json({ message: "Group created successfully", group: newGroup });
-
-        // Send email to each user
-        if (userIds.length > 0 && courses.length > 0) {
-          await Promise.all(
-            userIds.map(async (userId: number) => {
-              const user = await storage.getUser(userId);
-              if (user) {
-                await sendGroupAssignmentEmail(
-                  user.email,
-                  user.username,
-                  newGroup.name,
-                  courses
-                );
-                // Create notifications
-                if (user.id) {
-                  await storage.createNotification(
-                    user.id,
-                    "New Course Access",
-                    `You have been granted access to ${JSON.stringify(
-                      courses.map((course) => course?.title)
-                    )}`
+        try {
+          // Send email to each user
+          if (userIds.length > 0 && courses.length > 0) {
+            await Promise.all(
+              userIds.map(async (userId: number) => {
+                const user = await storage.getUser(userId);
+                if (user) {
+                  await sendGroupAssignmentEmail(
+                    user.email,
+                    user.username,
+                    newGroup.name,
+                    courses
                   );
+                  // Create notifications
+                  if (user.id) {
+                    await storage.createNotification(
+                      user.id,
+                      "New Course Access",
+                      `You have been granted access to ${JSON.stringify(
+                        courses.map((course) => course?.title)
+                      )}`
+                    );
+                  }
                 }
-              }
-            })
-          );
+              })
+            );
+          }
+        } catch (err) {
+          console.log(err);
         }
       } catch (error) {
         console.error("Error creating group:", error);
@@ -2190,62 +2196,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         res.status(200).json({ message: "Group updated successfully" });
 
-        // ✉️ Send email to newly added users (only)
-        if (newlyAddedUserIds.length > 0 && courses.length > 0 && group) {
-          await Promise.all(
-            newlyAddedUserIds.map(async (userId) => {
-              const user = await storage.getUser(userId);
-              if (user) {
-                await sendGroupAssignmentEmail(
-                  user.email,
-                  user.username,
-                  group.name,
-                  courses
-                );
-              }
-              // Create notifications
-              if (user.id) {
-                await storage.createNotification(
-                  user.id,
-                  "New Course Access",
-                  `You have been granted access to ${JSON.stringify(
-                    courses.map((course) => course?.title)
-                  )}`
-                );
-              }
-            })
-          );
-        }
+        try {
+          // ✉️ Send email to newly added users (only)
+          if (newlyAddedUserIds.length > 0 && courses.length > 0 && group) {
+            await Promise.all(
+              newlyAddedUserIds.map(async (userId) => {
+                const user = await storage.getUser(userId);
+                if (user) {
+                  await sendGroupAssignmentEmail(
+                    user.email,
+                    user.username,
+                    group.name,
+                    courses
+                  );
+                }
+                // Create notifications
+                if (user.id) {
+                  await storage.createNotification(
+                    user.id,
+                    "New Course Access",
+                    `You have been granted access to ${JSON.stringify(
+                      courses.map((course) => course?.title)
+                    )}`
+                  );
+                }
+              })
+            );
+          }
 
-        // ✉️ Send email to ALL users if new course(s) were added
-        if (
-          newlyAddedCourseIds.length > 0 &&
-          group &&
-          existingMembers.length > 0
-        ) {
-          await Promise.all(
-            existingMembers.map(async (member) => {
-              const user = await storage.getUser(member.userId);
-              if (user) {
-                await sendGroupAssignmentEmail(
-                  user.email,
-                  user.username,
-                  group.name,
-                  courses
-                );
-              }
-              // Create notifications
-              if (user.id) {
-                await storage.createNotification(
-                  user.id,
-                  "New Course Access",
-                  `You have been granted access to ${JSON.stringify(
-                    courses.map((course) => course?.title)
-                  )}`
-                );
-              }
-            })
-          );
+          // ✉️ Send email to ALL users if new course(s) were added
+          if (
+            newlyAddedCourseIds.length > 0 &&
+            group &&
+            existingMembers.length > 0
+          ) {
+            await Promise.all(
+              existingMembers.map(async (member) => {
+                const user = await storage.getUser(member.userId);
+                if (user) {
+                  await sendGroupAssignmentEmail(
+                    user.email,
+                    user.username,
+                    group.name,
+                    courses
+                  );
+                }
+                // Create notifications
+                if (user.id) {
+                  await storage.createNotification(
+                    user.id,
+                    "New Course Access",
+                    `You have been granted access to ${JSON.stringify(
+                      courses.map((course) => course?.title)
+                    )}`
+                  );
+                }
+              })
+            );
+          }
+        } catch (err) {
+          console.log(err);
         }
       } catch (error) {
         console.error("Error updating group:", error);
@@ -2418,71 +2428,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         res.status(201).json(newAccess);
 
-        // Create notifications
-        if (userId) {
-          await storage.createNotification(
-            userId,
-            "New Course Access",
-            `You have been granted access to ${course.title}`
-          );
-        }
-
-        if (groupId) {
-          const members = await storage.getGroupMembersByGroup(groupId);
-          await Promise.all(
-            members.map((member) =>
-              storage.createNotification(
-                member.userId,
-                "New Course Access",
-                `You have been granted access to ${course.title} through your group`
-              )
-            )
-          );
-        }
-
-        // Send email(s)
-        if (userId) {
-          const user = await storage.getUser(userId);
-          if (user) {
-            await sendGroupAssignmentEmail(
-              user.email,
-              user.username,
-              "Direct Access", // or some other label if group isn't used
-              [{ id: course.id, title: course.title }]
+        try {
+          // Create notifications
+          if (userId) {
+            await storage.createNotification(
+              userId,
+              "New Course Access",
+              `You have been granted access to ${course.title}`
             );
-            // Create notifications
-            if (user.id) {
-              await storage.createNotification(
-                user.id,
-                "New Course Access",
-                `You have been granted access to ${course?.title}`
+          }
+
+          if (groupId) {
+            const members = await storage.getGroupMembersByGroup(groupId);
+            await Promise.all(
+              members.map((member) =>
+                storage.createNotification(
+                  member.userId,
+                  "New Course Access",
+                  `You have been granted access to ${course.title} through your group`
+                )
+              )
+            );
+          }
+
+          // Send email(s)
+          if (userId) {
+            const user = await storage.getUser(userId);
+            if (user) {
+              await sendGroupAssignmentEmail(
+                user.email,
+                user.username,
+                "Direct Access", // or some other label if group isn't used
+                [{ id: course.id, title: course.title }]
               );
+              // Create notifications
+              if (user.id) {
+                await storage.createNotification(
+                  user.id,
+                  "New Course Access",
+                  `You have been granted access to ${course?.title}`
+                );
+              }
             }
           }
-        }
 
-        if (groupId) {
-          const group = await storage.getGroup(groupId);
-          const members = await storage.getGroupMembersByGroup(groupId); // list of { userId }
-          const users = await Promise.all(
-            members.map((member) => storage.getUser(member.userId))
-          );
-          const validUsers = users.filter((u) => u); // filter out nulls if any
+          if (groupId) {
+            const group = await storage.getGroup(groupId);
+            const members = await storage.getGroupMembersByGroup(groupId); // list of { userId }
+            const users = await Promise.all(
+              members.map((member) => storage.getUser(member.userId))
+            );
+            const validUsers = users.filter((u) => u); // filter out nulls if any
 
-          await Promise.all(
-            validUsers.map((user) => {
-              sendGroupAssignmentEmail(user.email, user.username, group.name, [
-                { id: course.id, title: course.title },
-              ]);
-              // Create notifications
+            await Promise.all(
+              validUsers.map((user) => {
+                sendGroupAssignmentEmail(
+                  user.email,
+                  user.username,
+                  group.name,
+                  [{ id: course.id, title: course.title }]
+                );
+                // Create notifications
 
-              storage.createNotification(
-                user.id,
-                "New Course Access",
-                `You have been granted access to ${course?.title}`
-              );
-            })
-          );
+                storage.createNotification(
+                  user.id,
+                  "New Course Access",
+                  `You have been granted access to ${course?.title}`
+                );
+              })
+            );
+          }
+        } catch (error) {
+          console.log(error);
         }
       } catch (error) {
         console.error("Error granting course access:", error);
@@ -2587,8 +2604,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const progressPercentage =
               totalLessonsInCourse > 0
                 ? Math.round(
-                  (completedLessonsInCourse / totalLessonsInCourse) * 100
-                )
+                    (completedLessonsInCourse / totalLessonsInCourse) * 100
+                  )
                 : 0; // Avoid division by zero if course has no lessons
 
             // 5. Update enrollment with correct progress and completion status
@@ -2716,7 +2733,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const deleted = await storage.deleteCategory(categoryId);
 
         if (!deleted) {
-          return res.status(400).json({ message: "Cannot delete category linked with existing courses" });
+          return res.status(400).json({
+            message: "Cannot delete category linked with existing courses",
+          });
         }
 
         res.status(204).send();
@@ -2726,7 +2745,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
   );
-
 
   // Activity logs
   app.get("/api/activity-logs", isAuthenticated, async (req, res) => {

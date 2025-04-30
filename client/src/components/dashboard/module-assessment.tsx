@@ -195,7 +195,7 @@ export function ModuleAssessment({
 
               <Button
                 type="submit"
-                disabled={submitting || Object.keys(answers).length !== 1}
+                disabled={submitting || Object.keys(answers).length <= 1}
               >
                 {submitting ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
