@@ -1,6 +1,12 @@
 import os
 import requests
 import json
+import re
+import psycopg2
+from dotenv import load_dotenv
+
+load_dotenv()
+db_url = os.getenv("DATABASE_URL")
 
 # Step 1: Define folders
 video_transcripts_folder = "video_transcripts"
@@ -11,6 +17,45 @@ module_summaries_folder = "module_summaries"
 #Ensure output folders exist
 os.makedirs(video_summaries_folder, exist_ok=True)
 os.makedirs(module_summaries_folder, exist_ok=True)
+
+def update_lesson_summary_by_video_file(filepath, summary):
+    try:
+        # Extract filename from full path
+        filename = os.path.basename(filepath)
+
+        # Extract unique video ID from filename
+        match = re.search(r"(video-\d+-\d+)", filename)
+        if not match:
+            print(f"⚠️ Could not extract video ID from filename: {filename}")
+            return
+
+        video_id = match.group(1)
+        print(f"🔍 Extracted video ID: {video_id}")
+
+        # Connect to DB
+        conn = psycopg2.connect(db_url)
+        cursor = conn.cursor()
+
+        query = """
+            UPDATE lessons
+            SET summary = %s
+            WHERE video_url LIKE %s
+        """
+        like_pattern = f"%{video_id}%"  # Matches partial video URL
+        cursor.execute(query, (summary, like_pattern))
+
+        if cursor.rowcount > 0:
+            print(f"✅ Updated summary for {cursor.rowcount} lesson(s) with video_id: {video_id}")
+        else:
+            print(f"⚠️ No lessons found with video_id: {video_id}")
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+    except Exception as e:
+        print(f"❌ Failed to update DB: {e}")
+
 
 # Step 2: Function to split text into manageable chunks
 def chunk_text(text, max_words=800):
@@ -45,7 +90,7 @@ def summarize_with_ollama(chunk):
         return "[Summary failed]"
 
 # Step 4: Summarize transcripts from a folder if not already summarized
-def summarize_folder(input_folder, output_folder):
+def summarize_folder(input_folder, output_folder, isVideo):
     if not os.path.exists(input_folder):
         print(f"⚠️ Folder not found: {input_folder}. Skipping summarization.")
         return
@@ -87,12 +132,14 @@ def summarize_folder(input_folder, output_folder):
 
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(summary_text)
+            if(isVideo):
+                update_lesson_summary_by_video_file(output_path, summary_text)
 
         print(f"✅ Saved summary to: {output_path}")
 
-# Step 5: Run summarization for video and module transcripts
-print("\n🚀 Summarizing Video Transcripts...")
-summarize_folder(video_transcripts_folder, video_summaries_folder)
+# # Step 5: Run summarization for video and module transcripts
+# print("\n🚀 Summarizing Video Transcripts...")
+# summarize_folder(video_transcripts_folder, video_summaries_folder)
 
-print("\n🚀 Summarizing Module Transcripts...")
-summarize_folder(module_transcripts_folder, module_summaries_folder)
+# print("\n🚀 Summarizing Module Transcripts...")
+# summarize_folder(module_transcripts_folder, module_summaries_folder)

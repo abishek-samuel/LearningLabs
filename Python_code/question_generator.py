@@ -173,5 +173,5 @@ output_folder = "generated_questions"
 # Create output folder if it doesn't exist
 os.makedirs(output_folder, exist_ok=True)
 
-generate_all_questions_from_transcripts_folder(transcripts_folder, output_folder)
+# generate_all_questions_from_transcripts_folder(transcripts_folder, output_folder)
 

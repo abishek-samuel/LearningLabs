@@ -109,12 +109,20 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
             className="flex-shrink-0 flex items-center ml-0 lg:ml-0"
           >
             <img
-              src="../../../alten.png"
+              src="../../../alten_black.png"
+              className="mt-1 mr-2 ml-[-30px] dark:hidden"
               title="Alten Global Technologies Private Limited"
               alt="Alten Global Technologies Private Limited"
-              className="h-12 w-19 mr-2"
-              style={{ marginLeft: "-30px" }}
+              width="130"
             />
+            <img
+              src="../../../alten_W.png"
+              className="mt-1 mr-2 ml-[-30px] hidden dark:block"
+              title="Alten Global Technologies Private Limited"
+              alt="Alten Global Technologies Private Limited"
+              width="130"
+            />
+
             <span className="font-bold text-xl text-slate-900 dark:text-white">
               LMS
             </span>

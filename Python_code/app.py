@@ -107,10 +107,10 @@ def insert_questions_api():
         os.makedirs(module_summaries_folder, exist_ok=True)
 
         # Summarize video transcripts
-        summarize_folder(video_transcripts_folder, video_summaries_folder)
+        summarize_folder(video_transcripts_folder, video_summaries_folder, True)
 
         # Summarize module transcripts
-        summarize_folder(module_transcripts_folder, module_summaries_folder)
+        summarize_folder(module_transcripts_folder, module_summaries_folder, False)
 
         # Step 5: Insert questions
         print(f"🔎 Checking for generated questions...")

@@ -151,13 +151,14 @@ model Lesson {
   videoUrl String?    @map("video_url")
   duration Int? // in seconds
   position Int
-
+  summary  String?    @default("")
+ 
   // Relations
   module         Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   lessonProgress LessonProgress[]
   Comment        Comment[]
   Resource       Resource[]
-
+   
   @@map("lessons")
 }
 
