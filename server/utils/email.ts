@@ -2,9 +2,9 @@ import nodemailer from "nodemailer";
 
 // Configure email transporter
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "smtp.gmail.com",
-  port: parseInt(process.env.SMTP_PORT || "587"),
-  secure: process.env.SMTP_SECURE === "true",
+  host: process.env.SMTP_HOST,
+  port: parseInt(process.env.SMTP_PORT),
+  secure: process.env.SMTP_SECURE == "true",
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
@@ -33,6 +33,9 @@ export async function sendWelcomeEmail(
       <p>Please login and change your password immediately for security purposes.</p>
       <p>Best regards,<br>LMS Team</p>
     `,
+    headers: {
+      "Content-Type": "text/html",
+    },
   };
 
   try {
@@ -40,7 +43,6 @@ export async function sendWelcomeEmail(
     console.log("Welcome email sent successfully to:", email);
   } catch (error) {
     console.error("Error sending welcome email:", error);
-    throw error;
   }
 }
 
@@ -66,6 +68,9 @@ export async function sendApproveEmail(
       <p>Please login and change your password immediately for security purposes.</p>
       <p>Best regards,<br>LMS Team</p>
     `,
+    headers: {
+      "Content-Type": "text/html",
+    },
   };
 
   try {
@@ -73,7 +78,6 @@ export async function sendApproveEmail(
     console.log("Approval email sent successfully to:", email);
   } catch (error) {
     console.error("Error sending approval email:", error);
-    throw error;
   }
 }
 
@@ -89,6 +93,9 @@ export async function sendRejectionEmail(email: string, username: string) {
       <p>If you believe this is a mistake, please contact support.</p>
       <p>Best regards,<br>LMS Team</p>
     `,
+    headers: {
+      "Content-Type": "text/html",
+    },
   };
 
   try {
@@ -96,7 +103,6 @@ export async function sendRejectionEmail(email: string, username: string) {
     console.log("Rejection email sent successfully to:", email);
   } catch (error) {
     console.error("Error sending rejection email:", error);
-    throw error;
   }
 }
 
@@ -120,6 +126,9 @@ export async function sendGroupAssignmentEmail(
       <p>You can access these courses by logging into your LMS account.</p>
       <p>Best regards,<br>LMS Team</p>
     `,
+    headers: {
+      "Content-Type": "text/html",
+    },
   };
 
   try {
@@ -127,7 +136,6 @@ export async function sendGroupAssignmentEmail(
     console.log("Group assignment email sent successfully to:", email);
   } catch (error) {
     console.error("Error sending group assignment email:", error);
-    throw error;
   }
 }
 
@@ -152,6 +160,9 @@ export async function sendPasswordResetEmail(
       <p>Please log in and change your password immediately for security purposes.</p>
       <p>Best regards,<br>LMS Team</p>
     `,
+    headers: {
+      "Content-Type": "text/html",
+    },
   };
 
   try {
@@ -159,6 +170,5 @@ export async function sendPasswordResetEmail(
     console.log("Password reset email sent successfully to:", email);
   } catch (error) {
     console.error("Error sending password reset email:", error);
-    throw error;
   }
 }

@@ -1,0 +1,176 @@
+from flask import Flask, request, jsonify
+import psycopg2
+import os
+from dotenv import load_dotenv
+from question_insertion import insert_questions
+from transcript_generator import generate_transcripts
+from question_generator import generate_all_questions_from_transcripts_folder  # Import correct function
+from summary_generator import summarize_folder  # ⚡ Add this line
+from flask_cors import CORS
+from llm_handler import chat
+
+app = Flask(__name__)
+CORS(app)
+load_dotenv()
+
+@app.route("/api/chat", methods=["POST"])
+def chat_api():
+    data = request.get_json()
+
+    if not data or "question" not in data:
+        return jsonify({"success": False, "error": "question is required"}), 400
+
+    question = data["question"]
+    module_id = data.get("moduleId", "")
+    history = data.get("history", [])
+
+    print("module id: ",module_id)
+    
+
+    print(f"💬 Chat request: {question}")
+
+    try:
+        chat_response = chat(question, module_id, history)
+        return jsonify(chat_response)
+    except Exception as e:
+        print(f"🔥 Chat Error: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route("/insert_questions", methods=["POST"])
+def insert_questions_api():
+    data = request.get_json()
+
+    if not data or "course_id" not in data:
+        return jsonify({"success": False, "error": "course_id is required"}), 400
+
+    course_id = data["course_id"]
+    db_url = os.getenv("DATABASE_URL")
+    print(f"📥 Received request to insert questions for course_id: {course_id}")
+
+    result = {
+        "modules": [],
+        "video_data": [],
+        "questions_inserted": []
+    }
+
+    try:
+        # Step 1: Connect and get module IDs
+        conn = psycopg2.connect(db_url)
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM modules WHERE course_id = %s", (course_id,))
+        module_ids = [row[0] for row in cur.fetchall()]
+        print(f"📦 Found Module IDs: {module_ids}")
+
+        if not module_ids:
+            return jsonify({"success": False, "error": "⚠️ No modules found for this course."}), 404
+
+        result["messages"] = [f"📦 Found {len(module_ids)} modules."]
+
+        # Step 2: Get video URLs
+        video_data = []
+        for module_id in module_ids:
+            cur.execute("SELECT video_url, position FROM lessons WHERE module_id = %s", (module_id,))
+            rows = cur.fetchall()
+            videos = [{"path": row[0], "position": row[1]} for row in rows]
+            result["modules"].append({
+                "module_id": module_id,
+                "videos": videos
+            })
+            for video in videos:
+                if video.get("path"):
+                    video_data.append({
+                        "module_id": module_id,
+                        "path": video["path"],
+                        "position": video["position"]
+                    })
+
+        cur.close()
+        conn.close()
+
+        # Step 3: Generate transcripts (Optional: Can be skipped if transcripts are pre-generated)
+        print(f"🎯 Total videos to transcribe: {len(video_data)}")
+        generate_transcripts(video_data, "module_transcripts")
+
+        # Step 4: Generate summaries after transcripts
+        print(f"📝 Generating summaries for transcripts...")
+
+        video_transcripts_folder = "video_transcripts"
+        module_transcripts_folder = "module_transcripts"
+        video_summaries_folder = "video_summaries"
+        module_summaries_folder = "module_summaries"
+
+        # Create output folders if not exist
+        os.makedirs(video_summaries_folder, exist_ok=True)
+        os.makedirs(module_summaries_folder, exist_ok=True)
+
+        # Summarize video transcripts
+        summarize_folder(video_transcripts_folder, video_summaries_folder)
+
+        # Summarize module transcripts
+        summarize_folder(module_transcripts_folder, module_summaries_folder)
+
+        # Step 5: Insert questions
+        print(f"🔎 Checking for generated questions...")
+
+        folder_path = "generated_questions"
+
+        # Check if folder exists
+        if not os.path.exists(folder_path) or not os.listdir(folder_path):
+            print(f"📂 '{folder_path}' not found or empty. Generating MCQs from transcripts...")
+
+            # Generate MCQs
+            transcripts_folder = "module_transcripts"
+            output_folder = folder_path
+            os.makedirs(output_folder, exist_ok=True)
+
+            generate_all_questions_from_transcripts_folder(transcripts_folder, output_folder)
+
+        # Now read json files
+        json_files = [f for f in os.listdir(folder_path) if f.endswith(".json")]
+
+        if not json_files:
+            raise Exception("⚠️ No generated MCQ files found even after generation!")
+
+        for idx, json_file in enumerate(sorted(json_files)):
+            module_id = module_ids[idx] if idx < len(module_ids) else None
+            if not module_id:
+                print(f"⚠️ No module ID available for file {json_file}")
+                continue
+
+            full_path = os.path.join(folder_path, json_file)
+            print("full path  -------------------", full_path)
+
+            # Insert questions into the database
+            insertion_result = insert_questions(
+                json_file_path=full_path,
+                course_id=course_id,
+                module_ids=[module_id],
+                db_url=db_url
+            )
+
+            result["questions_inserted"].append({
+                "module_id": module_id,
+                "file": json_file,
+                "status": "Inserted Successfully" if insertion_result.get("success") else "Failed"
+            })
+
+        return jsonify({
+            "success": True,
+            "message": "✅ Questions inserted, transcripts and summaries generated.",
+            "video_data": video_data,
+            "messages": result["messages"],
+            "questions_inserted": result["questions_inserted"]
+        })
+
+    except Exception as e:
+        print(f"🔥 Error: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+if __name__ == "__main__":
+    app.run(debug=True, port=5001)

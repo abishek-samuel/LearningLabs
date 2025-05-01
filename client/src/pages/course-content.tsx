@@ -7,14 +7,20 @@ import { ModuleAssessment } from "@/components/dashboard/module-assessment";
 import { CourseLessonResources } from "@/components/dashboard/course-lesson-resources";
 import { ModuleAssessmentStatus } from "@/components/dashboard/module-assessment-status";
 
-function TakeAssessmentTrigger({ moduleId, onClick }: { moduleId: number, onClick: () => void }) {
+function TakeAssessmentTrigger({
+  moduleId,
+  onClick,
+}: {
+  moduleId: number;
+  onClick: () => void;
+}) {
   const [questionCount, setQuestionCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
     fetch(`/api/modules/${moduleId}/questions`)
-      .then(res => res.ok ? res.json() : [])
+      .then((res) => (res.ok ? res.json() : []))
       .then((questions: any[]) => {
         setQuestionCount(Array.isArray(questions) ? questions.length : 0);
         setLoading(false);
@@ -39,13 +45,42 @@ function TakeAssessmentTrigger({ moduleId, onClick }: { moduleId: number, onClic
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { useLocation, Link, useSearch } from "wouter";
-import { ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, MessageSquare, Clock, Download, BookOpen, HelpCircle, PlayCircle, ClipboardCheck, FileText, Loader2, PanelLeftClose, PanelRightOpen } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  MessageSquare,
+  Clock,
+  Download,
+  BookOpen,
+  HelpCircle,
+  PlayCircle,
+  ClipboardCheck,
+  FileText,
+  Loader2,
+  PanelLeftClose,
+  PanelRightOpen,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -56,8 +91,23 @@ type Instructor = {
   lastName?: string | null;
   profilePicture?: string | null;
 };
-type Lesson = { id: number; title: string; content?: string | null; videoUrl?: string | null; duration?: number | null; position: number; type?: string; completed?: boolean; };
-type Module = { id: number; title: string; description?: string | null; lessons: Lesson[]; position: number; };
+type Lesson = {
+  id: number;
+  title: string;
+  content?: string | null;
+  videoUrl?: string | null;
+  duration?: number | null;
+  position: number;
+  type?: string;
+  completed?: boolean;
+};
+type Module = {
+  id: number;
+  title: string;
+  description?: string | null;
+  lessons: Lesson[];
+  position: number;
+};
 type Course = {
   id: number;
   title: string;
@@ -68,13 +118,27 @@ type Course = {
   difficulty?: string | null;
   updatedAt: string;
 };
-type LessonProgress = { lessonId: number; status: string; };
+type LessonProgress = { lessonId: number; status: string };
 
 import { useQuery } from "@tanstack/react-query";
 
 // AssessmentLessonWrapper: Handles display of assessment result and retake logic
-function AssessmentLessonWrapper({ moduleId, lessonId, userId }: { moduleId: number; lessonId: number; userId?: number }) {
-  const [latestAttempt, setLatestAttempt] = useState<{ id: number; score: number; passed: boolean; status: string; completedAt: string | null } | null>(null);
+function AssessmentLessonWrapper({
+  moduleId,
+  lessonId,
+  userId,
+}: {
+  moduleId: number;
+  lessonId: number;
+  userId?: number;
+}) {
+  const [latestAttempt, setLatestAttempt] = useState<{
+    id: number;
+    score: number;
+    passed: boolean;
+    status: string;
+    completedAt: string | null;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [retake, setRetake] = useState(false);
 
@@ -82,8 +146,8 @@ function AssessmentLessonWrapper({ moduleId, lessonId, userId }: { moduleId: num
     if (!userId) return;
     setLoading(true);
     fetch(`/api/modules/${moduleId}/assessment-attempts/me`)
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
         setLatestAttempt(data);
         setLoading(false);
       })
@@ -105,12 +169,21 @@ function AssessmentLessonWrapper({ moduleId, lessonId, userId }: { moduleId: num
   if (latestAttempt && latestAttempt.passed && !retake) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <div className="text-2xl font-bold text-green-600 dark:text-green-400 mb-2">Assessment Passed</div>
-        <div className="text-lg mb-2">Score: <span className="font-semibold">{latestAttempt.score}%</span></div>
-        <div className="mb-4 text-slate-500 dark:text-slate-400">Completed at: {latestAttempt.completedAt ? new Date(latestAttempt.completedAt).toLocaleString() : "N/A"}</div>
-        <Button variant="default" onClick={() => setRetake(true)}>
+        <div className="text-2xl font-bold text-green-600 dark:text-green-400 mb-2">
+          Assessment Passed
+        </div>
+        <div className="text-lg mb-2">
+          Score: <span className="font-semibold">{latestAttempt.score}%</span>
+        </div>
+        <div className="mb-4 text-slate-500 dark:text-slate-400">
+          Completed at:{" "}
+          {latestAttempt.completedAt
+            ? new Date(latestAttempt.completedAt).toLocaleString()
+            : "N/A"}
+        </div>
+        {/* <Button variant="default" onClick={() => setRetake(true)}>
           Retake Test
-        </Button>
+        </Button> */}
       </div>
     );
   }
@@ -125,8 +198,8 @@ function AssessmentLessonWrapper({ moduleId, lessonId, userId }: { moduleId: num
         setTimeout(() => {
           setLoading(true);
           fetch(`/api/modules/${moduleId}/assessment-attempts/me`)
-            .then(res => res.ok ? res.json() : null)
-            .then(data => {
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => {
               setLatestAttempt(data);
               setLoading(false);
             })
@@ -138,8 +211,12 @@ function AssessmentLessonWrapper({ moduleId, lessonId, userId }: { moduleId: num
 }
 
 export default function CourseContent() {
-  const [activeAssessmentModuleId, setActiveAssessmentModuleId] = useState<number | null>(null);
-  const [assessmentCompletionMap, setAssessmentCompletionMap] = useState<Record<number, boolean>>({});
+  const [activeAssessmentModuleId, setActiveAssessmentModuleId] = useState<
+    number | null
+  >(null);
+  const [assessmentCompletionMap, setAssessmentCompletionMap] = useState<
+    Record<number, boolean>
+  >({});
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
@@ -149,8 +226,8 @@ export default function CourseContent() {
     try {
       const res = await fetch(`/api/comments?lessonId=${lessonId}`, {
         headers: {
-          'Authorization': `Bearer ${user?.token}`, // Add auth header
-        }
+          Authorization: `Bearer ${user?.token}`, // Add auth header
+        },
       });
       if (!res.ok) throw new Error("Failed to fetch comments");
       const data = await res.json();
@@ -166,8 +243,8 @@ export default function CourseContent() {
       const res = await fetch("/api/comments", {
         method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user?.token}` // Use the token from auth context
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user?.token}`, // Use the token from auth context
         },
         body: JSON.stringify({
           lessonId: currentLesson.id,
@@ -226,7 +303,9 @@ export default function CourseContent() {
   const [currentModule, setCurrentModule] = useState<Module | null>(null);
   const [currentLesson, setCurrentLesson] = useState<Lesson | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [lessonProgressMap, setLessonProgressMap] = useState<Record<number, boolean>>({});
+  const [lessonProgressMap, setLessonProgressMap] = useState<
+    Record<number, boolean>
+  >({});
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   // Get IDs from URL query parameters using useSearch
@@ -239,8 +318,12 @@ export default function CourseContent() {
   useEffect(() => {
     const fetchCourseData = async () => {
       if (!courseId) {
-        toast({ title: "Error", description: "Course ID missing.", variant: "destructive" });
-        setLocation('/course-catalog');
+        toast({
+          title: "Error",
+          description: "Course ID missing.",
+          variant: "destructive",
+        });
+        setLocation("/course-catalog");
         return;
       }
       setIsLoading(true);
@@ -253,41 +336,67 @@ export default function CourseContent() {
         const data: Course = await response.json();
 
         data.modules?.sort((a, b) => a.position - b.position);
-        data.modules?.forEach(m => m.lessons?.sort((a, b) => a.position - b.position));
+        data.modules?.forEach((m) =>
+          m.lessons?.sort((a, b) => a.position - b.position)
+        );
 
         setCourse(data);
 
-        const initialModuleId = currentModuleIdParam ? parseInt(currentModuleIdParam, 10) : data.modules?.[0]?.id;
-        const initialLessonId = currentLessonIdParam ? parseInt(currentLessonIdParam, 10) : data.modules?.[0]?.lessons?.[0]?.id;
+        const initialModuleId = currentModuleIdParam
+          ? parseInt(currentModuleIdParam, 10)
+          : data.modules?.[0]?.id;
+        const initialLessonId = currentLessonIdParam
+          ? parseInt(currentLessonIdParam, 10)
+          : data.modules?.[0]?.lessons?.[0]?.id;
 
-        const initialModule = data.modules?.find(m => m.id === initialModuleId);
+        const initialModule = data.modules?.find(
+          (m) => m.id === initialModuleId
+        );
         const moduleToSearchIn = initialModule || data.modules?.[0];
-        const initialLesson = moduleToSearchIn?.lessons?.find(l => l.id === initialLessonId);
+        const initialLesson = moduleToSearchIn?.lessons?.find(
+          (l) => l.id === initialLessonId
+        );
 
         setCurrentModule(initialModule || data.modules?.[0] || null);
-        setCurrentLesson(initialLesson || moduleToSearchIn?.lessons?.[0] || null);
+        setCurrentLesson(
+          initialLesson || moduleToSearchIn?.lessons?.[0] || null
+        );
 
         if (user?.id) {
           try {
-            const progressResponse = await fetch(`/api/courses/${courseId}/progress`);
+            const progressResponse = await fetch(
+              `/api/courses/${courseId}/progress`
+            );
             if (progressResponse.ok) {
-              const progressData: LessonProgress[] = await progressResponse.json();
-              const progressMap = progressData.reduce((acc: Record<number, boolean>, p) => {
-                acc[p.lessonId] = p.status === 'completed';
-                return acc;
-              }, {});
+              const progressData: LessonProgress[] =
+                await progressResponse.json();
+              const progressMap = progressData.reduce(
+                (acc: Record<number, boolean>, p) => {
+                  acc[p.lessonId] = p.status === "completed";
+                  return acc;
+                },
+                {}
+              );
               setLessonProgressMap(progressMap);
             } else {
-              console.error("Failed to fetch lesson progress:", progressResponse.statusText);
+              console.error(
+                "Failed to fetch lesson progress:",
+                progressResponse.statusText
+              );
             }
           } catch (progressError) {
             console.error("Error fetching lesson progress:", progressError);
           }
         }
-
       } catch (error) {
         console.error("Failed to fetch course data:", error);
-        toast({ title: "Error", description: `Could not load course: ${error instanceof Error ? error.message : 'Unknown error'}`, variant: "destructive" });
+        toast({
+          title: "Error",
+          description: `Could not load course: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`,
+          variant: "destructive",
+        });
         setCourse(null);
       } finally {
         setIsLoading(false);
@@ -303,10 +412,12 @@ export default function CourseContent() {
     const newModuleId = parseInt(queryParams.get("moduleId") || "0", 10);
     const newLessonId = parseInt(queryParams.get("lessonId") || "0", 10);
 
-    const targetModule = course.modules?.find(m => m.id === newModuleId);
+    const targetModule = course.modules?.find((m) => m.id === newModuleId);
     const finalModule = targetModule || course.modules?.[0];
 
-    const targetLesson = finalModule?.lessons?.find(l => l.id === newLessonId);
+    const targetLesson = finalModule?.lessons?.find(
+      (l) => l.id === newLessonId
+    );
     const finalLesson = targetLesson || finalModule?.lessons?.[0];
 
     if (finalModule && finalLesson) {
@@ -322,10 +433,9 @@ export default function CourseContent() {
     }
   }, [currentLesson?.id]);
 
-
   // Calculate navigation links
-  const allLessons = (
-    course?.modules.flatMap(m =>
+  const allLessons =
+    course?.modules.flatMap((m) =>
       [...m.lessons]
         .slice()
         .sort((a, b) => {
@@ -333,18 +443,28 @@ export default function CourseContent() {
           if (a.position !== -1 && b.position === -1) return -1;
           return (a.position ?? 0) - (b.position ?? 0);
         })
-        .map(l => ({ ...l, moduleId: m.id }))
-    ) || []
+        .map((l) => ({ ...l, moduleId: m.id }))
+    ) || [];
+  const filteredLessons = allLessons.filter(
+    (l) => !l.title.toLowerCase().includes("certificate")
   );
-  const filteredLessons = allLessons.filter(l => !l.title.toLowerCase().includes("certificate"));
-  const currentLessonIndex = allLessons.findIndex(l => l.moduleId === currentModule?.id && l.id === currentLesson?.id);
-  const previousLesson = currentLessonIndex > 0 ? allLessons[currentLessonIndex - 1] : null;
-  const nextLesson = currentLessonIndex < allLessons.length - 1 ? allLessons[currentLessonIndex + 1] : null;
+  const currentLessonIndex = allLessons.findIndex(
+    (l) => l.moduleId === currentModule?.id && l.id === currentLesson?.id
+  );
+  const previousLesson =
+    currentLessonIndex > 0 ? allLessons[currentLessonIndex - 1] : null;
+  const nextLesson =
+    currentLessonIndex < allLessons.length - 1
+      ? allLessons[currentLessonIndex + 1]
+      : null;
 
   // Calculate completion statistics excluding dummy lesson
   const totalLessons = filteredLessons.length;
-  const completedLessons = filteredLessons.filter(l => lessonProgressMap[l.id]).length;
-  const progressPercentage = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+  const completedLessons = filteredLessons.filter(
+    (l) => lessonProgressMap[l.id]
+  ).length;
+  const progressPercentage =
+    totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
 
   const handleMarkComplete = async () => {
     if (!currentLesson || !user) return;
@@ -353,25 +473,26 @@ export default function CourseContent() {
     // const previousProgress = { ...lessonProgressMap };
     // setLessonProgressMap(prev => ({ ...prev, [currentLesson.id!]: true }));
 
-    console.log(`Marking lesson ${currentLesson.id} as complete`);
     try {
       const response = await fetch(`/api/lesson-progress`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           // userId: user.id, // Backend should get user ID from session/auth
           lessonId: currentLesson.id,
-          status: 'completed'
-        })
+          status: "completed",
+        }),
       });
 
       if (!response.ok) {
         const errorData = await response.text(); // Get more error details
-        throw new Error(`Failed to update progress: ${response.status} ${response.statusText} - ${errorData}`);
+        throw new Error(
+          `Failed to update progress: ${response.status} ${response.statusText} - ${errorData}`
+        );
       }
 
       // Update local state *after* successful API call (if not doing optimistic update)
-      setLessonProgressMap(prev => ({ ...prev, [currentLesson.id]: true }));
+      setLessonProgressMap((prev) => ({ ...prev, [currentLesson.id]: true }));
 
       toast({
         title: "Lesson marked as complete",
@@ -390,34 +511,53 @@ export default function CourseContent() {
       console.error("Failed to mark lesson complete:", error);
       toast({
         title: "Error",
-        description: `Could not update progress: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        description: `Could not update progress: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
         variant: "destructive",
       });
     }
   };
 
-  const navigateToLesson = (moduleId: number | undefined, lessonId: number | undefined) => {
-    if (courseId && typeof moduleId === 'number' && typeof lessonId === 'number') {
-      setLocation(`/course-content?id=${courseId}&moduleId=${moduleId}&lessonId=${lessonId}`);
+  const navigateToLesson = (
+    moduleId: number | undefined,
+    lessonId: number | undefined
+  ) => {
+    if (
+      courseId &&
+      typeof moduleId === "number" &&
+      typeof lessonId === "number"
+    ) {
+      setLocation(
+        `/course-content?id=${courseId}&moduleId=${moduleId}&lessonId=${lessonId}`
+      );
     } else {
-      console.warn("Navigation cancelled: Missing required IDs", { courseId, moduleId, lessonId });
+      console.warn("Navigation cancelled: Missing required IDs", {
+        courseId,
+        moduleId,
+        lessonId,
+      });
       toast({
         title: "Navigation Info",
         description: "Cannot navigate, missing information.",
-        variant: "default"
+        variant: "default",
       });
     }
   };
 
   const getLessonIcon = (lesson: Lesson) => {
-    const isCertificateLesson = lesson.title.toLowerCase().includes("certificate");
+    const isCertificateLesson = lesson.title
+      .toLowerCase()
+      .includes("certificate");
     let iconColor = "text-slate-400";
 
     if (isCertificateLesson) {
       const hasCert = certificates.some((c) => c.courseId === course?.id);
       iconColor = hasCert ? "text-green-500" : "text-slate-400";
     } else {
-      const isCompleted = lesson.id ? lessonProgressMap[lesson.id] ?? false : false;
+      const isCompleted = lesson.id
+        ? lessonProgressMap[lesson.id] ?? false
+        : false;
       iconColor = isCompleted ? "text-green-500" : "text-slate-400";
     }
 
@@ -433,7 +573,10 @@ export default function CourseContent() {
         <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">
           <Skeleton className="h-6 w-48 mb-6" />
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            <div className="lg:col-span-1"> <Skeleton className="h-[600px] w-full rounded-lg" /> </div>
+            <div className="lg:col-span-1">
+              {" "}
+              <Skeleton className="h-[600px] w-full rounded-lg" />{" "}
+            </div>
             <div className="lg:col-span-3 space-y-4">
               <Skeleton className="h-10 w-3/4" />
               <Skeleton className="h-6 w-1/2" />
@@ -451,11 +594,20 @@ export default function CourseContent() {
       <MainLayout>
         <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto text-center">
           <HelpCircle className="mx-auto h-12 w-12 text-slate-400 mb-4" />
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Content Not Found</h1>
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-200">
+            Content Not Found
+          </h1>
           <p className="mt-2 text-slate-500 dark:text-slate-400">
-            {!courseId ? "No course ID provided." : !course ? "The course could not be loaded." : "The selected module or lesson could not be found."}
+            {!courseId
+              ? "No course ID provided."
+              : !course
+              ? "The course could not be loaded."
+              : "The selected module or lesson could not be found."}
           </p>
-          <Button onClick={() => setLocation('/course-catalog')} className="mt-6">
+          <Button
+            onClick={() => setLocation("/course-catalog")}
+            className="mt-6"
+          >
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Catalog
           </Button>
         </div>
@@ -463,7 +615,9 @@ export default function CourseContent() {
     );
   }
 
-  const isLessonCompleted = currentLesson.id ? lessonProgressMap[currentLesson.id] ?? false : false;
+  const isLessonCompleted = currentLesson.id
+    ? lessonProgressMap[currentLesson.id] ?? false
+    : false;
 
   return (
     <MainLayout>
@@ -477,7 +631,11 @@ export default function CourseContent() {
               className="lg:hidden"
               aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
             >
-              {isSidebarOpen ? <PanelLeftClose className="h-5 w-5" /> : <PanelRightOpen className="h-5 w-5" />}
+              {isSidebarOpen ? (
+                <PanelLeftClose className="h-5 w-5" />
+              ) : (
+                <PanelRightOpen className="h-5 w-5" />
+              )}
             </Button>
             <Link href={`/course-detail/${courseId}`}>
               <a className="flex items-center text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors">
@@ -493,29 +651,53 @@ export default function CourseContent() {
 
       <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 max-w-7xl mx-auto">
-          <aside className={cn(
-            "lg:col-span-1 transition-transform duration-300 ease-in-out lg:translate-x-0",
-            isSidebarOpen ? "translate-x-0" : "-translate-x-full absolute lg:static"
-          )}>
+          <aside
+            className={cn(
+              "lg:col-span-1 transition-transform duration-300 ease-in-out lg:translate-x-0",
+              isSidebarOpen
+                ? "translate-x-0"
+                : "-translate-x-full absolute lg:static"
+            )}
+          >
             <div className="lg:sticky lg:top-[70px] space-y-6 max-h-[calc(100vh-90px)] overflow-y-auto pr-2 custom-scrollbar">
               <Card>
                 <CardHeader className="p-4">
-                  <CardTitle className="text-lg line-clamp-2">{course.title}</CardTitle>
+                  <CardTitle className="text-lg line-clamp-2">
+                    {course.title}
+                  </CardTitle>
                   <div className="mt-2">
                     <div className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
                       {progressPercentage}% Complete
                     </div>
-                    <span id="progress-label" className="sr-only">Course completion progress</span>
-                    <Progress value={progressPercentage} className="h-2 w-full" aria-labelledby="progress-label" />
+                    <span id="progress-label" className="sr-only">
+                      Course completion progress
+                    </span>
+                    <Progress
+                      value={progressPercentage}
+                      className="h-2 w-full"
+                      aria-labelledby="progress-label"
+                    />
                   </div>
                 </CardHeader>
                 <CardContent className="p-0">
-                  <Accordion type="multiple" defaultValue={currentModule?.id ? [`module-${currentModule.id}`] : []} className="w-full">
+                  <Accordion
+                    type="multiple"
+                    defaultValue={
+                      currentModule?.id ? [`module-${currentModule.id}`] : []
+                    }
+                    className="w-full"
+                  >
                     {course.modules.map((module) => (
-                      <AccordionItem key={module.id} value={`module-${module.id}`} className="border-b dark:border-slate-700 last:border-b-0">
+                      <AccordionItem
+                        key={module.id}
+                        value={`module-${module.id}`}
+                        className="border-b dark:border-slate-700 last:border-b-0"
+                      >
                         <AccordionTrigger className="px-4 py-3 text-sm hover:bg-slate-50 dark:hover:bg-slate-800/50 [&[data-state=open]]:bg-slate-100 dark:[&[data-state=open]]:bg-slate-800 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none rounded-t-md">
                           <div className="text-left flex-grow mr-2">
-                            <div className="font-medium leading-snug">{module.title}</div>
+                            <div className="font-medium leading-snug">
+                              {module.title}
+                            </div>
                             <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                               {module.lessons?.length || 0} lessons
                             </div>
@@ -526,8 +708,10 @@ export default function CourseContent() {
                             {[...module.lessons]
                               .slice()
                               .sort((a, b) => {
-                                if (a.position === -1 && b.position !== -1) return 1;
-                                if (a.position !== -1 && b.position === -1) return -1;
+                                if (a.position === -1 && b.position !== -1)
+                                  return 1;
+                                if (a.position !== -1 && b.position === -1)
+                                  return -1;
                                 return (a.position ?? 0) - (b.position ?? 0);
                               })
                               .map((lesson) => (
@@ -537,27 +721,44 @@ export default function CourseContent() {
                                     setActiveAssessmentModuleId(null);
                                     navigateToLesson(module.id, lesson.id);
                                   }}
-                                  disabled={module.id === currentModule?.id && lesson.id === currentLesson?.id}
-                                  className={cn(`w-full px-4 py-3 text-left flex items-center gap-2 text-sm transition-colors focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none`,
-                                    module.id === currentModule?.id && lesson.id === currentLesson?.id
+                                  disabled={
+                                    module.id === currentModule?.id &&
+                                    lesson.id === currentLesson?.id
+                                  }
+                                  className={cn(
+                                    `w-full px-4 py-3 text-left flex items-center gap-2 text-sm transition-colors focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none`,
+                                    module.id === currentModule?.id &&
+                                      lesson.id === currentLesson?.id
                                       ? "bg-slate-100 dark:bg-slate-800 font-semibold text-slate-900 dark:text-slate-100 cursor-default"
                                       : "hover:bg-slate-50 dark:hover:bg-slate-800/50 text-slate-700 dark:text-slate-300"
                                   )}
-                                  aria-current={module.id === currentModule?.id && lesson.id === currentLesson?.id ? "page" : undefined}
+                                  aria-current={
+                                    module.id === currentModule?.id &&
+                                    lesson.id === currentLesson?.id
+                                      ? "page"
+                                      : undefined
+                                  }
                                 >
                                   {getLessonIcon(lesson)}
                                   <div className="flex-grow min-w-0">
-                                    <div className="line-clamp-1">{lesson.title}</div>
+                                    <div className="line-clamp-1">
+                                      {lesson.title}
+                                    </div>
                                     {lesson.duration && (
                                       <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                                         <Clock className="inline h-3 w-3 mr-1" />
-                                        {`${Math.floor(lesson.duration / 60)}m ${(lesson.duration % 60).toString()}s`}
+                                        {`${Math.floor(
+                                          lesson.duration / 60
+                                        )}m ${(
+                                          lesson.duration % 60
+                                        ).toString()}s`}
                                       </div>
                                     )}
                                   </div>
-                                  {lesson.id && lessonProgressMap[lesson.id] && (
-                                    <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
-                                  )}
+                                  {lesson.id &&
+                                    lessonProgressMap[lesson.id] && (
+                                      <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                    )}
                                 </button>
                               ))}
                           </div>
@@ -580,7 +781,11 @@ export default function CourseContent() {
             </div>
           </aside>
 
-          <main className={`space-y-6 ${isSidebarOpen ? "lg:col-span-3" : "lg:col-span-4"}`}>
+          <main
+            className={`space-y-6 ${
+              isSidebarOpen ? "lg:col-span-3" : "lg:col-span-4"
+            }`}
+          >
             <Card>
               <CardHeader className="pb-4">
                 <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
@@ -588,13 +793,20 @@ export default function CourseContent() {
                     <div className="text-sm font-medium text-blue-600 dark:text-blue-400 mb-1">
                       {currentModule.title}
                     </div>
-                    <CardTitle className="text-xl lg:text-2xl">{currentLesson.title}</CardTitle>
+                    <CardTitle className="text-xl lg:text-2xl">
+                      {currentLesson.title}
+                    </CardTitle>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0 mt-2 md:mt-0">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => navigateToLesson(previousLesson?.moduleId, previousLesson?.id)}
+                      onClick={() =>
+                        navigateToLesson(
+                          previousLesson?.moduleId,
+                          previousLesson?.id
+                        )
+                      }
                       disabled={!previousLesson}
                       aria-label="Previous lesson"
                     >
@@ -604,7 +816,9 @@ export default function CourseContent() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => navigateToLesson(nextLesson?.moduleId, nextLesson?.id)}
+                      onClick={() =>
+                        navigateToLesson(nextLesson?.moduleId, nextLesson?.id)
+                      }
                       disabled={!nextLesson}
                       aria-label="Next lesson"
                     >
@@ -622,10 +836,16 @@ export default function CourseContent() {
                     lessonId={currentLesson.id}
                     userId={user?.id}
                   />
-                ) : currentLesson.title.toLowerCase().includes("certificate") ? (
+                ) : currentLesson.title
+                    .toLowerCase()
+                    .includes("certificate") ? (
                   <div className="p-6 text-center flex flex-col items-center gap-4">
-                    <h2 className="text-2xl font-bold text-green-600 dark:text-green-400">Congratulations!</h2>
-                    <p className="text-slate-600 dark:text-slate-300">You have completed the course.</p>
+                    <h2 className="text-2xl font-bold text-green-600 dark:text-green-400">
+                      Congratulations!
+                    </h2>
+                    <p className="text-slate-600 dark:text-slate-300">
+                      You have completed the course.
+                    </p>
                     <Button
                       variant="default"
                       disabled={
@@ -634,14 +854,24 @@ export default function CourseContent() {
                       }
                       onClick={async () => {
                         try {
-                          const res = await fetch(`/api/certificates/${course?.id}`, {
-                            method: "POST",
-                          });
-                          if (!res.ok) throw new Error("Failed to generate certificate");
+                          const res = await fetch(
+                            `/api/certificates/${course?.id}`,
+                            {
+                              method: "POST",
+                            }
+                          );
+                          if (!res.ok)
+                            throw new Error("Failed to generate certificate");
                           const data = await res.json();
-                          alert(`Certificate generated! ID: ${data.certificateId}`);
-                          const { queryClient } = await import("@/lib/queryClient");
-                          queryClient.invalidateQueries({ queryKey: ["/api/certificates-user"] });
+                          alert(
+                            `Certificate generated! ID: ${data.certificateId}`
+                          );
+                          const { queryClient } = await import(
+                            "@/lib/queryClient"
+                          );
+                          queryClient.invalidateQueries({
+                            queryKey: ["/api/certificates-user"],
+                          });
                         } catch (err) {
                           console.error(err);
                           alert("Failed to generate certificate");
@@ -676,7 +906,11 @@ export default function CourseContent() {
                   <div className="p-4 sm:p-6 border-t dark:border-slate-700">
                     <Tabs defaultValue="overview" className="w-full">
                       <TabsList className="mb-4 grid grid-cols-2 sm:grid-cols-4 w-full sm:w-auto">
-                        {currentLesson.videoUrl && <TabsTrigger value="transcript">Transcript</TabsTrigger>}
+                        {currentLesson.videoUrl && (
+                          <TabsTrigger value="transcript">
+                            Transcript
+                          </TabsTrigger>
+                        )}
                         <TabsTrigger value="resources">Resources</TabsTrigger>
                         <TabsTrigger value="notes">My Notes</TabsTrigger>
                         <TabsTrigger value="discussion">Discussion</TabsTrigger>
@@ -685,20 +919,29 @@ export default function CourseContent() {
                         <TabsContent value="transcript">
                           <div className="prose dark:prose-invert max-w-none text-sm border rounded-md p-4 max-h-60 overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-slate-800/30">
                             {/* TODO: Fetch or display actual transcript */}
-                            <p className="text-slate-500 dark:text-slate-400 italic">Transcript currently unavailable.</p>
+                            <p className="text-slate-500 dark:text-slate-400 italic">
+                              Transcript currently unavailable.
+                            </p>
                           </div>
                         </TabsContent>
                       )}
 
                       <TabsContent value="resources">
                         <div className="space-y-3 mt-4">
-                          <h3 className="text-base font-medium">Lesson Resources</h3>
+                          <h3 className="text-base font-medium">
+                            Lesson Resources
+                          </h3>
                           {currentLesson?.id && course?.id ? (
-                            <CourseLessonResources lessonId={currentLesson.id} courseId={course.id} />
+                            <CourseLessonResources
+                              lessonId={currentLesson.id}
+                              courseId={course.id}
+                            />
                           ) : (
                             <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 border rounded-md p-3 bg-slate-50 dark:bg-slate-800/30">
                               <Download className="h-4 w-4" />
-                              <span>No resources attached to this lesson yet.</span>
+                              <span>
+                                No resources attached to this lesson yet.
+                              </span>
                             </div>
                           )}
                         </div>
@@ -712,12 +955,15 @@ export default function CourseContent() {
                               className="w-full h-36 p-3 bg-transparent resize-none focus:outline-none text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500"
                               placeholder="Take notes on this lesson here..."
                               aria-label="Lesson notes"
-                            // TODO: Implement state and saving logic for notes
+                              // TODO: Implement state and saving logic for notes
                             ></textarea>
                           </div>
-                          <Button size="sm" disabled> {/* TODO: Enable when save logic exists */}
+                          <Button size="sm" disabled>
+                            {" "}
+                            {/* TODO: Enable when save logic exists */}
                             {/* TODO: Implement save logic */}
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin hidden" /> {/* Show loader on save */}
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin hidden" />{" "}
+                            {/* Show loader on save */}
                             Save Notes (Coming Soon)
                           </Button>
                         </div>
@@ -736,7 +982,11 @@ export default function CourseContent() {
                               value={newComment}
                               onChange={(e) => setNewComment(e.target.value)}
                             />
-                            <Button size="sm" onClick={handlePostComment} disabled={!newComment.trim()}>
+                            <Button
+                              size="sm"
+                              onClick={handlePostComment}
+                              disabled={!newComment.trim()}
+                            >
                               Post
                             </Button>
                           </div>
@@ -744,18 +994,29 @@ export default function CourseContent() {
                           {/* Comments list */}
                           <div className="space-y-4 mt-4 max-h-[60rem] overflow-y-auto custom-scrollbar">
                             {comments.map((comment) => (
-                              <div key={comment.id} className="border rounded p-3 bg-slate-50 dark:bg-slate-800/30">
+                              <div
+                                key={comment.id}
+                                className="border rounded p-3 bg-slate-50 dark:bg-slate-800/30"
+                              >
                                 <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
                                   <span>
-                                    {comment.user?.firstName || comment.user?.username || "User"}
+                                    {comment.user?.firstName ||
+                                      comment.user?.username ||
+                                      "User"}
                                   </span>
                                   <span>
-                                    {new Date(comment.createdAt).toLocaleString()}
+                                    {new Date(
+                                      comment.createdAt
+                                    ).toLocaleString()}
                                   </span>
                                 </div>
                                 <div className="text-sm">{comment.comment}</div>
                                 <div className="mt-2 flex gap-2">
-                                  <Button size="sm" variant="ghost" onClick={() => toggleReply(comment.id)}>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => toggleReply(comment.id)}
+                                  >
                                     Reply
                                   </Button>
                                 </div>
@@ -766,31 +1027,49 @@ export default function CourseContent() {
                                       placeholder="Write a reply..."
                                       className="flex-1 border rounded px-3 py-2 text-sm bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700"
                                       value={replyText}
-                                      onChange={(e) => setReplyText(e.target.value)}
+                                      onChange={(e) =>
+                                        setReplyText(e.target.value)
+                                      }
                                     />
-                                    <Button size="sm" onClick={() => handlePostReply(comment.id)} disabled={!replyText.trim()}>
+                                    <Button
+                                      size="sm"
+                                      onClick={() =>
+                                        handlePostReply(comment.id)
+                                      }
+                                      disabled={!replyText.trim()}
+                                    >
                                       Post
                                     </Button>
                                   </div>
                                 )}
                                 {/* Replies */}
-                                {comment.replies && comment.replies.length > 0 && (
-                                  <div className="mt-3 space-y-2 pl-4 border-l border-slate-200 dark:border-slate-700">
-                                    {comment.replies.map((reply: any) => (
-                                      <div key={reply.id} className="border rounded p-2 bg-slate-100 dark:bg-slate-800/50">
-                                        <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
-                                          <span>
-                                            {reply.user?.firstName || reply.user?.username || "User"}
-                                          </span>
-                                          <span>
-                                            {new Date(reply.createdAt).toLocaleString()}
-                                          </span>
+                                {comment.replies &&
+                                  comment.replies.length > 0 && (
+                                    <div className="mt-3 space-y-2 pl-4 border-l border-slate-200 dark:border-slate-700">
+                                      {comment.replies.map((reply: any) => (
+                                        <div
+                                          key={reply.id}
+                                          className="border rounded p-2 bg-slate-100 dark:bg-slate-800/50"
+                                        >
+                                          <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+                                            <span>
+                                              {reply.user?.firstName ||
+                                                reply.user?.username ||
+                                                "User"}
+                                            </span>
+                                            <span>
+                                              {new Date(
+                                                reply.createdAt
+                                              ).toLocaleString()}
+                                            </span>
+                                          </div>
+                                          <div className="text-sm">
+                                            {reply.comment}
+                                          </div>
                                         </div>
-                                        <div className="text-sm">{reply.comment}</div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
+                                      ))}
+                                    </div>
+                                  )}
                               </div>
                             ))}
                           </div>
@@ -807,18 +1086,31 @@ export default function CourseContent() {
                 <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
                   <HelpCircle className="h-4 w-4 flex-shrink-0" />
                   <span>
-                    Need help? <a href="#" className="text-blue-600 dark:text-blue-400 hover:underline">Contact instructor</a>
+                    Need help?{" "}
+                    <a
+                      href="#"
+                      className="text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      Contact instructor
+                    </a>
                   </span>
                 </div>
                 <div>
                   {/* Show Checkmark if completed, else show Button */}
-                  {currentLesson.type === "assessment" || currentLesson.title.toLowerCase().includes("certificate") ? null : isLessonCompleted ? (
+                  {currentLesson.type === "assessment" ||
+                  currentLesson.title
+                    .toLowerCase()
+                    .includes("certificate") ? null : isLessonCompleted ? (
                     <div className="flex items-center gap-2 text-green-600 dark:text-green-400 font-medium text-sm p-2 rounded-md bg-green-50 dark:bg-green-900/30">
                       <Check className="h-5 w-5" />
                       <span>Completed</span>
                     </div>
                   ) : (
-                    <Button variant="default" onClick={handleMarkComplete} disabled={isLoading}>
+                    <Button
+                      variant="default"
+                      onClick={handleMarkComplete}
+                      disabled={isLoading}
+                    >
                       <Check className="mr-2 h-4 w-4" />
                       Mark as Complete
                     </Button>
@@ -829,7 +1121,9 @@ export default function CourseContent() {
           </main>
         </div>
       </div>
-      <ChatbotWidget currentModuleId={currentModule?.id} />
+      {currentLesson.type !== "assessment" && (
+        <ChatbotWidget currentModuleId={currentModule?.id} />
+      )}
     </MainLayout>
   );
 }

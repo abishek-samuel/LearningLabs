@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export function ModuleAssessment({
   moduleId,
@@ -23,6 +24,8 @@ export function ModuleAssessment({
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [questionCount, setQuestionCount] = useState<number | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const { toast } = useToast();
 
   // Fetch question count to determine if assessment is available
   useEffect(() => {
@@ -37,7 +40,7 @@ export function ModuleAssessment({
         setQuestionCount(0);
         setLoading(false);
       });
-  }, [moduleId]);
+  }, [moduleId, refreshKey]);
 
   // Start assessment attempt on mount (if available)
   useEffect(() => {
@@ -65,7 +68,7 @@ export function ModuleAssessment({
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [moduleId, questionCount]);
+  }, [moduleId, questionCount, refreshKey]);
 
   const handleSelect = (questionId: number, option: string) => {
     setAnswers((prev) => ({ ...prev, [questionId]: option }));
@@ -73,6 +76,16 @@ export function ModuleAssessment({
 
   const handleSubmit = async () => {
     if (!attemptId) return;
+
+    const unansweredCount = questions.filter((q) => !answers[q.id]).length;
+    if (unansweredCount > 0) {
+      toast({
+        title: "Error",
+        description: "Please answer all questions before submitting.",
+        variant: "destructive",
+      });
+      return;
+    }
     setSubmitting(true);
     setError(null);
     const answerArray = questions.map((q) => ({
@@ -101,14 +114,19 @@ export function ModuleAssessment({
     }
   };
 
+  // const handleRetake = () => {
+  //   setAttemptId(null);
+  //   setQuestions([]);
+  //   setAnswers({});
+  //   setResult(null);
+  //   setError(null);
+  //   setLoading(true);
+  //   // setTimeout(() => setQuestionCount((c) => c), 10);
+  // };
+
   const handleRetake = () => {
-    setAttemptId(null);
-    setQuestions([]);
-    setAnswers({});
     setResult(null);
-    setError(null);
-    setLoading(true);
-    setTimeout(() => setQuestionCount((c) => c), 10);
+    setRefreshKey((prev) => prev + 1);
   };
 
   if (questionCount === null) {

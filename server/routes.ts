@@ -1021,7 +1021,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             course_id: courseId,
           });
         } catch (error) {
-          console.log(err);
+          console.log(error);
         }
       } catch (error) {
         // if (error instanceof z.ZodError) { ... }
@@ -1523,20 +1523,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req, res) => {
       try {
         const attemptId = parseInt(req.params.id);
+
         if (isNaN(attemptId)) {
           return res.status(400).json({ message: "Invalid attempt ID" });
         }
+
         const attempt = await storage.prisma.assessmentAttempt.findUnique({
           where: { id: attemptId },
         });
+
         if (!attempt) {
           return res
             .status(404)
             .json({ message: "Assessment attempt not found" });
         }
+
         if (attempt.userId !== req.user!.id) {
           return res.status(403).json({ message: "Forbidden" });
         }
+
         if (
           attempt.status === "completed" ||
           attempt.status === "passed" ||
@@ -1544,25 +1549,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ) {
           return res.status(400).json({ message: "Attempt already completed" });
         }
+
         const { answers } = req.body; // Array of {questionId, selectedOption}
-        if (!Array.isArray(answers) || answers.length <= 1) {
-          return res.status(400).json({ message: "Must submit 1 answers" });
+
+        if (!Array.isArray(answers) || answers.length < 1) {
+          return res.status(400).json({ message: "Must submit 1 answer" });
         }
+
         // Fetch the questions for this attempt
         const questionIds = attempt.questionIds as number[] | undefined;
-        if (!questionIds || questionIds.length !== 1) {
+
+        if (!questionIds || questionIds.length === 0) {
           return res
             .status(400)
             .json({ message: "Invalid question set for attempt" });
         }
+
         const questions = await storage.prisma.question.findMany({
           where: { id: { in: questionIds } },
         });
+
         // Score the answers
         let correct = 0;
         const answerResults = answers.map((ans: any) => {
           const q = questions.find((q) => q.id === ans.questionId);
-          const isCorrect = q && ans.selectedOption === q.correctAnswer;
+
+          // const isCorrect =
+          //   q &&
+          //   ans.selectedOption.trim().toLowerCase() ===
+          //     q.correctAnswer.trim().toLowerCase();
+
+          const isCorrect =
+            q &&
+            ans.selectedOption.trim().toLowerCase() ===
+              q.options[`option${q.correctAnswer.replace("option", "")}`]
+                .trim()
+                .toLowerCase();
+
           if (isCorrect) correct++;
           return {
             questionId: ans.questionId,
@@ -1570,8 +1593,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             isCorrect,
           };
         });
-        const score = Math.round((correct / 10) * 100);
+        const totalQuestions = questions.length;
+        const score = Math.round((correct / totalQuestions) * 100);
         const passed = score >= 80;
+
         // Update attempt
         await storage.prisma.assessmentAttempt.update({
           where: { id: attemptId },
@@ -1593,6 +1618,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               type: "assessment",
             },
           });
+
           if (assessmentLesson) {
             // Check if a lesson progress record exists
             const existingProgress =
@@ -1602,6 +1628,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   lessonId: assessmentLesson.id,
                 },
               });
+
             if (existingProgress) {
               await storage.prisma.lessonProgress.update({
                 where: { id: existingProgress.id },
@@ -1623,6 +1650,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const module = await storage.prisma.module.findUnique({
             where: { id: attempt.moduleId },
           });
+
           if (module) {
             const courseId = module.courseId;
             // Get all modules for the course
@@ -1630,6 +1658,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               where: { courseId },
             });
             const allModuleIds = allModules.map((m) => m.id);
+
             // For each module, check if the user has a passed attempt
             let allPassed = true;
             for (const modId of allModuleIds) {
@@ -1646,11 +1675,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 break;
               }
             }
+
             // If all passed, update enrollment progress to 100%
             if (allPassed) {
               const enrollment = await storage.prisma.enrollment.findFirst({
                 where: { userId: req.user!.id, courseId },
               });
+              console.log(" found:", enrollment); // <-- Log enrollment record
+
               if (enrollment) {
                 await storage.prisma.enrollment.update({
                   where: { id: enrollment.id },
@@ -1661,9 +1693,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
-        res.json({ score, passed, correct, total: 10 });
+        res.json({ score, passed, correct, total: totalQuestions });
       } catch (error) {
-        console.error("Error submitting assessment attempt:", error);
         res.status(500).json({ message: "Internal server error" });
       }
     }

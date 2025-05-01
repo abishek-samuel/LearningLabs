@@ -6,3 +6,10 @@ vite.config.ts.*
 *.tar.gz
 uploads
 .env
+package-lock.json
+Python_code\__pycache__
+Python_code/generated_questions
+Python_code/module_summaries
+Python_code/video_summaries
+Python_code/module_transcripts
+Python_code/video_transcripts
