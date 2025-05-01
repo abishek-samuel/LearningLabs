@@ -8,6 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 // Define the schema for course data
 const courseFormSchema = z.object({
@@ -30,6 +32,12 @@ interface CourseFormProps {
 }
 
 export function CourseForm({ initialData, onSubmit, isSubmitting }: CourseFormProps) {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
+  }, []);
+
   const { data: categories } = useQuery({
     queryKey: ['/api/categories'],
     queryFn: async () => {

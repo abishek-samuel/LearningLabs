@@ -161,13 +161,14 @@ export default function CategoryManagement() {
   return (
     <MainLayout>
       <div className="bg-white dark:bg-slate-900 shadow">
-        <div className="px-4 sm:px-6 lg:px-8 py-6 flex justify-between items-center flex-wrap gap-4">
+        <div className="px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <h1 className="text-2xl font-bold leading-7 text-slate-900 dark:text-white">
             Category Management
           </h1>
-          <div className="flex gap-4">
+
+          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
             <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
-              <SelectTrigger className="w-[200px]">
+              <SelectTrigger className="w-full sm:w-[200px]">
                 <SelectValue placeholder="Select Category" />
               </SelectTrigger>
               <SelectContent>
@@ -182,7 +183,7 @@ export default function CategoryManagement() {
 
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
-                <Button>
+                <Button className="w-full sm:w-auto">
                   <Plus className="mr-2 h-4 w-4" /> Add Category
                 </Button>
               </DialogTrigger>
@@ -196,7 +197,7 @@ export default function CategoryManagement() {
                     value={newCategory}
                     onChange={(e) => {
                       setNewCategory(e.target.value);
-                      if (createCategoryError) setCreateCategoryError(''); // clear error on change
+                      if (createCategoryError) setCreateCategoryError('');
                     }}
                     className={createCategoryError ? "border-red-500" : ""}
                   />
@@ -212,6 +213,7 @@ export default function CategoryManagement() {
           </div>
         </div>
       </div>
+
 
       <div className="px-4 sm:px-6 lg:px-8 py-8">
         {filteredCategories.length === 0 ? (

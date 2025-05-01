@@ -11,6 +11,8 @@
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
+    "@azure/msal-browser": "^4.11.0",
+    "@azure/msal-react": "^3.0.10",
     "@headlessui/react": "^2.2.1",
     "@hookform/resolvers": "^3.9.1",
     "@jridgewell/trace-mapping": "^0.3.25",

@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/select";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 
 export default function AccessControl() {
@@ -50,6 +50,13 @@ export default function AccessControl() {
   const [selectedUserOrGroup, setSelectedUserOrGroup] = useState("");
   const [assignmentType, setAssignmentType] = useState("user");
 
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/course-access"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/groups"] });
+  }, []);
+
   const { data: courseAccess, isLoading: isLoadingAccess } = useQuery({
     queryKey: ["course-access"],
     queryFn: async () => {
@@ -58,6 +65,7 @@ export default function AccessControl() {
       return response.json();
     },
   });
+
 
   const { data: courses } = useQuery({
     queryKey: ["courses"],

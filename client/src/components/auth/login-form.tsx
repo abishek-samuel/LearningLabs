@@ -14,14 +14,16 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Loader2, Mail, Lock, Eye, EyeOff, Mic } from "lucide-react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 import { jwtDecode } from "jwt-decode";
+import { useMsal } from "@azure/msal-react";
+import { useErrorHandler } from "@/hooks/use-error-handler";
+
 const clientId =
   "986989868035-bbbpdr11ndnft9igim3p4oj5ha9mc658.apps.googleusercontent.com";
-import { useErrorHandler } from "@/hooks/use-error-handler";
 
 const formSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -37,6 +39,7 @@ export function LoginForm() {
   const [, setLocation] = useLocation();
   const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
+  const { instance } = useMsal();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -52,12 +55,63 @@ export function LoginForm() {
       await loginMutation.mutateAsync(data);
       setLocation("/");
     } catch (error) {
+      console.log("Login error:", error);
       toast({
         title: "Login failed",
         description: "Please check your email and password and try again.",
         variant: "destructive",
       });
-      handleError(error);
+      // handleError(error);
+    }
+  };
+
+
+  const handleMicrosoftLogin = async () => {
+    try {
+      const loginResponse = await instance.loginPopup({
+        scopes: ["user.read"],
+      });
+
+      const account = loginResponse.account;
+
+      const payload = {
+        email: account.username,
+        username: account.name,
+        password: "",
+        firstName: account.name?.split(" ")[0],
+        lastName: account.name?.split(" ")[1] || "",
+        profilePicture: null,
+      };
+
+      // ✅ Reusing the same API as Google login
+      const res = await fetch("/api/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        toast({
+          title:
+            "Sign up successful! You will receive an email after approval from the admin.",
+          description: "Please check your email",
+        });
+        // Optional: Redirect
+        // window.location.href = "/";
+      } else {
+        toast({
+          title: "Already Registered",
+          description: data.message || "Email or Username already exists.",
+        });
+      }
+    } catch (err) {
+      console.error("Microsoft login error:", err);
+      toast({
+        title: "Login Failed",
+        description: "Something went wrong. Please try again!",
+      });
     }
   };
 
@@ -246,7 +300,29 @@ export function LoginForm() {
             onError={handleGoogleLoginFailure}
           />
         </GoogleOAuthProvider>
+
       </form>
+      <Button
+        type="button"
+        onClick={handleMicrosoftLogin}
+        className="relative w-full mt-4 flex items-center justify-center border border-gray-300 bg-white hover:bg-blue-50 text-[14px] font-normal text-black-100 font-sans dark:text-black py-2 px-4 rounded-md shadow-sm"
+      >
+        <span className="absolute left-4 flex items-center">
+          <svg
+            className="w-5 h-5"
+            viewBox="0 0 23 23"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <rect x="1" y="1" width="10" height="10" fill="#F25022" />
+            <rect x="12" y="1" width="10" height="10" fill="#7FBA00" />
+            <rect x="1" y="12" width="10" height="10" fill="#00A4EF" />
+            <rect x="12" y="12" width="10" height="10" fill="#FFB900" />
+          </svg>
+        </span>
+        <span className="ml-6">Sign in with Microsoft</span>
+      </Button>
+
+
     </Form>
   );
 }
