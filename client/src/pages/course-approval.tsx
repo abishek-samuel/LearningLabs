@@ -1,5 +1,10 @@
-import { MainLayout } from "@/components/layout/main-layout";
+"use client";
+
+import { useEffect, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
+import { MainLayout } from "@/components/layout/main-layout";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -8,189 +13,371 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { CheckCircle, XCircle, Loader2 } from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
-import { useEffect } from "react";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { CheckCircle, XCircle, Trash, Loader2 } from "lucide-react";
 
 export default function CourseApproval() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [courseToDelete, setCourseToDelete] = useState<any>(null);
+
   useEffect(() => {
     queryClient.invalidateQueries({ queryKey: ["pending-courses"] });
   }, []);
 
-  // Fetch pending courses
-  const { data: pendingCourses, isLoading } = useQuery({
+  const {
+    data: pendingCourses = [],
+    isLoading: isPendingLoading,
+  } = useQuery({
     queryKey: ["pending-courses"],
     queryFn: async () => {
-      const response = await fetch("/api/pending-courses");
-      if (!response.ok) {
-        throw new Error("Failed to fetch pending courses");
-      }
-      return response.json();
+      const res = await fetch("/api/pending-courses");
+      if (!res.ok) throw new Error("Failed to fetch pending courses");
+      return res.json();
     },
   });
 
-  // Approve course mutation
-  const approveMutation = useMutation({
-    mutationFn: async (courseId: number) => {
-      const response = await fetch(`/api/courses/${courseId}/approve`, {
+  const {
+    data: publishedCourses = [],
+    isLoading: isPublishedLoading,
+  } = useQuery({
+    queryKey: ["published-courses"],
+    queryFn: async () => {
+      const res = await fetch("/api/published-courses");
+      if (!res.ok) throw new Error("Failed to fetch published courses");
+      return res.json();
+    },
+  });
+
+  const {
+    data: rejectedCourses = [],
+    isLoading: isRejectedLoading,
+  } = useQuery({
+    queryKey: ["rejected-courses"],
+    queryFn: async () => {
+      const res = await fetch("/api/rejected-courses");
+      if (!res.ok) throw new Error("Failed to fetch rejected courses");
+      return res.json();
+    },
+  });
+
+  const approveRejectMutation = useMutation({
+    mutationFn: async ({
+      courseId,
+      action,
+    }: {
+      courseId: number;
+      action: "approve" | "reject";
+    }) => {
+      const res = await fetch(`/api/courses/${courseId}/${action}`, {
         method: "POST",
       });
-      if (!response.ok) {
-        throw new Error("Failed to approve course");
-      }
-      return response.json();
+      if (!res.ok) throw new Error(`Failed to ${action} course`);
+      return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (_, { action }) => {
       queryClient.invalidateQueries({ queryKey: ["pending-courses"] });
+      queryClient.invalidateQueries({ queryKey: ["published-courses"] });
+      queryClient.invalidateQueries({ queryKey: ["rejected-courses"] });
       toast({
         title: "Success",
-        description: "Course has been approved and published",
+        description:
+          action === "approve"
+            ? "Course approved and published"
+            : "Course rejected",
       });
     },
     onError: (error) => {
       toast({
         title: "Error",
         description:
-          error instanceof Error ? error.message : "Failed to approve course",
+          error instanceof Error ? error.message : "Failed to process request",
         variant: "destructive",
       });
     },
   });
 
-  // Reject course mutation
-  const rejectMutation = useMutation({
+  const deleteMutation = useMutation({
     mutationFn: async (courseId: number) => {
-      const response = await fetch(`/api/courses/${courseId}/reject`, {
-        method: "POST",
-      });
-      if (!response.ok) {
-        throw new Error("Failed to reject course");
+      try {
+        console.log("Attempting to delete course with ID:", courseId);
+        const res = await fetch(`/api/courses/${courseId}`, {
+          method: "DELETE",
+        });
+
+        console.log("Delete response status:", res.status);
+
+        if (!res.ok) {
+          // Try parsing error response
+          const errorData = await res.json().catch(() => ({}));
+          console.error("Delete failed:", errorData);
+          throw new Error(errorData.message || "Failed to delete course");
+        }
+
+        if (res.status === 204) {
+          console.log("Course deleted successfully. No content returned (204).");
+          return null;
+        }
+
+        const data = await res.json().catch(() => ({}));
+        console.log("Delete successful with response body:", data);
+        return data;
+
+      } catch (err) {
+        console.error("Unexpected error in delete mutation:", err);
+        throw err;
       }
-      return response.json();
     },
+
     onSuccess: () => {
+      setDeleteDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["pending-courses"] });
+      queryClient.invalidateQueries({ queryKey: ["published-courses"] });
+      queryClient.invalidateQueries({ queryKey: ["rejected-courses"] });
+
       toast({
-        title: "Success",
-        description: "Course has been rejected",
+        title: "Deleted",
+        description: "Course deleted successfully",
       });
     },
+
     onError: (error) => {
+      console.error("Delete mutation error:", error);
       toast({
         title: "Error",
         description:
-          error instanceof Error ? error.message : "Failed to reject course",
+          error instanceof Error ? error.message : "Failed to delete course",
         variant: "destructive",
       });
     },
   });
 
-  return (
-    <MainLayout>
-      <div className="bg-white dark:bg-slate-900 shadow">
-        <div className="px-4 sm:px-6 lg:px-8 py-6">
-          <h1 className="text-2xl font-bold leading-7 text-slate-900 dark:text-white">
-            Course Approval
-          </h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Review and approve submitted courses
-          </p>
-        </div>
-      </div>
 
-      <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">
-        <div className="mb-6 flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
-            Pending Approval
-          </h2>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-slate-600 dark:text-slate-400">
-              {isLoading
-                ? "Loading..."
-                : `${pendingCourses?.length || 0} courses pending`}
-            </span>
-          </div>
-        </div>
 
-        {isLoading ? (
-          <div className="flex justify-center items-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-          </div>
-        ) : pendingCourses?.length === 0 ? (
-          <div className="text-center py-8 text-slate-500 dark:text-slate-400">
-            No courses pending approval
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-6">
-            {pendingCourses?.map((course) => (
-              <Card key={course.id}>
-                <CardHeader>
-                  <CardTitle>{course.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="mb-4">
-                    <p className="text-slate-600 dark:text-slate-300">
-                      {course.description}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-y-2 gap-x-4 text-sm">
-                    <div>
-                      <span className="font-semibold text-slate-700 dark:text-slate-300">
-                        Creator:
-                      </span>{" "}
-                      <span className="text-slate-600 dark:text-slate-400">
-                        {course.creator}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-slate-700 dark:text-slate-300">
-                        Submitted:
-                      </span>{" "}
-                      <span className="text-slate-600 dark:text-slate-400">
-                        {course.submittedDate}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter className="flex justify-between items-center">
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      (window.location.href = `/course-detail/${course.id}`)
-                    }
-                  >
-                    View Details
-                  </Button>
-                  <div className="flex items-center gap-2">
+  const handleConfirmDelete = () => {
+    if (courseToDelete) deleteMutation.mutate(courseToDelete.id);
+  };
+
+  const renderCourses = (
+    courses: any[],
+    type: "pending" | "published" | "rejected"
+  ) => {
+    if (!courses.length) {
+      return (
+        <div className="text-center py-8 text-slate-500 dark:text-slate-400">
+          No courses found
+        </div>
+      );
+    }
+
+    return (
+      <div className="grid grid-cols-1 gap-6">
+        {courses.map((course) => (
+          <Card key={course.id}>
+            <CardHeader>
+              <CardTitle>{course.title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-slate-600 dark:text-slate-300">
+                {course.description}
+              </p>
+              <div className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                Creator: {course.creator} | Submitted: {course.submittedDate}
+              </div>
+            </CardContent>
+            <CardFooter className="flex justify-between items-center">
+              <Button
+                variant="outline"
+                onClick={() =>
+                  (window.location.href = `/course-detail/${course.id}`)
+                }
+              >
+                View Details
+              </Button>
+              <div className="flex gap-2">
+                {type === "pending" && (
+                  <>
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => rejectMutation.mutate(course.id)}
-                      disabled={rejectMutation.isPending}
+                      onClick={() =>
+                        approveRejectMutation.mutate({
+                          courseId: course.id,
+                          action: "reject",
+                        })
+                      }
+                      disabled={approveRejectMutation.isPending}
                     >
-                      <XCircle className="mr-2 h-4 w-4" />
+                      <XCircle className="mr-1 h-4 w-4" />
                       Reject
                     </Button>
                     <Button
                       size="sm"
-                      onClick={() => approveMutation.mutate(course.id)}
-                      disabled={approveMutation.isPending}
+                      onClick={() =>
+                        approveRejectMutation.mutate({
+                          courseId: course.id,
+                          action: "approve",
+                        })
+                      }
+                      disabled={approveRejectMutation.isPending}
                     >
-                      <CheckCircle className="mr-2 h-4 w-4" />
+                      <CheckCircle className="mr-1 h-4 w-4" />
                       Approve
                     </Button>
-                  </div>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
-        )}
+                  </>
+                )}
+                {type === "published" && (
+                  <>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() =>
+                        approveRejectMutation.mutate({
+                          courseId: course.id,
+                          action: "reject",
+                        })
+                      }
+                    >
+                      <XCircle className="mr-1 h-4 w-4" />
+                      Reject
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        setCourseToDelete(course);
+                        setDeleteDialogOpen(true);
+                      }}
+                    >
+                      <Trash className="mr-1 h-4 w-4" />
+                      Delete
+                    </Button>
+                  </>
+                )}
+                {type === "rejected" && (
+                  <>
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        approveRejectMutation.mutate({
+                          courseId: course.id,
+                          action: "approve",
+                        })
+                      }
+                    >
+                      <CheckCircle className="mr-1 h-4 w-4" />
+                      Approve
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        setCourseToDelete(course);
+                        setDeleteDialogOpen(true);
+                      }}
+                    >
+                      <Trash className="mr-1 h-4 w-4" />
+                      Delete
+                    </Button>
+                  </>
+                )}
+              </div>
+            </CardFooter>
+          </Card>
+        ))}
       </div>
+    );
+  };
+
+  return (
+    <MainLayout>
+      <div className="bg-white dark:bg-slate-900 shadow px-4 sm:px-6 lg:px-8 py-6">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+          Course Approval
+        </h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Review and manage submitted courses
+        </p>
+      </div>
+
+      <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">
+        <Tabs defaultValue="pending" className="w-full">
+          <TabsList>
+            <TabsTrigger value="pending">Pending</TabsTrigger>
+            <TabsTrigger value="published">Published</TabsTrigger>
+            <TabsTrigger value="rejected">Rejected</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="pending">
+            {isPendingLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+              </div>
+            ) : (
+              renderCourses(pendingCourses, "pending")
+            )}
+          </TabsContent>
+
+          <TabsContent value="published">
+            {isPublishedLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+              </div>
+            ) : (
+              renderCourses(publishedCourses, "published")
+            )}
+          </TabsContent>
+
+          <TabsContent value="rejected">
+            {isRejectedLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+              </div>
+            ) : (
+              renderCourses(rejectedCourses, "rejected")
+            )}
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete course{" "}
+              <span className="font-semibold">{courseToDelete?.title}</span>?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+            >
+              No
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmDelete}>
+              Yes, Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }

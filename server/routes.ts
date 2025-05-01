@@ -631,7 +631,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         const updatedCourse = await storage.updateCourse(courseId, {
-          status: "draft",
+          status: "rejected",
         });
         if (!updatedCourse) {
           return res.status(404).json({ message: "Course not found" });
@@ -644,6 +644,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
   );
+  // Get published courses route
+  app.get(
+    "/api/published-courses",
+    isAuthenticated,
+    hasRole(["admin"]),
+    async (req, res) => {
+      try {
+        const publishedCourses = (await storage.getCourses()).filter(
+          (course) => course.status === "published"
+        );
+        const coursesWithInstructors = await Promise.all(
+          publishedCourses.map(async (course) => {
+            const instructor = course.instructorId
+              ? await storage.getUser(course.instructorId)
+              : null;
+            return {
+              ...course,
+              creator: instructor
+                ? `${instructor.firstName} ${instructor.lastName}`
+                : "Unknown",
+              submittedDate: course.createdAt.toISOString().split("T")[0],
+            };
+          })
+        );
+        res.json(coursesWithInstructors);
+      } catch (error) {
+        console.error("Error fetching published courses:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  );
+  // Get rejected courses route
+  app.get(
+    "/api/rejected-courses",
+    isAuthenticated,
+    hasRole(["admin"]),
+    async (req, res) => {
+      try {
+        const rejectedCourses = (await storage.getCourses()).filter(
+          (course) => course.status === "rejected"
+        );
+        const coursesWithInstructors = await Promise.all(
+          rejectedCourses.map(async (course) => {
+            const instructor = course.instructorId
+              ? await storage.getUser(course.instructorId)
+              : null;
+            return {
+              ...course,
+              creator: instructor
+                ? `${instructor.firstName} ${instructor.lastName}`
+                : "Unknown",
+              submittedDate: course.createdAt.toISOString().split("T")[0],
+            };
+          })
+        );
+        res.json(coursesWithInstructors);
+      } catch (error) {
+        console.error("Error fetching rejected courses:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  );
+
 
   // Course routes
   // --- Comments API ---
@@ -1063,7 +1126,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // This might happen in race conditions, treat as not found
           return res
             .status(404)
-            .json({ message: "Course not found or delete failed" });
+            .json({ message: "Cannot delete course: it has related records" });
         }
 
         res.status(204).send();
@@ -2635,8 +2698,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const progressPercentage =
               totalLessonsInCourse > 0
                 ? Math.round(
-                    (completedLessonsInCourse / totalLessonsInCourse) * 100
-                  )
+                  (completedLessonsInCourse / totalLessonsInCourse) * 100
+                )
                 : 0; // Avoid division by zero if course has no lessons
 
             // 5. Update enrollment with correct progress and completion status

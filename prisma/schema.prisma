@@ -26,7 +26,7 @@ enum CourseDifficulty {
 enum CourseStatus {
   draft
   published
-  archived
+  rejected
 }
 
 enum QuestionType {

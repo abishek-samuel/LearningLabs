@@ -109,8 +109,7 @@ export default function MyContent() {
     } catch (error) {
       console.error("Error deleting course:", error);
       alert(
-        `Error deleting course: ${
-          error instanceof Error ? error.message : "Unknown error"
+        `Error deleting course: ${error instanceof Error ? error.message : "Unknown error"
         }`
       );
     }
@@ -311,7 +310,7 @@ export default function MyContent() {
                           <Edit className="mr-2 h-4 w-4" />
                           Edit
                         </Button>
-                        <DropdownMenu>
+                        {/* <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm">
                               <MoreHorizontal className="h-4 w-4" />
@@ -336,7 +335,7 @@ export default function MyContent() {
                               Delete
                             </DropdownMenuItem>
                           </DropdownMenuContent>
-                        </DropdownMenu>
+                        </DropdownMenu> */}
                       </div>
                     </CardFooter>
                   </Card>
@@ -450,6 +449,10 @@ function StatusBadge({ status }: StatusBadgeProps) {
     case "draft":
       badgeClasses =
         "bg-slate-100 text-slate-800 dark:bg-slate-900/50 dark:text-slate-400";
+      break;
+    case "rejected":
+      badgeClasses =
+        "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-400";
       break;
     case "under review":
       badgeClasses =

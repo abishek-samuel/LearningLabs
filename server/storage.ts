@@ -512,12 +512,24 @@ export class PrismaStorage implements IStorage {
   }
   async deleteCourse(id: number): Promise<boolean> {
     try {
+      // Check if there are related course_access entries
+      const relatedAccess = await this.prisma.courseAccess.findFirst({
+        where: { courseId: id },
+      });
+
+      if (relatedAccess) {
+        console.warn(`Course ID ${id} cannot be deleted: related course_access entries exist.`);
+        return false; // Block deletion
+      }
+
       await this.prisma.course.delete({ where: { id } });
       return true;
     } catch (error) {
+      console.error("Delete error:", error);
       return false;
     }
   }
+
 
   // --- Module Methods ---
   async getModule(id: number): Promise<Module | null> {
@@ -550,8 +562,8 @@ export class PrismaStorage implements IStorage {
     });
   }
   async updateModule(id: number, moduleData: Partial<Module>): Promise<Module | null> {
-     try {
-       const { id: moduleId, ...updateData } = moduleData; // Exclude id
+    try {
+      const { id: moduleId, ...updateData } = moduleData; // Exclude id
       return await this.prisma.module.update({ where: { id }, data: updateData });
     } catch (error) {
       return null;
@@ -1121,19 +1133,19 @@ export class PrismaStorage implements IStorage {
       where: isAdmin
         ? undefined
         : {
-            OR: [
-              { userId: user.id },
-              {
-                group: {
-                  members: {
-                    some: {
-                      userId: user.id,
-                    },
+          OR: [
+            { userId: user.id },
+            {
+              group: {
+                members: {
+                  some: {
+                    userId: user.id,
                   },
                 },
               },
-            ],
-          },
+            },
+          ],
+        },
       include: {
         course: true,
         user: {
