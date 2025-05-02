@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma } from "@prisma/client"; // Import Prisma namespace for types
+import { PrismaClient, Prisma } from "@prisma/client"; // Import Prisma namespace for types// Import Prisma namespace for types
 import type {
   User,
   Course,
@@ -15,10 +15,12 @@ import type {
   ActivityLog,
   Certificate,
   GroupCourse,
+  Note
 } from ".prisma/client"; // Import types from the generated client
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import pg from "pg"; // Import pg for pool
+// I/ Defingnsoe prol
 
 // Define Insert types based on Prisma models (adjust as needed, Prisma doesn't auto-generate these like Drizzle-Zod)
 // For simplicity, we'll use Prisma's built-in types for creation where possible,
@@ -32,7 +34,7 @@ type InsertEnrollment = Omit<
   "id" | "enrolledAt" | "completedAt" | "progress"
 >;
 type InsertAssessment = Omit<Assessment, "id" | "createdAt">;
-type InsertQuestion = Omit<Question, "id" | "options"> & {
+type InsertQuestion = Omit<Question, "id"> & {
   options?: Prisma.InputJsonValue;
 }; // Adjust JSON type
 type InsertAssessmentAttempt = Omit<
@@ -50,7 +52,12 @@ type InsertActivityLog = Omit<ActivityLog, "id" | "createdAt" | "metadata"> & {
   metadata?: Prisma.InputJsonValue;
 }; // Adjust JSON type
 type InsertCertificate = Omit<Certificate, "id" | "issueDate">;
-
+// --- Note Methods ---
+// Define InsertNote type
+type InsertNote = Omit<
+  Note,
+  "id" | "createdAt" | "updatedAt"
+>;
 // Initialize Prisma client
 const prisma = new PrismaClient();
 
@@ -230,10 +237,13 @@ export interface IStorage {
   createCertificate(certificate: InsertCertificate): Promise<Certificate>;
   getCertificateByHash(certHash: string): Promise<Certificate | null>;
 
-  // Session store
+// Session store
   sessionStore: session.Store;
-}
 
+  // Note related methods
+  saveNote(note: InsertNote): Promise<Note>;
+  getNoteByLessonAndUser(lessonId: number, userId: number): Promise<Note | null>;
+}
 
 // Resource insert type
 type InsertResource = Omit<
@@ -1126,6 +1136,19 @@ export class PrismaStorage implements IStorage {
     return this.prisma.certificate.create({ data: certificate });
   }
 
+  async getLessonSummary(lessonId: number): Promise<string | null> {
+    try {
+      const lesson = await this.prisma.lesson.findUnique({
+        where: { id: lessonId },
+        select: { summary: true },
+      });
+      return lesson?.summary || null;
+    } catch (error) {
+      console.error("Error fetching lesson summary:", error);
+      return null;
+    }
+  }
+
   async getAllCourseAccessByUser(user: { id: number; role: string }) {
     const isAdmin = user.role === "admin";
 
@@ -1164,35 +1187,66 @@ export class PrismaStorage implements IStorage {
     });
   }
 
-  // --- Resource Methods ---
-  async createResource(resource: InsertResource): Promise<import(".prisma/client").Resource> {
-    return this.prisma.resource.create({ data: resource });
-  }
+// --- Resource Methods ---
+async createResource(
+  resource: InsertResource
+): Promise<import(".prisma/client").Resource> {
+  return this.prisma.resource.create({ data: resource });
+}
 
-  async getResourcesByCourse(courseId: number): Promise<import(".prisma/client").Resource[]> {
-    return this.prisma.resource.findMany({
-      where: { courseId },
-      orderBy: { uploadedAt: "desc" },
-    });
-  }
+async getResourcesByCourse(
+  courseId: number
+): Promise<import(".prisma/client").Resource[]> {
+  return this.prisma.resource.findMany({
+    where: { courseId },
+    orderBy: { uploadedAt: "desc" },
+  });
+}
 
-  async getResourceById(id: number): Promise<import(".prisma/client").Resource | null> {
-    return this.prisma.resource.findUnique({ where: { id } });
-  }
+async getResourceById(
+  id: number
+): Promise<import(".prisma/client").Resource | null> {
+  return this.prisma.resource.findUnique({ where: { id } });
+}
 
-  async deleteResource(id: number): Promise<boolean> {
-    try {
-      await this.prisma.resource.delete({ where: { id } });
-      return true;
-    } catch (error) {
-      return false;
-    }
+async deleteResource(id: number): Promise<boolean> {
+  try {
+    await this.prisma.resource.delete({ where: { id } });
+    return true;
+  } catch (error) {
+    return false;
   }
+}
 
-  // Optional: Method to disconnect Prisma client when server shuts down
-  async disconnect(): Promise<void> {
-    await this.prisma.$disconnect();
-  }
+// --- Note Methods ---
+async saveNote(note: InsertNote): Promise<import(".prisma/client").Note> {
+  return this.prisma.note.upsert({
+    where: {
+      userId_lessonId: {
+        userId: note.userId,
+        lessonId: note.lessonId,
+      },
+    },
+    update: {
+      content: note.content,
+    },
+    create: note,
+  });
+}
+
+async getNoteByLessonAndUser(
+  lessonId: number,
+  userId: number
+): Promise<import(".prisma/client").Note | null> {
+  return this.prisma.note.findFirst({
+    where: { lessonId, userId },
+  });
+}
+
+// Optional: Method to disconnect Prisma client when server shuts down
+async disconnect(): Promise<void> {
+  await this.prisma.$disconnect();
+}
 }
 
 // Export the instance of PrismaStorage

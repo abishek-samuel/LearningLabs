@@ -211,7 +211,7 @@ export default function CourseDetail() {
     // Navigate directly to the first lesson if already enrolled
     if (!course) return;
     const firstModule = course.modules?.[0];
-    const firstLesson = firstModule?.lessons?.[0];
+    const firstLesson = firstModule?.lessons?.[1];
     // TODO: Ideally, find the *next uncompleted* lesson instead of the first one.
     if (firstModule && firstLesson) {
       setLocation(`/course-content?id=${course.id}&moduleId=${firstModule.id}&lessonId=${firstLesson.id}`);
@@ -277,12 +277,12 @@ export default function CourseDetail() {
       <div className="bg-white dark:bg-slate-900 shadow">
         <div className="px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center gap-2 text-sm mb-4">
-            <button
-              onClick={() => window.history.back()}
-              className="flex items-center text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
-            >
-              <ArrowLeft className="h-4 w-4 mr-1" /> Back
-            </button>
+<button
+  onClick={() => setLocation('/my-courses')}
+  className="flex items-center text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+>
+  <ArrowLeft className="h-4 w-4 mr-1" /> Back
+</button>
 
           </div>
           <div className="md:flex md:items-start md:justify-between">

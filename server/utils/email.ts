@@ -22,7 +22,7 @@ export async function sendWelcomeEmail(
     to: email,
     subject: "Welcome to Learning Management System",
     html: `
-      <h1>Welcome to LMS!</h1>
+      <h1>Welcome to Learning Labs!</h1>
       <p>Hello ${username},</p>
       <p>An administrator has created an account for you with the following details:</p>
       <ul>
@@ -31,7 +31,7 @@ export async function sendWelcomeEmail(
         <li>Temporary Password: ${password}</li>
       </ul>
       <p>Please login and change your password immediately for security purposes.</p>
-      <p>Best regards,<br>LMS Team</p>
+      <p>Best regards,<br>Learning Labs Team</p>
     `,
     headers: {
       "Content-Type": "text/html",
@@ -57,7 +57,7 @@ export async function sendApproveEmail(
     to: email,
     subject: "Welcome to Learning Management System - Account Approved",
     html: `
-      <h1>Welcome to LMS!</h1>
+      <h1>Welcome to Learning Labs!</h1>
       <p>Hello ${username},</p>
       <p>Your account has been approved! You can now login with the following credentials:</p>
       <ul>
@@ -66,7 +66,7 @@ export async function sendApproveEmail(
         <li>Password: ${password}</li>
       </ul>
       <p>Please login and change your password immediately for security purposes.</p>
-      <p>Best regards,<br>LMS Team</p>
+      <p>Best regards,<br>Learning Labs Team</p>
     `,
     headers: {
       "Content-Type": "text/html",
@@ -91,7 +91,7 @@ export async function sendRejectionEmail(email: string, username: string) {
       <p>Hello ${username},</p>
       <p>We regret to inform you that your account request has been rejected by the administrator.</p>
       <p>If you believe this is a mistake, please contact support.</p>
-      <p>Best regards,<br>LMS Team</p>
+      <p>Best regards,<br>Learning Labs Team</p>
     `,
     headers: {
       "Content-Type": "text/html",
@@ -123,8 +123,8 @@ export async function sendGroupAssignmentEmail(
       <ul>
         ${courses.map((course) => `<li>${course.title}</li>`).join("")}
       </ul>
-      <p>You can access these courses by logging into your LMS account.</p>
-      <p>Best regards,<br>LMS Team</p>
+      <p>You can access these courses by logging into your Learning Labs account.</p>
+      <p>Best regards,<br>Learning Labs Team</p>
     `,
     headers: {
       "Content-Type": "text/html",
@@ -158,7 +158,7 @@ export async function sendPasswordResetEmail(
         <li>New Password: ${newPassword}</li>
       </ul>
       <p>Please log in and change your password immediately for security purposes.</p>
-      <p>Best regards,<br>LMS Team</p>
+      <p>Best regards,<br>Learning Labs Team</p>
     `,
     headers: {
       "Content-Type": "text/html",

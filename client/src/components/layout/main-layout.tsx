@@ -45,7 +45,7 @@ export function MainLayout({ children }: MainLayoutProps) {
           )}
         >
           <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-            <span className="font-bold text-xl text-slate-900 dark:text-white">LMS</span>
+            <span className="font-bold text-xl text-slate-900 dark:text-white">Learning Labs</span>
             <button
               type="button"
               className="rounded-md p-2 text-slate-700 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-accent dark:text-slate-200 dark:hover:bg-slate-800"

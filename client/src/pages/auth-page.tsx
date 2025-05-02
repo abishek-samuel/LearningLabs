@@ -25,14 +25,7 @@ export default function AuthPage() {
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900">
       {/* Left side - Auth forms */}
       <div className="flex flex-col justify-center px-4 py-12 sm:px-6 lg:flex-none lg:px-20 xl:px-24 w-full lg:w-1/2 relative">
-        {/* <div className="absolute top-4 right-4"> */}
-        <div className="flex items-center justify-between h-16" style={{ marginTop: "-50px", marginLeft: "-70px" }}>
-          <img
-            src="../../../alten.png"
-            title="Alten Global Technologies Private Limited"
-            alt="Alten Global Technologies Private Limited"
-            className="h-12 w-18 mr-2"
-          />
+        <div className="absolute top-4 right-4">
           <Button
             variant="ghost"
             size="icon"
@@ -52,7 +45,7 @@ export default function AuthPage() {
             <div className="flex items-center mb-4">
               <BookOpen className="h-10 w-10 text-blue-600 dark:text-blue-400 mr-3" />
               <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
-                LearnSphere
+                Learning Labs
               </h2>
             </div>
             <p className="text-base text-slate-600 dark:text-slate-400">
@@ -145,7 +138,7 @@ export default function AuthPage() {
             </div>
 
             <div className="absolute bottom-8 right-8 text-xs text-blue-200 opacity-70">
-              © 2025 LearnSphere. All rights reserved.
+              © 2025 Learning Labs. All rights reserved.
             </div>
           </div>
 

@@ -220,7 +220,7 @@ export function ModuleList({ courseId }: ModuleListProps) {
                             </div>
                           </CardHeader>
                           <CardContent className="p-4 pt-0">
-                            <LessonList moduleId={module.id} />
+                            <LessonList moduleId={module.id} courseId={courseId} />
                           </CardContent>
                         </Card>
                       </div>

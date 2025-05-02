@@ -45,12 +45,12 @@ export function CourseLessonResources({ courseId, lessonId }: { courseId: number
       {resources.map((resource) => (
         <li key={resource.id}>
           <a
-            href={`/api/resources/${resource.id}/download`}
+            href={`/api/resources/${resource.id}/view`}
             className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:underline p-3 border rounded-md hover:bg-slate-50 dark:hover:bg-slate-800/50"
             target="_blank"
             rel="noopener noreferrer"
           >
-            <Download className="h-4 w-4" />
+            {/* <Download className="h-4 w-4" /> */}
             <span>{resource.filename}</span>
             <span className="text-xs text-slate-400 ml-2">{new Date(resource.uploadedAt).toLocaleDateString()}</span>
           </a>

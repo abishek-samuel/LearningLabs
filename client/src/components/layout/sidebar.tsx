@@ -100,8 +100,8 @@ export function Sidebar({ className }: SidebarProps) {
             </h2>
             <div className="mt-2 space-y-1">
               <NavItem href="/my-content" icon={FileEdit} label="My Content" itemKey="my-content" />
-              <NavItem href="/videos" icon={Video} label="Videos" itemKey="videos" />
-              <NavItem href="/assessments" icon={HelpCircle} label="Assessments" itemKey="assessments" />
+              {/* <NavItem href="/videos" icon={Video} label="Videos" itemKey="videos" />
+              <NavItem href="/assessments" icon={HelpCircle} label="Assessments" itemKey="assessments" /> */}
               <NavItem href="/analytics" icon={LineChart} label="Analytics" itemKey="analytics" />
             </div>
           </div>

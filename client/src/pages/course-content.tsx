@@ -221,6 +221,19 @@ export default function CourseContent() {
   const [newComment, setNewComment] = useState("");
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
   const [replyText, setReplyText] = useState("");
+  const [noteContent, setNoteContent] = useState("");
+  const [fetchedNoteContent, setFetchedNoteContent] = useState("");
+  const [isSavingNote, setIsSavingNote] = useState(false);
+  const [savedNote, setSavedNote] = useState(false);
+
+  const { user } = useAuth();
+  const { data: certificates = [] } = useQuery<any[]>({
+    queryKey: ["/api/certificates-user"],
+    enabled: !!user,
+  });
+  const [location, setLocation] = useLocation();
+  const search = useSearch();
+  const { toast } = useToast();
 
   const fetchComments = async (lessonId: number) => {
     try {
@@ -234,6 +247,42 @@ export default function CourseContent() {
       setComments(data);
     } catch (error) {
       console.error(error);
+    }
+  };
+
+  const fetchNote = async (lessonId: number, userId: number) => {
+    try {
+      const res = await fetch(`/api/notes?lessonId=${lessonId}&userId=${userId}`);
+      if (!res.ok) throw new Error("Failed to fetch note");
+      const data = await res.json();
+      setFetchedNoteContent(data.content || "");
+      setNoteContent(data.content || "");
+    } catch (error) {
+      console.error("Error fetching note:", error);
+      setFetchedNoteContent("");
+      setNoteContent("");
+    }
+  };
+
+  const handleSaveNote = async () => {
+    if (!currentLesson?.id || !user?.id) return;
+    setIsSavingNote(true);
+    try {
+      const res = await fetch("/api/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lessonId: currentLesson.id,
+          content: noteContent.trim(),
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to save note");
+      setSavedNote(true);
+      setTimeout(() => setSavedNote(false), 2000);
+    } catch (error) {
+      console.error("Error saving note:", error);
+    } finally {
+      setIsSavingNote(false);
     }
   };
 
@@ -290,15 +339,6 @@ export default function CourseContent() {
     setReplyText("");
   };
 
-  const { user } = useAuth();
-  const { data: certificates = [] } = useQuery<any[]>({
-    queryKey: ["/api/certificates-user"],
-    enabled: !!user,
-  });
-  const [location, setLocation] = useLocation();
-  const search = useSearch();
-  const { toast } = useToast();
-
   const [course, setCourse] = useState<Course | null>(null);
   const [currentModule, setCurrentModule] = useState<Module | null>(null);
   const [currentLesson, setCurrentLesson] = useState<Lesson | null>(null);
@@ -307,6 +347,33 @@ export default function CourseContent() {
     Record<number, boolean>
   >({});
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  const [lessonSummary, setLessonSummary] = useState<string | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+
+  const fetchLessonSummary = async (lessonId: number) => {
+    try {
+      setSummaryLoading(true);
+      const res = await fetch(`/api/lessons/${lessonId}/summary`);
+      if (!res.ok) throw new Error("Failed to fetch summary");
+      const data = await res.json();
+      setLessonSummary(data.summary);
+    } catch (error) {
+      console.error("Error fetching lesson summary:", error);
+      setLessonSummary(null);
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
+  // Fetch summary when currentLesson changes
+  useEffect(() => {
+    if (currentLesson?.id && currentLesson.videoUrl) {
+      fetchLessonSummary(currentLesson.id);
+    } else {
+      setLessonSummary(null);
+    }
+  }, [currentLesson?.id, currentLesson?.videoUrl]);
 
   // Get IDs from URL query parameters using useSearch
   const queryParams = new URLSearchParams(search);
@@ -342,25 +409,8 @@ export default function CourseContent() {
 
         setCourse(data);
 
-        const initialModuleId = currentModuleIdParam
-          ? parseInt(currentModuleIdParam, 10)
-          : data.modules?.[0]?.id;
-        const initialLessonId = currentLessonIdParam
-          ? parseInt(currentLessonIdParam, 10)
-          : data.modules?.[0]?.lessons?.[0]?.id;
-
-        const initialModule = data.modules?.find(
-          (m) => m.id === initialModuleId
-        );
-        const moduleToSearchIn = initialModule || data.modules?.[0];
-        const initialLesson = moduleToSearchIn?.lessons?.find(
-          (l) => l.id === initialLessonId
-        );
-
-        setCurrentModule(initialModule || data.modules?.[0] || null);
-        setCurrentLesson(
-          initialLesson || moduleToSearchIn?.lessons?.[0] || null
-        );
+        setCurrentModule(data.modules?.[0] || null);
+        setCurrentLesson(data.modules?.[0]?.lessons?.[0] || null);
 
         if (user?.id) {
           try {
@@ -426,16 +476,19 @@ export default function CourseContent() {
     }
   }, [search, course]);
 
-  // Fetch comments when currentLesson changes
+// Fetch comments and note when currentLesson changes
   useEffect(() => {
     if (currentLesson?.id) {
       fetchComments(currentLesson.id);
+      if (user?.id) {
+        fetchNote(currentLesson.id, user.id);
+      }
     }
-  }, [currentLesson?.id]);
+  }, [currentLesson?.id, user?.id]);
 
-  // Calculate navigation links
-  const allLessons =
-    course?.modules.flatMap((m) =>
+// Calculate navigation links
+  const allLessons = (
+    course?.modules.flatMap(m =>
       [...m.lessons]
         .slice()
         .sort((a, b) => {
@@ -443,56 +496,37 @@ export default function CourseContent() {
           if (a.position !== -1 && b.position === -1) return -1;
           return (a.position ?? 0) - (b.position ?? 0);
         })
-        .map((l) => ({ ...l, moduleId: m.id }))
-    ) || [];
-  const filteredLessons = allLessons.filter(
-    (l) => !l.title.toLowerCase().includes("certificate")
+        .map(l => ({ ...l, moduleId: m.id }))
+    ) || []
   );
-  const currentLessonIndex = allLessons.findIndex(
-    (l) => l.moduleId === currentModule?.id && l.id === currentLesson?.id
-  );
-  const previousLesson =
-    currentLessonIndex > 0 ? allLessons[currentLessonIndex - 1] : null;
-  const nextLesson =
-    currentLessonIndex < allLessons.length - 1
-      ? allLessons[currentLessonIndex + 1]
-      : null;
+  const currentLessonIndex = allLessons.findIndex(l => l.moduleId === currentModule?.id && l.id === currentLesson?.id);
+  const previousLesson = currentLessonIndex > 0 ? allLessons[currentLessonIndex - 1] : null;
+  const nextLesson = currentLessonIndex < allLessons.length - 1 ? allLessons[currentLessonIndex + 1] : null;
 
   // Calculate completion statistics excluding dummy lesson
-  const totalLessons = filteredLessons.length;
-  const completedLessons = filteredLessons.filter(
-    (l) => lessonProgressMap[l.id]
-  ).length;
-  const progressPercentage =
-    totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+  const totalLessons = allLessons.length;
+  const completedLessons = allLessons.filter(l => lessonProgressMap[l.id]).length;
+  const progressPercentage = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
 
   const handleMarkComplete = async () => {
     if (!currentLesson || !user) return;
-
-    // Optimistic UI update (optional, uncomment if desired)
-    // const previousProgress = { ...lessonProgressMap };
-    // setLessonProgressMap(prev => ({ ...prev, [currentLesson.id!]: true }));
 
     try {
       const response = await fetch(`/api/lesson-progress`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          // userId: user.id, // Backend should get user ID from session/auth
           lessonId: currentLesson.id,
           status: "completed",
         }),
       });
 
       if (!response.ok) {
-        const errorData = await response.text(); // Get more error details
-        throw new Error(
-          `Failed to update progress: ${response.status} ${response.statusText} - ${errorData}`
-        );
+        const errorData = await response.text(); 
+        throw new Error(`Failed to update progress: ${response.status} ${response.statusText} - ${errorData}`);
       }
 
-      // Update local state *after* successful API call (if not doing optimistic update)
-      setLessonProgressMap((prev) => ({ ...prev, [currentLesson.id]: true }));
+      setLessonProgressMap(prev => ({ ...prev, [currentLesson.id]: true }));
 
       toast({
         title: "Lesson marked as complete",
@@ -500,22 +534,16 @@ export default function CourseContent() {
         variant: "default",
       });
 
-      // Navigate to the next lesson if available
       if (nextLesson) {
         navigateToLesson(nextLesson.moduleId, nextLesson.id);
       }
     } catch (error) {
-      // Revert optimistic update if it failed
-      // setLessonProgressMap(previousProgress);
-
-      console.error("Failed to mark lesson complete:", error);
-      toast({
-        title: "Error",
-        description: `Could not update progress: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
-        variant: "destructive",
-      });
+       console.error("Failed to mark lesson complete:", error);
+       toast({
+         title: "Error",
+         description: `Could not update progress: ${error instanceof Error ? error.message : 'Unknown error'}`,
+         variant: "destructive",
+       });
     }
   };
 
@@ -545,21 +573,13 @@ export default function CourseContent() {
     }
   };
 
+  const tabsGridColsClass = currentLesson?.videoUrl ? 'grid-cols-4' : 'grid-cols-3';
+
   const getLessonIcon = (lesson: Lesson) => {
-    const isCertificateLesson = lesson.title
-      .toLowerCase()
-      .includes("certificate");
     let iconColor = "text-slate-400";
 
-    if (isCertificateLesson) {
-      const hasCert = certificates.some((c) => c.courseId === course?.id);
-      iconColor = hasCert ? "text-green-500" : "text-slate-400";
-    } else {
-      const isCompleted = lesson.id
-        ? lessonProgressMap[lesson.id] ?? false
-        : false;
-      iconColor = isCompleted ? "text-green-500" : "text-slate-400";
-    }
+    const isCompleted = lesson.id ? lessonProgressMap[lesson.id] ?? false : false;
+    iconColor = isCompleted ? "text-green-500" : "text-slate-400";
 
     const iconClasses = `mr-3 h-5 w-5 ${iconColor}`;
 
@@ -829,59 +849,12 @@ export default function CourseContent() {
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                {/* Video Player or Text Content */}
                 {currentLesson.type === "assessment" ? (
                   <AssessmentLessonWrapper
                     moduleId={currentModule.id}
                     lessonId={currentLesson.id}
                     userId={user?.id}
                   />
-                ) : currentLesson.title
-                    .toLowerCase()
-                    .includes("certificate") ? (
-                  <div className="p-6 text-center flex flex-col items-center gap-4">
-                    <h2 className="text-2xl font-bold text-green-600 dark:text-green-400">
-                      Congratulations!
-                    </h2>
-                    <p className="text-slate-600 dark:text-slate-300">
-                      You have completed the course.
-                    </p>
-                    <Button
-                      variant="default"
-                      disabled={
-                        progressPercentage < 100 ||
-                        certificates.some((c) => c.courseId === course?.id)
-                      }
-                      onClick={async () => {
-                        try {
-                          const res = await fetch(
-                            `/api/certificates/${course?.id}`,
-                            {
-                              method: "POST",
-                            }
-                          );
-                          if (!res.ok)
-                            throw new Error("Failed to generate certificate");
-                          const data = await res.json();
-                          alert(
-                            `Certificate generated! ID: ${data.certificateId}`
-                          );
-                          const { queryClient } = await import(
-                            "@/lib/queryClient"
-                          );
-                          queryClient.invalidateQueries({
-                            queryKey: ["/api/certificates-user"],
-                          });
-                        } catch (err) {
-                          console.error(err);
-                          alert("Failed to generate certificate");
-                        }
-                      }}
-                    >
-                      <Download className="mr-2 h-4 w-4 text-yellow-500" />
-                      Generate Certificate
-                    </Button>
-                  </div>
                 ) : currentLesson.videoUrl ? (
                   <div className="aspect-video bg-black rounded-t-none">
                     <video
@@ -905,23 +878,27 @@ export default function CourseContent() {
                 {(currentLesson.videoUrl || currentLesson.content) && (
                   <div className="p-4 sm:p-6 border-t dark:border-slate-700">
                     <Tabs defaultValue="overview" className="w-full">
-                      <TabsList className="mb-4 grid grid-cols-2 sm:grid-cols-4 w-full sm:w-auto">
-                        {currentLesson.videoUrl && (
-                          <TabsTrigger value="transcript">
-                            Transcript
-                          </TabsTrigger>
-                        )}
+                      <TabsList className={`mb-4 grid ${tabsGridColsClass} w-full sm:w-auto`}>
+                        {currentLesson.videoUrl && <TabsTrigger value="summary">Summary</TabsTrigger>}
                         <TabsTrigger value="resources">Resources</TabsTrigger>
                         <TabsTrigger value="notes">My Notes</TabsTrigger>
                         <TabsTrigger value="discussion">Discussion</TabsTrigger>
                       </TabsList>
                       {currentLesson.videoUrl && (
-                        <TabsContent value="transcript">
+                        <TabsContent value="summary">
                           <div className="prose dark:prose-invert max-w-none text-sm border rounded-md p-4 max-h-60 overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-slate-800/30">
-                            {/* TODO: Fetch or display actual transcript */}
-                            <p className="text-slate-500 dark:text-slate-400 italic">
-                              Transcript currently unavailable.
-                            </p>
+                            {summaryLoading ? (
+                              <div className="flex items-center justify-center h-full">
+                                <Loader2 className="animate-spin h-4 w-4 text-primary" />
+                                <span className="ml-2 text-slate-500 dark:text-slate-400">Loading summary...</span>
+                              </div>
+                            ) : lessonSummary ? (
+                              <p>{lessonSummary}</p>
+                            ) : (
+                              <p className="text-slate-500 dark:text-slate-400 italic">
+                                No summary available for this video lesson.
+                              </p>
+                            )}
                           </div>
                         </TabsContent>
                       )}
@@ -955,17 +932,19 @@ export default function CourseContent() {
                               className="w-full h-36 p-3 bg-transparent resize-none focus:outline-none text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500"
                               placeholder="Take notes on this lesson here..."
                               aria-label="Lesson notes"
-                              // TODO: Implement state and saving logic for notes
+                              value={noteContent}
+                              onChange={(e) => setNoteContent(e.target.value)}
                             ></textarea>
                           </div>
-                          <Button size="sm" disabled>
-                            {" "}
-                            {/* TODO: Enable when save logic exists */}
-                            {/* TODO: Implement save logic */}
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin hidden" />{" "}
-                            {/* Show loader on save */}
-                            Save Notes (Coming Soon)
+                          <Button size="sm" onClick={handleSaveNote}>
+                            <Loader2 className={cn("mr-2 h-4 w-4 animate-spin", { hidden: !isSavingNote })} />
+                            Save Notes
                           </Button>
+                          {savedNote && (
+                            <div className="text-sm text-green-600 dark:text-green-400">
+                              Notes saved successfully!
+                            </div>
+                          )}
                         </div>
                       </TabsContent>
 
@@ -973,7 +952,6 @@ export default function CourseContent() {
                         <div className="space-y-4">
                           <h3 className="text-base font-medium">Discussion</h3>
 
-                          {/* New comment input */}
                           <div className="flex gap-2">
                             <input
                               type="text"
@@ -991,7 +969,6 @@ export default function CourseContent() {
                             </Button>
                           </div>
 
-                          {/* Comments list */}
                           <div className="space-y-4 mt-4 max-h-[60rem] overflow-y-auto custom-scrollbar">
                             {comments.map((comment) => (
                               <div
@@ -1042,34 +1019,23 @@ export default function CourseContent() {
                                     </Button>
                                   </div>
                                 )}
-                                {/* Replies */}
-                                {comment.replies &&
-                                  comment.replies.length > 0 && (
-                                    <div className="mt-3 space-y-2 pl-4 border-l border-slate-200 dark:border-slate-700">
-                                      {comment.replies.map((reply: any) => (
-                                        <div
-                                          key={reply.id}
-                                          className="border rounded p-2 bg-slate-100 dark:bg-slate-800/50"
-                                        >
-                                          <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
-                                            <span>
-                                              {reply.user?.firstName ||
-                                                reply.user?.username ||
-                                                "User"}
-                                            </span>
-                                            <span>
-                                              {new Date(
-                                                reply.createdAt
-                                              ).toLocaleString()}
-                                            </span>
-                                          </div>
-                                          <div className="text-sm">
-                                            {reply.comment}
-                                          </div>
+                                {comment.replies && comment.replies.length > 0 && (
+                                  <div className="mt-3 space-y-2 pl-4 border-l border-slate-200 dark:border-slate-700">
+                                    {comment.replies.map((reply: any) => (
+                                      <div key={reply.id} className="border rounded p-2 bg-slate-100 dark:bg-slate-800/50">
+                                        <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+                                          <span>
+                                            {reply.user?.firstName || reply.user?.username || "User"}
+                                          </span>
+                                          <span>
+                                            {new Date(reply.createdAt).toLocaleString()}
+                                          </span>
                                         </div>
-                                      ))}
-                                    </div>
-                                  )}
+                                        <div className="text-sm">{reply.comment}</div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>
@@ -1096,15 +1062,11 @@ export default function CourseContent() {
                   </span>
                 </div>
                 <div>
-                  {/* Show Checkmark if completed, else show Button */}
-                  {currentLesson.type === "assessment" ||
-                  currentLesson.title
-                    .toLowerCase()
-                    .includes("certificate") ? null : isLessonCompleted ? (
-                    <div className="flex items-center gap-2 text-green-600 dark:text-green-400 font-medium text-sm p-2 rounded-md bg-green-50 dark:bg-green-900/30">
-                      <Check className="h-5 w-5" />
-                      <span>Completed</span>
-                    </div>
+                  {currentLesson.type === "assessment" ? null : isLessonCompleted ? (
+                      <div className="flex items-center gap-2 text-green-600 dark:text-green-400 font-medium text-sm p-2 rounded-md bg-green-50 dark:bg-green-900/30">
+                        <Check className="h-5 w-5"/>
+                        <span>Completed</span>
+                      </div>
                   ) : (
                     <Button
                       variant="default"

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { CourseCard } from "@/components/dashboard/course-card";
 import { ActivityItem } from "@/components/dashboard/activity-item";
-import { Filter, BookOpen, CheckSquare, Clock, Medal, Video, Award, FileText } from "lucide-react";
+import { Filter, BookOpen, CheckSquare, Clock, Medal, Video, Award, FileText, Activity, ClipboardCheck, UserPlus } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState } from "react";
 
@@ -255,29 +255,62 @@ export default function Dashboard() {
                     
                     switch (activity.action) {
                       case 'watched_video':
-                        icon = Video;
-                        iconBgColor = 'bg-blue-100 dark:bg-blue-900/30';
+                        icon = Video; // Icon for watching content
+                        // iconBgColor = 'bg-blue-100 dark:bg-blue-900/30'; // Blue often associated with information/media
                         iconColor = 'text-blue-600 dark:text-blue-400';
-                        title = `Watched "${activity.metadata.title || 'Video'}"`;
+                        // Use metadata, provide fallback
+                        title = `Watched "${activity.metadata?.title || 'Video'}"`;
                         break;
-                      case 'completed_lesson':
-                        icon = CheckSquare;
-                        iconBgColor = 'bg-green-100 dark:bg-green-900/30';
+                
+                    case 'completed_lesson':
+                        icon = CheckSquare; // Standard completion icon
+                        // iconBgColor = 'bg-green-100 dark:bg-green-900/30'; // Green signifies success/completion
                         iconColor = 'text-green-600 dark:text-green-400';
-                        title = `Completed "${activity.metadata.title || 'Lesson'}"`;
+                         // Use metadata, provide specific fallback
+                        title = `Completed lesson: "${activity.metadata?.title || 'Lesson'}"`;
                         break;
-                      case 'earned_badge':
-                        icon = Award;
-                        iconBgColor = 'bg-purple-100 dark:bg-purple-900/30';
+                
+                    case 'completed_assessment':
+                        // Suggestion: Use a more specific icon for assessments if desired
+                        icon = ClipboardCheck; // Icon suggesting a test or checklist
+                        // Alternatively, keep CheckSquare if you prefer consistency for all completions
+                        // icon = CheckSquare;
+                        // iconBgColor = 'bg-green-100 dark:bg-green-900/30'; // Green signifies success/completion
+                        iconColor = 'text-green-600 dark:text-green-400';
+                        // IMPORTANT: Title should reflect ASSESSMENT completion
+                        title = `Completed assessment: "${activity.metadata?.title || 'Assessment'}"`;
+                        break;
+                
+                    // --- ADDED CASE for 'enrolled' ---
+                    case 'enrolled':
+                        icon = UserPlus; // Icon signifying adding a user or joining
+                        // Teal provides a distinct color from completion (green) or media (blue)
+                        // iconBgColor = 'bg-teal-100 dark:bg-teal-900/30';
+                        iconColor = 'text-teal-600 dark:text-teal-400';
+                        // Assuming metadata title refers to the course name here
+                        title = `Enrolled in "${activity.metadata?.title || 'Course'}"`;
+                        break;
+                    // --- END ADDED CASE ---
+                
+                    case 'earned_badge':
+                        icon = Award; // Icon for achievements
+                        // Purple often associated with rewards or distinction
+                        // iconBgColor = 'bg-purple-100 dark:bg-purple-900/30';
                         iconColor = 'text-purple-600 dark:text-purple-400';
-                        title = `Earned "${activity.metadata.title || 'Badge'}"`;
+                        title = `Earned "${activity.metadata?.title || 'Badge'}"`;
                         break;
-                      default:
-                        icon = Video;
-                        iconBgColor = 'bg-blue-100 dark:bg-blue-900/30';
-                        iconColor = 'text-blue-600 dark:text-blue-400';
-                        title = `Activity: ${activity.action}`;
-                    }
+                
+                    // Consider adding other specific cases if needed (e.g., 'commented', 'started_course')
+                
+                    default:
+                        // A generic fallback - maybe use a neutral color/icon?
+                        icon = Activity; // Generic activity icon (import Activity from lucide-react)
+                        iconBgColor = 'bg-slate-100 dark:bg-slate-800'; // Neutral gray/slate
+                        iconColor = 'text-slate-600 dark:text-slate-400';
+                        // Title indicating the action type clearly
+                        title = `Performed action: ${activity.action}`;
+                        break;
+                }
                     
                     return (
                       <ActivityItem

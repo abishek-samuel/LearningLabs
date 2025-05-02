@@ -79,8 +79,8 @@ model User {
   GroupUser          GroupUser[]
   Comment            Comment[]
   Resource           Resource[]
-  notifications  Notification[]  // 1-to-many (One User can have many Notifications)
-
+  notifications      Notification[] // 1-to-many (One User can have many Notifications)
+  Note               Note[]
 
   @@map("users")
 }
@@ -97,7 +97,7 @@ model Category {
 
 model Course {
   id           Int               @id @default(autoincrement())
-  title        String
+  title        String            @unique
   description  String
   categoryId   Int?              @map("category_id")
   category     Category?         @relation(fields: [categoryId], references: [id])
@@ -152,13 +152,14 @@ model Lesson {
   duration Int? // in seconds
   position Int
   summary  String?    @default("")
- 
+
   // Relations
   module         Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   lessonProgress LessonProgress[]
   Comment        Comment[]
   Resource       Resource[]
-   
+  Note           Note[]
+
   @@map("lessons")
 }
 
@@ -188,7 +189,7 @@ model Question {
   createdAt     DateTime           @default(now()) @map("created_at")
 
   // Relations
-  module Module @relation(fields: [moduleId], references: [id])
+  module Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
 
   @@map("questions")
 }
@@ -213,7 +214,7 @@ model AssessmentAttempt {
 
   // Relations
   user   User   @relation(fields: [userId], references: [id])
-  module Module @relation(fields: [moduleId], references: [id])
+  module Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
 
   @@map("assessment_attempts")
 }
@@ -368,7 +369,6 @@ model Resource {
   @@map("resources")
 }
 
-
 model Notification {
   id        Int      @id @default(autoincrement())
   userId    Int      @map("user_id")
@@ -380,4 +380,19 @@ model Notification {
   user User @relation(fields: [userId], references: [id])
 
   @@map("notifications")
+}
+
+model Note {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  lessonId  Int      @map("lesson_id")
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  user   User   @relation(fields: [userId], references: [id])
+  lesson Lesson @relation(fields: [lessonId], references: [id])
+
+  @@unique([userId, lessonId], name: "userId_lessonId")
+  @@map("notes")
 }

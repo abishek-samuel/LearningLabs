@@ -168,15 +168,6 @@ export default function MyContent() {
           </div>
         </div>
 
-        <Tabs defaultValue="courses">
-          <TabsList className="mb-6">
-            <TabsTrigger value="courses">Courses</TabsTrigger>
-            <TabsTrigger value="modules">Modules</TabsTrigger>
-            <TabsTrigger value="lessons">Lessons</TabsTrigger>
-            <TabsTrigger value="assessments">Assessments</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="courses">
             {isLoading ? (
               // Loading Skeleton
               <div className="grid grid-cols-1 gap-6">
@@ -342,93 +333,6 @@ export default function MyContent() {
                 ))}
               </div>
             )}
-          </TabsContent>
-
-          {/* Other TabsContent sections remain unchanged */}
-          <TabsContent value="modules">
-            <Card>
-              <CardHeader>
-                <CardTitle>Modules</CardTitle>
-                <CardDescription>
-                  Individual modules you've created that can be used in courses
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  You haven't created any standalone modules yet. Modules are
-                  created within courses.
-                </p>
-              </CardContent>
-              <CardFooter>
-                <Button onClick={() => navigate("/create-course")}>
-                  Create a Course
-                </Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="lessons">
-            <Card>
-              <CardHeader>
-                <CardTitle>Lessons & Resources</CardTitle>
-                <CardDescription>
-                  Learning content including videos, documents, and other
-                  resources
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col items-center justify-center py-8">
-                  <Video className="h-16 w-16 text-slate-300 dark:text-slate-600 mb-4" />
-                  <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">
-                    No Content Yet
-                  </h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 text-center max-w-md mb-6">
-                    You haven't uploaded any videos, documents, or other
-                    learning resources yet. Start creating engaging content for
-                    your learners!
-                  </p>
-                  <div className="flex gap-4">
-                    <Button variant="outline">
-                      <FileText className="mr-2 h-4 w-4" />
-                      Upload Document
-                    </Button>
-                    <Button>
-                      <Video className="mr-2 h-4 w-4" />
-                      Upload Video
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="assessments">
-            <Card>
-              <CardHeader>
-                <CardTitle>Assessments</CardTitle>
-                <CardDescription>
-                  Quizzes, tests and other assessment materials you've created
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col items-center justify-center py-8">
-                  <FileText className="h-16 w-16 text-slate-300 dark:text-slate-600 mb-4" />
-                  <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">
-                    No Assessments Yet
-                  </h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 text-center max-w-md mb-6">
-                    You haven't created any quizzes or tests yet. Assessments
-                    help you evaluate learning outcomes and engage students.
-                  </p>
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create Assessment
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
       </div>
     </MainLayout>
   );
