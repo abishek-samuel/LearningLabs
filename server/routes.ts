@@ -1008,6 +1008,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
 
         res.status(201).json(newCourse);
+        try {
+          await axios.post("http://localhost:5001/generate_image", {
+            course_title: title,
+            course_description: description
+          });
+        } catch (err) {
+          console.log(err);
+        }
       } catch (error) {
         // if (error instanceof z.ZodError) { ... } // Add back Zod error handling if used
         console.error("Error creating course:", error);

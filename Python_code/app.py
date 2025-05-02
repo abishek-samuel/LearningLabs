@@ -8,10 +8,36 @@ from question_generator import generate_all_questions_from_transcripts_folder  #
 from summary_generator import summarize_folder  # ⚡ Add this line
 from flask_cors import CORS
 from llm_handler import chat
+from image_generation import generate_course_image
+
 
 app = Flask(__name__)
 CORS(app)
 load_dotenv()
+
+
+@app.route("/generate_image", methods=["POST"])
+def generate_image_endpoint():
+    """Flask API endpoint to generate and save an image"""
+    try:
+        data = request.get_json()
+        course_title = data.get("course_title", "")
+        course_description = data.get("course_description", "")
+
+        print(f"🚀 Generating image for course: {course_title}")
+        generate_course_image(course_title,course_description)
+
+        return jsonify({
+            "success": True,
+            "message": "Image generated and saved successfully.",
+            # "saved_path": result["saved_path"]
+        }), 200  # ✅ Return success message with HTTP 200
+
+    except Exception as e:
+        print(f"🔥 Error in image generation: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 
 @app.route("/api/chat", methods=["POST"])
 def chat_api():
