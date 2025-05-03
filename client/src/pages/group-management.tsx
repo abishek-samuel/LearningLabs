@@ -62,9 +62,10 @@ export default function GroupManagement() {
   };
 
   const handleUpdateGroup = async () => {
-    setEditGroupNameError(!groupName);
 
-    if (!groupName) {
+
+    if (!editGroupName) {
+      setEditGroupNameError(true);
       return;
     }
     try {

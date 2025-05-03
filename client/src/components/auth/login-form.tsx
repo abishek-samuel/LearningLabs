@@ -107,11 +107,10 @@ export function LoginForm() {
         });
       }
     } catch (err) {
-      console.error("Microsoft login error:", err);
-      toast({
-        title: "Login Failed",
-        description: "Something went wrong. Please try again!",
-      });
+      // toast({
+      //   title: "Login Failed",
+      //   description: "Something went wrong. Please try again!",
+      // });
     }
   };
 
@@ -293,19 +292,11 @@ export function LoginForm() {
             </span>
           </div>
         </div>
-
-        <GoogleOAuthProvider clientId={clientId}>
-          <GoogleLogin
-            onSuccess={handleGoogleLoginSuccess}
-            onError={handleGoogleLoginFailure}
-          />
-        </GoogleOAuthProvider>
-
       </form>
       <Button
         type="button"
         onClick={handleMicrosoftLogin}
-        className="relative w-full mt-4 flex items-center justify-center border border-gray-300 bg-white hover:bg-blue-50 text-[14px] font-normal text-black-100 font-sans dark:text-black py-2 px-4 rounded-md shadow-sm"
+        className="relative w-full mt-3 mb-3 flex items-center justify-center border border-gray-300 bg-white hover:bg-blue-50 text-[14px] font-normal text-black-100 font-sans dark:text-black py-2 px-4 rounded-md shadow-sm"
       >
         <span className="absolute left-4 flex items-center">
           <svg
@@ -321,6 +312,13 @@ export function LoginForm() {
         </span>
         <span className="ml-6">Sign in with Microsoft</span>
       </Button>
+
+      <GoogleOAuthProvider clientId={clientId}>
+        <GoogleLogin
+          onSuccess={handleGoogleLoginSuccess}
+          onError={handleGoogleLoginFailure}
+        />
+      </GoogleOAuthProvider>
 
 
     </Form>

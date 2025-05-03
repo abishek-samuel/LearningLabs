@@ -3,59 +3,284 @@ import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  AreaChart, BarChart, PieChart, LineChart, Users, Clock, BookOpen, Award, Download, 
+import {
+  AreaChart, BarChart, PieChart, LineChart, Users, Clock, BookOpen, Award, Download,
   FileText, BarChart2
 } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Area, Bar, CartesianGrid, Cell, Legend, Line, Pie, Tooltip, XAxis, YAxis } from "recharts";
+import Chart from 'react-apexcharts';
 
 export default function Analytics() {
   const { user } = useAuth();
-  
-  // Mock data for demonstration
-  const courseData = [
-    { name: "JavaScript Fundamentals", enrollment: 124, completion: 68, avgScore: 82 },
-    { name: "React for Beginners", enrollment: 98, completion: 45, avgScore: 78 },
-    { name: "Advanced CSS Techniques", enrollment: 76, completion: 32, avgScore: 75 },
-    { name: "Introduction to TypeScript", enrollment: 52, completion: 18, avgScore: 70 },
-    { name: "Data Analysis with Python", enrollment: 42, completion: 10, avgScore: 65 },
-  ];
-  
+  const [users, setUsers] = useState<User[]>([]);
+  const [enrollments, setEnrollments] = useState([]);
+  const [analyticsData, setAnalyticsData] = React.useState<{
+    courseData: any[];
+    stats: {
+      totalUsers: number;
+      courseCompletion: number;
+      avgEngagement: string;
+      certificatesIssued: number;
+    };
+  }>({
+    courseData: [],
+    stats: {
+      totalUsers: 0,
+      courseCompletion: 0,
+      avgEngagement: "0.0",
+      certificatesIssued: 0
+    }
+  });
+
+  React.useEffect(() => {
+    const fetchAnalytics = async () => {
+      try {
+        const response = await fetch('/api/analytics/overview');
+        if (!response.ok) throw new Error('Failed to fetch analytics');
+        const data = await response.json();
+        setAnalyticsData(data);
+      } catch (error) {
+        console.error('Error fetching analytics:', error);
+      }
+    };
+
+    fetchAnalytics();
+  }, []);
+
+  useEffect(() => {
+    fetchUsers();
+    fetchEntrollments();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch("/api/all/users");
+      if (!response.ok) throw new Error("Failed to fetch users");
+      const data = await response.json();
+      setUsers(data);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+    } finally {
+    }
+  };
+
+  const fetchEntrollments = async () => {
+    try {
+      const response = await fetch("/api/enrollments");
+      if (!response.ok) throw new Error("Failed to fetch users");
+      const data = await response.json();
+      setEnrollments(data);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+    } finally {
+    }
+  };
+  console.log(enrollments);
+
+
+  const courseData = analyticsData.courseData;
+
   // Stats cards data
   const statsData = [
     {
       title: "Total Users",
-      value: "1,254",
-      change: "+12%",
+      value: analyticsData.stats.totalUsers.toLocaleString(),
+      change: "+12%", // Could be calculated if historical data is available
       positive: true,
       icon: <Users className="h-4 w-4" />,
       description: "Active learners in platform",
     },
     {
       title: "Course Completion",
-      value: "67%",
-      change: "+5%",
+      value: `${analyticsData.stats.courseCompletion}%`,
+      change: "+5%", // Could be calculated if historical data is available
       positive: true,
       icon: <BookOpen className="h-4 w-4" />,
       description: "Average completion rate",
     },
     {
       title: "Avg. Engagement",
-      value: "3.8h",
-      change: "+0.5h",
+      value: `${analyticsData.stats.avgEngagement}h`,
+      change: "+0.5h", // Could be calculated if historical data is available
       positive: true,
       icon: <Clock className="h-4 w-4" />,
       description: "Weekly time spent learning",
     },
     {
       title: "Certificates Issued",
-      value: "358",
-      change: "+24",
-      positive: true,
+      value: analyticsData.stats.certificatesIssued.toString(),
+      change: "+24", // Could be calculated if historical data is available
       icon: <Award className="h-4 w-4" />,
       description: "Last 30 days",
     },
   ];
-  
+
+  const options = {
+    chart: {
+      type: 'bar',
+      stacked: false,
+      toolbar: { show: false },
+    },
+    plotOptions: {
+      bar: {
+        horizontal: false,
+        columnWidth: '50%',
+      },
+    },
+    dataLabels: {
+      enabled: false,
+    },
+    xaxis: {
+      categories: courseData?.map(item => item.name) || [],
+    },
+    legend: {
+      position: 'top',
+    },
+    tooltip: {
+      shared: true,
+      intersect: false,
+    },
+    colors: ['#8884d8', '#82ca9d', '#ffc658'],
+  };
+
+  const series = [
+    {
+      name: 'Average Score',
+      data: courseData?.map(item => item.avgScore) || [],
+    },
+    {
+      name: 'Completion',
+      data: courseData?.map(item => item.completion) || [],
+    },
+    {
+      name: 'Enrollment',
+      data: courseData?.map(item => item.enrollment) || [],
+    },
+  ];
+
+
+  const getCountMap = (key) =>
+    users.reduce((acc, user) => {
+      acc[user[key]] = (acc[user[key]] || 0) + 1;
+      return acc;
+    }, {});
+
+  const statusCount = getCountMap('status'); // e.g. { active: 2 }
+  const roleCount = getCountMap('role');     // e.g. { admin: 1, contributor: 1 }
+
+  const getChartConfig = (countMap, colors) => ({
+    options: {
+      labels: Object.keys(countMap),
+      legend: { position: 'bottom' },
+      colors,
+      chart: { type: 'donut' },
+      dataLabels: {
+        formatter: function (val, opts) {
+          // Get the actual count (not percentage)
+          return opts.w.config.series[opts.seriesIndex];
+        },
+      },
+    },
+    series: Object.values(countMap),
+  });
+
+
+  const statusChart = getChartConfig(statusCount, ['#22C55E', '#EF4444']); // green, red
+  const roleChart = getChartConfig(roleCount, ['#3B82F6', '#F59E0B', '#8B5CF6']); // blue, amber, violet
+  // 1. Bar Chart - Enrollments by Course
+  const courseCountMap = enrollments.reduce((acc, e) => {
+    const courseName = e.course?.title || 'Unknown';
+    acc[courseName] = (acc[courseName] || 0) + 1;
+    return acc;
+  }, {});
+
+  const courseBarData = {
+    series: [{
+      name: 'Enrollments',
+      data: Object.values(courseCountMap),
+    }],
+    options: {
+      chart: {
+        type: 'bar',
+      },
+      xaxis: {
+        categories: Object.keys(courseCountMap),
+        title: {
+          text: 'Courses', // X-axis label
+        }
+      },
+      yaxis: {
+        title: {
+          text: 'Number of Enrollments', // Y-axis label
+
+        }
+      }
+    },
+  };
+
+
+  // 2. Donut Chart - Course Status
+  const courseStatusCount = enrollments.reduce((acc, e) => {
+    const status = e.course?.status || 'unknown';
+    acc[status] = (acc[status] || 0) + 1;
+    return acc;
+  }, {});
+
+  const statusDonutData = {
+    series: Object.values(courseStatusCount),
+    options: {
+      chart: {
+        type: 'donut',
+      },
+      labels: Object.keys(courseStatusCount),
+
+      dataLabels: {
+        formatter: (val, opts) => opts.w.config.series[opts.seriesIndex],
+      },
+    },
+  };
+
+  // 3. Line Chart - Enrollments Over Time
+  const enrollmentsByDate = enrollments.reduce((acc, e) => {
+    const date = new Date(e.enrolledAt).toISOString().split('T')[0];
+    acc[date] = (acc[date] || 0) + 1;
+    return acc;
+  }, {});
+
+  const lineChartData = {
+    series: [{
+      name: 'Enrollments',
+      data: Object.values(enrollmentsByDate),
+    }],
+    options: {
+      chart: {
+        type: 'line',
+      },
+      xaxis: {
+        categories: Object.keys(enrollmentsByDate),
+        title: {
+          text: 'Date', // X-axis label
+          style: {
+            fontSize: '14px',
+            fontWeight: 'bold'
+          }
+        }
+      },
+      yaxis: {
+        title: {
+          text: 'Number of Enrollments', // Y-axis label
+          style: {
+            fontSize: '14px',
+            fontWeight: 'bold'
+          }
+        }
+      }
+    },
+  };
+
+
+
   return (
     <MainLayout>
       <div className="bg-white dark:bg-slate-900 shadow">
@@ -80,7 +305,7 @@ export default function Analytics() {
           </div>
         </div>
       </div>
-      
+
       <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -106,7 +331,7 @@ export default function Analytics() {
             </Card>
           ))}
         </div>
-        
+
         <Tabs defaultValue="overview">
           <TabsList className="mb-8">
             <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -114,7 +339,7 @@ export default function Analytics() {
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="assessments">Assessments</TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="overview">
             {/* Overview Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
@@ -122,24 +347,32 @@ export default function Analytics() {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle>Course Enrollments</CardTitle>
-                      <CardDescription>Tracking monthly enrollments</CardDescription>
+                      <CardTitle>Course Enrollment</CardTitle>
+                      <CardDescription>Tracking monthly enrollment</CardDescription>
                     </div>
                     <AreaChart className="h-4 w-4 text-slate-400" />
                   </div>
                 </CardHeader>
                 <CardContent className="p-6">
-                  <div className="h-64 flex items-center justify-center bg-slate-50 dark:bg-slate-800/50 rounded-md">
-                    <div className="text-center">
-                      <BarChart2 className="h-10 w-10 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
-                        Enrollment chart visualization would appear here
-                      </p>
-                    </div>
+                  <div className="h-64">
+                    {courseData?.map((course, index) => (
+                      <div key={index} className="mb-4">
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm font-medium">{course.name}</span>
+                          <span className="text-sm text-slate-500">{course.enrollment} enrollment</span>
+                        </div>
+                        <div className="w-full h-2 bg-slate-200 rounded-full">
+                          <div
+                            className="h-2 bg-blue-600 rounded-full"
+                            style={{ width: `${Math.min((course.enrollment / Math.max(...courseData.map(c => c.enrollment))) * 100, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -151,18 +384,26 @@ export default function Analytics() {
                   </div>
                 </CardHeader>
                 <CardContent className="p-6">
-                  <div className="h-64 flex items-center justify-center bg-slate-50 dark:bg-slate-800/50 rounded-md">
-                    <div className="text-center">
-                      <BarChart2 className="h-10 w-10 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
-                        Completion rate chart visualization would appear here
-                      </p>
-                    </div>
+                  <div className="h-64">
+                    {courseData?.map((course, index) => (
+                      <div key={index} className="mb-4">
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm font-medium">{course.name}</span>
+                          <span className="text-sm text-slate-500">{course.completion}% completed</span>
+                        </div>
+                        <div className="w-full h-2 bg-slate-200 rounded-full">
+                          <div
+                            className="h-2 bg-green-600 rounded-full"
+                            style={{ width: `${course.completion}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
             </div>
-            
+
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -174,18 +415,48 @@ export default function Analytics() {
                 </div>
               </CardHeader>
               <CardContent className="p-6">
-                <div className="h-80 flex items-center justify-center bg-slate-50 dark:bg-slate-800/50 rounded-md">
-                  <div className="text-center">
-                    <BarChart2 className="h-10 w-10 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                      Platform engagement visualization would appear here
-                    </p>
+                <div className="h-80">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="p-6 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+                      <h3 className="text-lg font-medium mb-4">Course Performance</h3>
+                      {courseData?.map((course, index) => (
+                        <div key={index} className="mb-4">
+                          <div className="flex justify-between mb-1">
+                            <span className="text-sm font-medium">{course.name}</span>
+                            <span className="text-sm text-slate-500">{course.avgScore}% avg score</span>
+                          </div>
+                          <div className="w-full h-2 bg-slate-200 rounded-full">
+                            <div
+                              className="h-2 bg-purple-600 rounded-full"
+                              style={{ width: `${course.avgScore}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="p-6 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+                      <h3 className="text-lg font-medium mb-4">User Activity</h3>
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <span>Active Users</span>
+                          <span className="font-medium">{analyticsData?.stats?.totalUsers || 0}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span>Avg. Engagement</span>
+                          <span className="font-medium">{analyticsData?.stats?.avgEngagement || 0}h/week</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span>Course Completion Rate</span>
+                          <span className="font-medium">{analyticsData?.stats?.courseCompletion || 0}%</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
-          
+
           <TabsContent value="courses">
             {/* Course Analytics */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
@@ -206,8 +477,8 @@ export default function Analytics() {
                         <div className="space-y-1">
                           <p className="text-sm font-medium">{course.name}</p>
                           <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2">
-                            <div 
-                              className="bg-primary h-2 rounded-full" 
+                            <div
+                              className="bg-primary h-2 rounded-full"
                               style={{ width: `${Math.min(100, (course.enrollment / 150) * 100)}%` }}
                             ></div>
                           </div>
@@ -218,7 +489,7 @@ export default function Analytics() {
                   </div>
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -230,18 +501,19 @@ export default function Analytics() {
                   </div>
                 </CardHeader>
                 <CardContent className="p-6">
-                  <div className="h-64 flex items-center justify-center bg-slate-50 dark:bg-slate-800/50 rounded-md">
-                    <div className="text-center">
-                      <BarChart2 className="h-10 w-10 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
-                        Course distribution chart visualization would appear here
-                      </p>
-                    </div>
+                  <div className="h-64">
+                    {courseData && courseData.length ? (
+                      <Chart options={options} series={series} type="bar" />
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-gray-500">
+                        No data available
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
             </div>
-            
+
             <Card>
               <CardHeader>
                 <CardTitle>Course Performance</CardTitle>
@@ -253,7 +525,7 @@ export default function Analytics() {
                     <thead>
                       <tr className="border-b">
                         <th className="px-4 py-3 text-left text-sm font-medium text-slate-500 dark:text-slate-400">Course Name</th>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-slate-500 dark:text-slate-400">Enrollments</th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-slate-500 dark:text-slate-400">Enrollment</th>
                         <th className="px-4 py-3 text-left text-sm font-medium text-slate-500 dark:text-slate-400">Completion</th>
                         <th className="px-4 py-3 text-left text-sm font-medium text-slate-500 dark:text-slate-400">Avg. Score</th>
                         <th className="px-4 py-3 text-right text-sm font-medium text-slate-500 dark:text-slate-400">Details</th>
@@ -279,7 +551,7 @@ export default function Analytics() {
               </CardContent>
             </Card>
           </TabsContent>
-          
+
           <TabsContent value="users">
             {/* User Analytics */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
@@ -287,135 +559,123 @@ export default function Analytics() {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle>User Growth</CardTitle>
-                      <CardDescription>New registrations over time</CardDescription>
+                      <CardTitle>User Status</CardTitle>
+                      <CardDescription>Distribution of active vs inactive users</CardDescription>
                     </div>
-                    <LineChart className="h-4 w-4 text-slate-400" />
+                    <PieChart className="h-4 w-4 text-slate-400" />
                   </div>
                 </CardHeader>
                 <CardContent className="p-6">
-                  <div className="h-64 flex items-center justify-center bg-slate-50 dark:bg-slate-800/50 rounded-md">
-                    <div className="text-center">
-                      <BarChart2 className="h-10 w-10 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
-                        User growth chart visualization would appear here
-                      </p>
-                    </div>
+                  <div className="h-64">
+                    <Chart
+                      options={statusChart.options}
+                      series={statusChart.series}
+                      type="donut"
+                      height="100%"
+                    />
                   </div>
                 </CardContent>
               </Card>
-              
+
+              {/* Card 2: Role */}
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle>Active Users</CardTitle>
-                      <CardDescription>Daily and monthly active users</CardDescription>
+                      <CardTitle>User Roles</CardTitle>
+                      <CardDescription>Distribution of user roles</CardDescription>
                     </div>
-                    <AreaChart className="h-4 w-4 text-slate-400" />
+                    <PieChart className="h-4 w-4 text-slate-400" />
                   </div>
                 </CardHeader>
                 <CardContent className="p-6">
-                  <div className="h-64 flex items-center justify-center bg-slate-50 dark:bg-slate-800/50 rounded-md">
-                    <div className="text-center">
-                      <BarChart2 className="h-10 w-10 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
-                        Active users chart visualization would appear here
-                      </p>
-                    </div>
+                  <div className="h-64">
+                    <Chart
+                      options={roleChart.options}
+                      series={roleChart.series}
+                      type="donut"
+                      height="100%"
+                    />
                   </div>
                 </CardContent>
               </Card>
             </div>
-            
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>User Demographics</CardTitle>
-                    <CardDescription>User distribution by department and role</CardDescription>
-                  </div>
-                  <PieChart className="h-4 w-4 text-slate-400" />
-                </div>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="h-80 flex items-center justify-center bg-slate-50 dark:bg-slate-800/50 rounded-md">
-                  <div className="text-center">
-                    <BarChart2 className="h-10 w-10 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                      User demographics visualization would appear here
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
-          
+
           <TabsContent value="assessments">
-            {/* Assessment Analytics */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+
+              {/* Enrollments by Course - Bar Chart */}
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle>Assessment Performance</CardTitle>
-                      <CardDescription>Average scores by assessment</CardDescription>
+                      <CardTitle>Enrollments by Course</CardTitle>
+                      <CardDescription>Shows course enrollment count</CardDescription>
                     </div>
-                    <BarChart className="h-4 w-4 text-slate-400" />
                   </div>
                 </CardHeader>
                 <CardContent className="p-6">
-                  <div className="h-64 flex items-center justify-center bg-slate-50 dark:bg-slate-800/50 rounded-md">
-                    <div className="text-center">
-                      <BarChart2 className="h-10 w-10 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
-                        Assessment performance chart visualization would appear here
-                      </p>
-                    </div>
+                  <div className="h-64">
+                    <Chart
+                      options={courseBarData.options}
+                      series={courseBarData.series}
+                      type="bar"
+                      height={250}
+                    />
                   </div>
                 </CardContent>
               </Card>
-              
+
+              {/* Course Status Donut Chart */}
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle>Question Analysis</CardTitle>
-                      <CardDescription>Identifying challenging questions</CardDescription>
+                      <CardTitle>Course Status</CardTitle>
+                      <CardDescription>Distribution of courses by status</CardDescription>
                     </div>
-                    <BarChart className="h-4 w-4 text-slate-400" />
                   </div>
                 </CardHeader>
                 <CardContent className="p-6">
-                  <div className="h-64 flex items-center justify-center bg-slate-50 dark:bg-slate-800/50 rounded-md">
-                    <div className="text-center">
-                      <BarChart2 className="h-10 w-10 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
-                        Question analysis chart visualization would appear here
-                      </p>
-                    </div>
+                  <div className="h-64">
+                    <Chart
+                      options={statusDonutData.options}
+                      series={statusDonutData.series}
+                      type="donut"
+                      height={250}
+                    />
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Enrollments Over Time Line Chart - Full Width */}
+              <div className="md:col-span-2">
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle>Enrollments Over Time</CardTitle>
+                        <CardDescription>Tracks enrollments per day</CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-6">
+                    <div className="h-64">
+                      <Chart
+                        options={lineChartData.options}
+                        series={lineChartData.series}
+                        type="line"
+                        height={250}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
             </div>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>Assessment Completion Trends</CardTitle>
-                <CardDescription>Tracking assessment attempts and completions over time</CardDescription>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="h-80 flex items-center justify-center bg-slate-50 dark:bg-slate-800/50 rounded-md">
-                  <div className="text-center">
-                    <BarChart2 className="h-10 w-10 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                      Assessment trends visualization would appear here
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
+
         </Tabs>
       </div>
     </MainLayout>

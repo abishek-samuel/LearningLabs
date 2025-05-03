@@ -90,6 +90,20 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
     return date.toLocaleDateString() + " " + date.toLocaleTimeString();
   };
 
+  const formatMessage = (message: string) => {
+    try {
+      const match = message.match(/\[(.*?)\]/); // Extract JSON array
+      if (match) {
+        const parsedArray = JSON.parse(match[0]); // match[0] includes brackets
+        return `You have been granted access to: ${parsedArray.join(", ")}`;
+      }
+      return message;
+    } catch (error) {
+      return message; // fallback if parsing fails
+    }
+  };
+
+
   return (
     <header className="sticky top-0 z-30 w-full bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 shadow-sm">
       <div className="flex h-16 items-center px-4 sm:px-6 lg:px-8">
@@ -123,9 +137,10 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
               width="130"
             />
 
-            <span className="font-bold text-xl text-slate-900 dark:text-white">
+            <span className="hidden sm:inline font-bold text-xl text-slate-900 dark:text-white">
               Learning Labs
             </span>
+
           </Link>
         </div>
 
@@ -181,16 +196,15 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
                   notifications.map((notification) => (
                     <div
                       key={notification.id}
-                      className={`py-2 px-4 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer ${
-                        !notification.isRead
-                          ? "bg-slate-50 dark:bg-slate-900"
-                          : ""
-                      }`}
+                      className={`py-2 px-4 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer ${!notification.isRead
+                        ? "bg-slate-50 dark:bg-slate-900"
+                        : ""
+                        }`}
                       onClick={() => markAsReadMutation.mutate(notification.id)}
                     >
                       <div className="font-medium">{notification.title}</div>
                       <div className="text-sm text-gray-500">
-                        {notification.message}
+                        {formatMessage(notification.message)}
                       </div>
                       <div className="text-xs text-gray-400 mt-1">
                         {formatDate(notification.createdAt)}

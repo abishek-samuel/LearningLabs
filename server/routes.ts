@@ -1012,25 +1012,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           difficulty,
           status,
         } = req.body;
-  
+
         // Basic validation (replace with Zod/other validation if needed)
         if (!title || !description) {
           return res
             .status(400)
             .json({ message: "Title and description are required" });
         }
-  
+
         // Check if a course with the same title already exists
         const existingCourse = await storage.getCourseByTitle(title);
         if (existingCourse) {
           return res
             .status(409) // 409 Conflict status code
-            .json({ 
+            .json({
               message: "A course with this title already exists",
               code: "DUPLICATE_COURSE_TITLE"
             });
         }
-  
+
         const newCourse = await storage.createCourse({
           title,
           description,
@@ -1042,9 +1042,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           categoryId: categoryId ? parseInt(categoryId) : null,
           instructorId: req.user!.id, // Assert req.user exists
         });
-  
+
         res.status(201).json(newCourse);
-        
+
         try {
           await axios.post("http://localhost:5001/generate_image", {
             course_id: newCourse.id,
@@ -1691,9 +1691,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const isCorrect =
             q &&
             ans.selectedOption.trim().toLowerCase() ===
-              q.options[`option${q.correctAnswer.replace("option", "")}`]
-                .trim()
-                .toLowerCase();
+            q.options[`option${q.correctAnswer.replace("option", "")}`]
+              .trim()
+              .toLowerCase();
 
           if (isCorrect) correct++;
           return {
@@ -1829,9 +1829,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   const progressPercentage =
                     totalLessonsInCourse > 0
                       ? Math.round(
-                          (completedLessonsInCourse / totalLessonsInCourse) *
-                            100
-                        )
+                        (completedLessonsInCourse / totalLessonsInCourse) *
+                        100
+                      )
                       : 0; // Avoid division by zero if course has no lessons
 
                   // 5. Update enrollment with correct progress and completion status
@@ -2279,6 +2279,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await Promise.all(
             courseIds.map((courseId: number) =>
               storage.createGroupCourse({ groupId: newGroup.id, courseId })
+            )
+          );
+        }
+        if (Array.isArray(userIds) && userIds.length > 0) {
+          await Promise.all(
+            userIds.map((userId) =>
+              storage.createGroupMember({ groupId: newGroup.id, userId })
             )
           );
         }
@@ -2820,8 +2827,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const progressPercentage =
               totalLessonsInCourse > 0
                 ? Math.round(
-                    (completedLessonsInCourse / totalLessonsInCourse) * 100
-                  )
+                  (completedLessonsInCourse / totalLessonsInCourse) * 100
+                )
                 : 0; // Avoid division by zero if course has no lessons
 
             // 5. Update enrollment with correct progress and completion status
@@ -3691,5 +3698,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Analytics endpoints
+
+  app.get("/api/analytics/overview", isAuthenticated, async (req, res) => {
+    try {
+      // Get total active users
+      const activeUsers = await storage.prisma.user.count({
+        where: { status: "active" }
+      });
+
+      // Get course completion rate
+      const completedEnrollments = await storage.prisma.enrollment.count({
+        where: { progress: 100 }
+      });
+      const totalEnrollments = await storage.prisma.enrollment.count();
+      const completionRate = totalEnrollments > 0
+        ? Math.round((completedEnrollments / totalEnrollments) * 100)
+        : 0;
+
+      // Get average engagement (hours per week)
+      const activityLogs = await storage.prisma.activityLog.findMany({
+        where: {
+          createdAt: {
+            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // Last 7 days
+          }
+        }
+      });
+      const avgEngagement = activityLogs.length > 0
+        ? (activityLogs.length / activeUsers / 7 * 2).toFixed(1)
+        : "0.0";
+
+      // Get certificates issued in last 30 days
+      const recentCertificates = await storage.prisma.certificate.count({
+        where: {
+          issueDate: {
+            gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+          }
+        }
+      });
+
+      // Get course enrollment data
+      const courses = await storage.prisma.course.findMany({
+        where: { status: "published" },
+        select: {
+          title: true,
+          _count: {
+            select: { enrollments: true }
+          },
+          enrollments: {
+            select: {
+              progress: true
+            }
+          }
+        },
+        take: 5,
+        orderBy: {
+          enrollments: {
+            _count: 'desc'
+          }
+        }
+      });
+
+      const courseData = courses.map(course => ({
+        name: course.title,
+        enrollment: course._count.enrollments,
+        completion: Math.round(
+          course.enrollments.reduce((acc, curr) => acc + curr.progress, 0) /
+          (course.enrollments.length || 1)
+        ),
+        avgScore: Math.round(65 + Math.random() * 20) // Placeholder - needs assessment data
+      }));
+
+      res.json({
+        stats: {
+          totalUsers: activeUsers,
+          courseCompletion: completionRate,
+          avgEngagement: avgEngagement,
+          certificatesIssued: recentCertificates
+        },
+        courseData
+      });
+    } catch (error) {
+      console.error("Error fetching analytics:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
   return httpServer;
 }

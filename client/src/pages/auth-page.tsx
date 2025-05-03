@@ -22,10 +22,22 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900">
+    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900 overflow-hidden">
       {/* Left side - Auth forms */}
       <div className="flex flex-col justify-center px-4 py-12 sm:px-6 lg:flex-none lg:px-20 xl:px-24 w-full lg:w-1/2 relative">
-        <div className="absolute top-4 right-4">
+        <div className="flex items-center justify-between h-16 fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-800 p-4 lg:hidden">
+          <img
+            src="../../../alten_black.png"
+            className="mt-1 mr-2 dark:hidden w-[130px]"
+            title="Alten Global Technologies Private Limited"
+            alt="Alten Global Technologies Private Limited"
+          />
+          <img
+            src="../../../alten_W.png"
+            className="mt-1 mr-2 hidden dark:block w-[130px]"
+            title="Alten Global Technologies Private Limited"
+            alt="Alten Global Technologies Private Limited"
+          />
           <Button
             variant="ghost"
             size="icon"
@@ -40,60 +52,77 @@ export default function AuthPage() {
           </Button>
         </div>
 
-        <div className="mx-auto w-full max-w-sm lg:w-[420px]">
+        {/* Desktop & tablet header (unchanged) */}
+        {/* <div className="flex items-center justify-between mt-0 ml-0 lg:mt-[-72px] lg:ml-[-70px]"> */}
+        <div className="flex items-center justify-between mt-0 ml-0 lg:mt-0 lg:ml-0 absolute -top-5 left-0 right-0">
+          {/* First image (visible on both screen sizes) */}
+          <img
+            src="../../../alten_black.png"
+            className="mt-1 mr-2 dark:hidden w-[130px] md:w-[100px] lg:w-[130px]"
+            title="Alten Global Technologies Private Limited"
+            alt="Alten Global Technologies Private Limited"
+          />
+
+          {/* Second image (visible on both screen sizes) */}
+          <img
+            src="../../../alten_W.png"
+            className="mt-1 mr-2 hidden dark:block w-[130px] md:w-[100px] lg:w-[130px]"
+            title="Alten Global Technologies Private Limited"
+            alt="Alten Global Technologies Private Limited"
+          />
+
+          {/* Theme toggle button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            aria-label="Toggle theme"
+          >
+            {theme === "dark" ? (
+              <SunIcon className="h-5 w-5 text-yellow-500" />
+            ) : (
+              <MoonIcon className="h-5 w-5 text-slate-700" />
+            )}
+          </Button>
+        </div>
+
+
+        <div className="mx-auto w-full max-w-sm lg:w-[420px] sm:mt-16 lg:mt-[10px]"> {/* Added padding-top to account for the fixed header */}
           <div className="text-center lg:text-left mb-8">
-            <div className="flex items-center mb-4">
-              <BookOpen className="h-10 w-10 text-blue-600 dark:text-blue-400 mr-3" />
+            <div className="flex items-center mb-1">
+              <BookOpen className="h-8 w-8 text-blue-600 dark:text-blue-400 mr-3" />
               <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
                 Learning Labs
               </h2>
             </div>
-            <p className="text-base text-slate-600 dark:text-slate-400">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
               A modern learning management system for organizations
             </p>
           </div>
 
           <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
-            {/* <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="login">Sign In</TabsTrigger>
-              <TabsTrigger value="register">Create Account</TabsTrigger>
-            </TabsList> */}
             <div>
-              {/* <TabsContent value="login"> */}
               <Card className="border-slate-200 dark:border-slate-700" style={{ marginTop: "-20px" }}>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-2xl" style={{ marginTop: "-10px" }}>Sign in to your account</CardTitle>
-                  <CardDescription className="text-slate-500 dark:text-slate-400">
-                    Enter your credentials to access your account
-                  </CardDescription>
+                  <CardTitle className="text-2xl" style={{ marginTop: "-17px" }}>
+                    Sign in to your account
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <LoginForm />
                 </CardContent>
               </Card>
-              {/* </TabsContent> */}
-              {/* <TabsContent value="register">
-                <Card className="border-slate-200 dark:border-slate-700">
-                  <CardHeader className="pb-4">
-                    <CardTitle className="text-2xl">Create a new account</CardTitle>
-                    <CardDescription className="text-slate-500 dark:text-slate-400">
-                      Fill in the user details to create a new account
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <RegisterForm />
-                  </CardContent>
-                </Card>
-              </TabsContent> */}
             </div>
           </Tabs>
         </div>
       </div>
 
+
+
       {/* Right side - Hero section */}
       <div className="hidden lg:block relative w-0 flex-1">
         <div className="absolute inset-0 h-full w-full bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800">
-          <div className="relative z-10 flex flex-col justify-center items-start h-full px-16 text-white">
+          <div className="relative z-10 flex flex-col justify-center items-start h-full px-16 text-white -mt-10">
             <h1 className="text-4xl font-bold mb-8 leading-tight">Enhance your skills with our modern learning platform</h1>
             <div className="space-y-6">
               <div className="flex items-start">
