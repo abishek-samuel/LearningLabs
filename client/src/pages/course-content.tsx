@@ -350,7 +350,6 @@ export default function CourseContent() {
 
   const [lessonSummary, setLessonSummary] = useState<string | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
-  const [captionExists, setCaptionExists] = useState(false);
 
   const fetchLessonSummary = async (lessonId: number) => {
     try {
@@ -366,16 +365,6 @@ export default function CourseContent() {
       setSummaryLoading(false);
     }
   };
-
-  const captionUrl = currentLesson?.videoUrl
-    ?.replace('/videos/', '/captions/')
-    ?.replace(/\.(mp4|webm|ogg|mov|avi)$/i, '.vtt');
-
-  useEffect(() => {
-    captionUrl && fetch(captionUrl, { method: 'HEAD' })  // HEAD request: lightweight existence check
-      .then(res => setCaptionExists(res.ok))
-      .catch(() => setCaptionExists(false));
-  }, [captionUrl]);
 
   // Fetch summary when currentLesson changes
   useEffect(() => {
@@ -533,11 +522,10 @@ export default function CourseContent() {
       });
 
       if (!response.ok) {
-        const errorData = await response.text(); // Get more error details
+        const errorData = await response.text(); 
         throw new Error(`Failed to update progress: ${response.status} ${response.statusText} - ${errorData}`);
       }
 
-      // Update local state *after* successful API call (if not doing optimistic update)
       setLessonProgressMap(prev => ({ ...prev, [currentLesson.id]: true }));
 
       toast({
@@ -550,9 +538,6 @@ export default function CourseContent() {
         navigateToLesson(nextLesson.moduleId, nextLesson.id);
       }
     } catch (error) {
-       // Revert optimistic update if it failed
-       // setLessonProgressMap(previousProgress);
-
        console.error("Failed to mark lesson complete:", error);
        toast({
          title: "Error",
@@ -591,16 +576,10 @@ export default function CourseContent() {
   const tabsGridColsClass = currentLesson?.videoUrl ? 'grid-cols-4' : 'grid-cols-3';
 
   const getLessonIcon = (lesson: Lesson) => {
-    const isCertificateLesson = lesson.title.toLowerCase().includes("certificate");
     let iconColor = "text-slate-400";
 
-    if (isCertificateLesson) {
-      const hasCert = certificates.some((c) => c.courseId === course?.id);
-      iconColor = hasCert ? "text-green-500" : "text-slate-400";
-    } else {
-      const isCompleted = lesson.id ? lessonProgressMap[lesson.id] ?? false : false;
-      iconColor = isCompleted ? "text-green-500" : "text-slate-400";
-    }
+    const isCompleted = lesson.id ? lessonProgressMap[lesson.id] ?? false : false;
+    iconColor = isCompleted ? "text-green-500" : "text-slate-400";
 
     const iconClasses = `mr-3 h-5 w-5 ${iconColor}`;
 
@@ -876,36 +855,6 @@ export default function CourseContent() {
                     lessonId={currentLesson.id}
                     userId={user?.id}
                   />
-                ) : currentLesson.title.toLowerCase().includes("certificate") ? (
-                  <div className="p-6 text-center flex flex-col items-center gap-4">
-                    <h2 className="text-2xl font-bold text-green-600 dark:text-green-400">Congratulations!</h2>
-                    <p className="text-slate-600 dark:text-slate-300">You have completed the course.</p>
-                    <Button
-                      variant="default"
-                      disabled={
-                        progressPercentage < 100 ||
-                        certificates.some((c) => c.courseId === course?.id)
-                      }
-                      onClick={async () => {
-                        try {
-                          const res = await fetch(`/api/certificates/${course?.id}`, {
-                            method: "POST",
-                          });
-                          if (!res.ok) throw new Error("Failed to generate certificate");
-                          const data = await res.json();
-                          alert(`Certificate generated! ID: ${data.certificateId}`);
-                          const { queryClient } = await import("@/lib/queryClient");
-                          queryClient.invalidateQueries({ queryKey: ["/api/certificates-user"] });
-                        } catch (err) {
-                          console.error(err);
-                          alert("Failed to generate certificate");
-                        }
-                      }}
-                    >
-                      <Download className="mr-2 h-4 w-4 text-yellow-500" />
-                      Generate Certificate
-                    </Button>
-                  </div>
                 ) : currentLesson.videoUrl ? (
                   <div className="aspect-video bg-black rounded-t-none">
                     <video
@@ -913,17 +862,7 @@ export default function CourseContent() {
                       src={currentLesson.videoUrl}
                       className="w-full h-full"
                       controls
-                    >
-                      {captionExists && <track
-                        src={currentLesson.videoUrl.replace('/videos/', '/captions/').replace(/\.(mp4|webm|ogg|mov|avi)$/i, '.vtt')}
-                        kind="captions"
-                        srcLang="en"  // Using generated/default value
-                        label="English"   // Using generated/default value
-                        default
-                        // Consider removing 'default' unless you accept the risk
-                        // of it trying to load a non-existent file by default.
-                        />}
-                    </video>
+                    ></video>
                   </div>
                 ) : currentLesson.content ? (
                   <div className="p-6 prose dark:prose-invert max-w-none prose-sm sm:prose-base">
@@ -939,8 +878,8 @@ export default function CourseContent() {
                 {(currentLesson.videoUrl || currentLesson.content) && (
                   <div className="p-4 sm:p-6 border-t dark:border-slate-700">
                     <Tabs defaultValue="overview" className="w-full">
-                      <TabsList className="mb-4 grid grid-cols-2 sm:grid-cols-4 w-full sm:w-auto">
-                        {currentLesson.videoUrl && <TabsTrigger value="transcript">Transcript</TabsTrigger>}
+                      <TabsList className={`mb-4 grid ${tabsGridColsClass} w-full sm:w-auto`}>
+                        {currentLesson.videoUrl && <TabsTrigger value="summary">Summary</TabsTrigger>}
                         <TabsTrigger value="resources">Resources</TabsTrigger>
                         <TabsTrigger value="notes">My Notes</TabsTrigger>
                         <TabsTrigger value="discussion">Discussion</TabsTrigger>
@@ -948,8 +887,18 @@ export default function CourseContent() {
                       {currentLesson.videoUrl && (
                         <TabsContent value="summary">
                           <div className="prose dark:prose-invert max-w-none text-sm border rounded-md p-4 max-h-60 overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-slate-800/30">
-                            {/* TODO: Fetch or display actual transcript */}
-                            <p className="text-slate-500 dark:text-slate-400 italic">Transcript currently unavailable.</p>
+                            {summaryLoading ? (
+                              <div className="flex items-center justify-center h-full">
+                                <Loader2 className="animate-spin h-4 w-4 text-primary" />
+                                <span className="ml-2 text-slate-500 dark:text-slate-400">Loading summary...</span>
+                              </div>
+                            ) : lessonSummary ? (
+                              <p>{lessonSummary}</p>
+                            ) : (
+                              <p className="text-slate-500 dark:text-slate-400 italic">
+                                No summary available for this video lesson.
+                              </p>
+                            )}
                           </div>
                         </TabsContent>
                       )}
@@ -987,10 +936,9 @@ export default function CourseContent() {
                               onChange={(e) => setNoteContent(e.target.value)}
                             ></textarea>
                           </div>
-                          <Button size="sm" disabled> {/* TODO: Enable when save logic exists */}
-                             {/* TODO: Implement save logic */}
-                             <Loader2 className="mr-2 h-4 w-4 animate-spin hidden" /> {/* Show loader on save */}
-                            Save Notes (Coming Soon)
+                          <Button size="sm" onClick={handleSaveNote}>
+                            <Loader2 className={cn("mr-2 h-4 w-4 animate-spin", { hidden: !isSavingNote })} />
+                            Save Notes
                           </Button>
                           {savedNote && (
                             <div className="text-sm text-green-600 dark:text-green-400">
@@ -1071,7 +1019,6 @@ export default function CourseContent() {
                                     </Button>
                                   </div>
                                 )}
-                                {/* Replies */}
                                 {comment.replies && comment.replies.length > 0 && (
                                   <div className="mt-3 space-y-2 pl-4 border-l border-slate-200 dark:border-slate-700">
                                     {comment.replies.map((reply: any) => (
@@ -1115,8 +1062,7 @@ export default function CourseContent() {
                   </span>
                 </div>
                 <div>
-                  {/* Show Checkmark if completed, else show Button */}
-                  {currentLesson.type === "assessment" || currentLesson.title.toLowerCase().includes("certificate") ? null : isLessonCompleted ? (
+                  {currentLesson.type === "assessment" ? null : isLessonCompleted ? (
                       <div className="flex items-center gap-2 text-green-600 dark:text-green-400 font-medium text-sm p-2 rounded-md bg-green-50 dark:bg-green-900/30">
                         <Check className="h-5 w-5"/>
                         <span>Completed</span>
