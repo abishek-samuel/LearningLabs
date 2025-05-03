@@ -279,6 +279,15 @@ export default function Analytics() {
     },
   };
 
+  const getRandomColor = () => {
+    const r = Math.floor(120 + Math.random() * 100); // 120–220
+    const g = Math.floor(120 + Math.random() * 100); // 120–220
+    const b = Math.floor(120 + Math.random() * 100); // 120–220
+    return `rgb(${r}, ${g}, ${b})`;
+  };
+
+
+  const maxEnrollment = Math.max(...courseData.map(c => c.enrollment));
 
 
   return (
@@ -321,7 +330,7 @@ export default function Analytics() {
                 <div className="flex items-baseline gap-2">
                   <span className="text-2xl font-bold">{stat.value}</span>
                   <span className={`text-xs ${stat.positive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                    {stat.change}
+                    {/* {stat.change} */}
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -363,9 +372,13 @@ export default function Analytics() {
                         </div>
                         <div className="w-full h-2 bg-slate-200 rounded-full">
                           <div
-                            className="h-2 bg-blue-600 rounded-full"
-                            style={{ width: `${Math.min((course.enrollment / Math.max(...courseData.map(c => c.enrollment))) * 100, 100)}%` }}
+                            className="h-2 rounded-full"
+                            style={{
+                              width: `${Math.min((course.enrollment / maxEnrollment) * 100, 100)}%`,
+                              backgroundColor: getRandomColor(),
+                            }}
                           />
+
                         </div>
                       </div>
                     ))}
@@ -393,8 +406,11 @@ export default function Analytics() {
                         </div>
                         <div className="w-full h-2 bg-slate-200 rounded-full">
                           <div
-                            className="h-2 bg-green-600 rounded-full"
-                            style={{ width: `${course.completion}%` }}
+                            className="h-2 rounded-full"
+                            style={{
+                              width: `${course.completion}%`,
+                              backgroundColor: getRandomColor(),
+                            }}
                           />
                         </div>
                       </div>
@@ -427,9 +443,13 @@ export default function Analytics() {
                           </div>
                           <div className="w-full h-2 bg-slate-200 rounded-full">
                             <div
-                              className="h-2 bg-purple-600 rounded-full"
-                              style={{ width: `${course.avgScore}%` }}
+                              className="h-2 rounded-full"
+                              style={{
+                                width: `${course.avgScore}%`,
+                                backgroundColor: getRandomColor(),
+                              }}
                             />
+
                           </div>
                         </div>
                       ))}
@@ -478,9 +498,12 @@ export default function Analytics() {
                           <p className="text-sm font-medium">{course.name}</p>
                           <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2">
                             <div
-                              className="bg-primary h-2 rounded-full"
-                              style={{ width: `${Math.min(100, (course.enrollment / 150) * 100)}%` }}
-                            ></div>
+                              className="h-2 rounded-full"
+                              style={{
+                                width: `${Math.min(100, (course.enrollment / 150) * 100)}%`,
+                                backgroundColor: getRandomColor(),
+                              }}
+                            />
                           </div>
                         </div>
                         <span className="text-sm font-medium">{course.enrollment}</span>
