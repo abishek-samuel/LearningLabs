@@ -9,7 +9,8 @@ from summary_generator import summarize_folder  # ⚡ Add this line
 from flask_cors import CORS
 from llm_handler import chat
 from image_generation import generate_course_image
-
+from video_caption_vtt import generate_vtt_from_video
+from pathlib import Path
 
 app = Flask(__name__)
 CORS(app)
@@ -113,6 +114,7 @@ def insert_questions_api():
                         "path": video["path"],
                         "position": video["position"]
                     })
+                    generate_vtt_from_video(video["path"], '../uploads/caption')
 
         cur.close()
         conn.close()
