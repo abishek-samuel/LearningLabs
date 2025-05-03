@@ -938,7 +938,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Read all files in the directory
       const files = await fs.promises.readdir(imageDir);
-      console.log(files, imageDir);
 
       const normalizedCourseName = courseName.replace(/ /g, "_");
       // Filter images by matching pattern: {courseId}_{courseName}_
