@@ -707,7 +707,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
-
   // Course routes
   // --- Comments API ---
 
@@ -932,6 +931,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/course-images/:courseId/:courseName", async (req, res) => {
+    const { courseId, courseName } = req.params;
+    const imageDir = path.join("uploads", "course-images");
+
+    try {
+      // Read all files in the directory
+      const files = await fs.promises.readdir(imageDir);
+      console.log(files, imageDir);
+
+      const normalizedCourseName = courseName.replace(/ /g, "_");
+      // Filter images by matching pattern: {courseId}_{courseName}_
+      const matchingFiles = files.filter((file) =>
+        file.startsWith(`${courseId}_${normalizedCourseName}_`)
+      );
+
+      // Map to full relative paths (or URLs if serving statically)
+      const imagePaths = matchingFiles.map((file) =>
+        path.join("uploads", "course-images", file).replace(/\\/g, "/")
+      );
+
+      res.json(imagePaths);
+    } catch (error) {
+      console.error("Error fetching course images:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   app.get("/api/courses/:id", isAuthenticated, async (req, res) => {
     try {
       const courseId = parseInt(req.params.id);
@@ -1010,8 +1036,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(201).json(newCourse);
         try {
           await axios.post("http://localhost:5001/generate_image", {
+            course_id: newCourse.id,
             course_title: title,
-            course_description: description
+            course_description: description,
           });
         } catch (err) {
           console.log(err);
@@ -1724,22 +1751,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
 
             // Get the module and course
-            const module = await storage.prisma.module.findUnique({ where: { id: attempt.moduleId } });
+            const module = await storage.prisma.module.findUnique({
+              where: { id: attempt.moduleId },
+            });
             if (module) {
               const courseId = module.courseId;
               // Get all modules for the course
-              const allModules = await storage.prisma.module.findMany({ where: { courseId } });
-              const allModuleIds = allModules.map(m => m.id);
+              const allModules = await storage.prisma.module.findMany({
+                where: { courseId },
+              });
+              const allModuleIds = allModules.map((m) => m.id);
               // For each module, check if the user has a passed attempt
               let allPassed = true;
               for (const modId of allModuleIds) {
-                const passedAttempt = await storage.prisma.assessmentAttempt.findFirst({
-                  where: {
-                    userId: req.user!.id,
-                    moduleId: modId,
-                    passed: true,
-                  },
-                });
+                const passedAttempt =
+                  await storage.prisma.assessmentAttempt.findFirst({
+                    where: {
+                      userId: req.user!.id,
+                      moduleId: modId,
+                      passed: true,
+                    },
+                  });
                 if (!passedAttempt) {
                   allPassed = false;
                   break;
@@ -1786,7 +1818,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   const progressPercentage =
                     totalLessonsInCourse > 0
                       ? Math.round(
-                          (completedLessonsInCourse / totalLessonsInCourse) * 100
+                          (completedLessonsInCourse / totalLessonsInCourse) *
+                            100
                         )
                       : 0; // Avoid division by zero if course has no lessons
 
@@ -1801,7 +1834,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     console.log(
                       "Progress is 100%, checking for existing certificate..."
                     );
-                    const existingCerts = await storage.getCertificatesByUser(req.user!.id);
+                    const existingCerts = await storage.getCertificatesByUser(
+                      req.user!.id
+                    );
                     const existing = existingCerts.find(
                       (c) => c.courseId === module.courseId
                     );
@@ -1830,7 +1865,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
             }
           }
-       }
+        }
 
         res.json({ score, passed, correct, total: totalQuestions });
       } catch (error) {
@@ -2774,8 +2809,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const progressPercentage =
               totalLessonsInCourse > 0
                 ? Math.round(
-                  (completedLessonsInCourse / totalLessonsInCourse) * 100
-                )
+                    (completedLessonsInCourse / totalLessonsInCourse) * 100
+                  )
                 : 0; // Avoid division by zero if course has no lessons
 
             // 5. Update enrollment with correct progress and completion status
@@ -3079,266 +3114,239 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // --- View Resource File ---
-  app.get(
-    "/api/resources/:id/view",
-    isAuthenticated,
-    async (req, res) => {
-      try {
-        const resourceId = parseInt(req.params.id);
-        if (isNaN(resourceId)) {
-          return res.status(400).json({ message: "Invalid resource ID" });
-        }
-        const resource = await storage.getResourceById(resourceId);
-        if (!resource) {
-          return res.status(404).json({ message: "Resource not found" });
-        }
-        // Only allow enrolled users, instructor, or admin to view
-        const course = await storage.getCourse(resource.courseId);
-        if (!course) {
-          return res.status(404).json({ message: "Course not found" });
-        }
-        if (
-          req.user!.role !== "admin" &&
-          course.instructorId !== req.user!.id
-        ) {
-          // Check enrollment
-          const enrollments = await storage.getEnrollmentsByUser(req.user!.id);
-          const enrolled = enrollments.some((e) => e.courseId === course.id);
-          if (!enrolled) {
-            return res.status(403).json({ message: "Forbidden" });
-          }
-        }
-        // Serve file
-        const absPath = path.join(projectRoot, resource.storagePath);
-        if (!fs.existsSync(absPath)) {
-          return res.status(404).json({ message: "File not found on server" });
-        }
-        res.setHeader("Content-Type", resource.mimetype);
-        res.sendFile(absPath);
-      } catch (error) {
-        console.error("Error viewing resource:", error);
-        res.status(500).json({ message: "Internal server error" });
+  app.get("/api/resources/:id/view", isAuthenticated, async (req, res) => {
+    try {
+      const resourceId = parseInt(req.params.id);
+      if (isNaN(resourceId)) {
+        return res.status(400).json({ message: "Invalid resource ID" });
       }
-    }
-  );
-
-  // --- Create Note ---
-  app.post(
-    "/api/notes",
-    isAuthenticated,
-    async (req, res) => {
-      try {
-        const { lessonId, content } = req.body;
-        if (!lessonId || !content) {
-          return res.status(400).json({ message: "Lesson ID and content are required" });
-        }
-        const userId = req.user!.id;
-        const note = await storage.saveNote({
-          userId,
-          lessonId,
-          content,
-        });
-        res.status(201).json(note);
-      } catch (error) {
-        console.error("Error creating note:", error);
-        res.status(500).json({ message: "Internal server error" });
+      const resource = await storage.getResourceById(resourceId);
+      if (!resource) {
+        return res.status(404).json({ message: "Resource not found" });
       }
-    }
-  );
-
-  // --- Get Note ---
-  app.get(
-    "/api/notes",
-    isAuthenticated,
-    async (req, res) => {
-      try {
-        const { lessonId, userId } = req.query;
-        if (!lessonId || !userId) {
-          return res.status(400).json({ message: "Lesson ID and user ID are required" });
-        }
-        const note = await storage.getNoteByLessonAndUser(parseInt(lessonId as string), parseInt(userId as string));
-        res.json(note);
-      } catch (error) {
-        console.error("Error fetching note:", error);
-        res.status(500).json({ message: "Internal server error" });
+      // Only allow enrolled users, instructor, or admin to view
+      const course = await storage.getCourse(resource.courseId);
+      if (!course) {
+        return res.status(404).json({ message: "Course not found" });
       }
-    }
-  );
-
-  // --- View Resource File ---
-  app.get(
-    "/api/resources/:id/view",
-    isAuthenticated,
-    async (req, res) => {
-      try {
-        const resourceId = parseInt(req.params.id);
-        if (isNaN(resourceId)) {
-          return res.status(400).json({ message: "Invalid resource ID" });
-        }
-        const resource = await storage.getResourceById(resourceId);
-        if (!resource) {
-          return res.status(404).json({ message: "Resource not found" });
-        }
-        // Only allow enrolled users, instructor, or admin to view
-        const course = await storage.getCourse(resource.courseId);
-        if (!course) {
-          return res.status(404).json({ message: "Course not found" });
-        }
-        if (
-          req.user!.role !== "admin" &&
-          course.instructorId !== req.user!.id
-        ) {
-          // Check enrollment
-          const enrollments = await storage.getEnrollmentsByUser(req.user!.id);
-          const enrolled = enrollments.some((e) => e.courseId === course.id);
-          if (!enrolled) {
-            return res.status(403).json({ message: "Forbidden" });
-          }
-        }
-        // Serve file
-        const absPath = path.join(projectRoot, resource.storagePath);
-        if (!fs.existsSync(absPath)) {
-          return res.status(404).json({ message: "File not found on server" });
-        }
-        res.setHeader("Content-Type", resource.mimetype);
-        res.sendFile(absPath);
-      } catch (error) {
-        console.error("Error viewing resource:", error);
-        res.status(500).json({ message: "Internal server error" });
-      }
-    }
-  );
-
-  // --- Create Note ---
-  app.post(
-    "/api/notes",
-    isAuthenticated,
-    async (req, res) => {
-      try {
-        const { lessonId, content } = req.body;
-        if (!lessonId || !content) {
-          return res.status(400).json({ message: "Lesson ID and content are required" });
-        }
-        const userId = req.user!.id;
-        const note = await storage.saveNote({
-          userId,
-          lessonId,
-          content,
-        });
-        res.status(201).json(note);
-      } catch (error) {
-        console.error("Error creating note:", error);
-        res.status(500).json({ message: "Internal server error" });
-      }
-    }
-  );
-
-  // --- Get Note ---
-  app.get(
-    "/api/notes",
-    isAuthenticated,
-    async (req, res) => {
-      try {
-        const { lessonId, userId } = req.query;
-        if (!lessonId || !userId) {
-          return res.status(400).json({ message: "Lesson ID and user ID are required" });
-        }
-        const note = await storage.getNoteByLessonAndUser(parseInt(lessonId as string), parseInt(userId as string));
-        res.json(note);
-      } catch (error) {
-        console.error("Error fetching note:", error);
-        res.status(500).json({ message: "Internal server error" });
-      }
-    }
-  );
-
-  // --- Download Resource File ---
-  app.get(
-    "/api/resources/:id/download",
-    isAuthenticated,
-    async (req, res) => {
-      try {
-        const resourceId = parseInt(req.params.id);
-        if (isNaN(resourceId)) {
-          return res.status(400).json({ message: "Invalid resource ID" });
-        }
-        const resource = await storage.getResourceById(resourceId);
-        if (!resource) {
-          return res.status(404).json({ message: "Resource not found" });
-        }
-        // Only allow enrolled users, instructor, or admin to download
-        const course = await storage.getCourse(resource.courseId);
-        if (!course) {
-          return res.status(404).json({ message: "Course not found" });
-        }
-        if (
-          req.user!.role !== "admin" &&
-          course.instructorId !== req.user!.id
-        ) {
-          // Check enrollment
-          const enrollments = await storage.getEnrollmentsByUser(req.user!.id);
-          const enrolled = enrollments.some((e) => e.courseId === course.id);
-          if (!enrolled) {
-            return res.status(403).json({ message: "Forbidden" });
-          }
-        }
-        // Send file
-        const absPath = path.join(projectRoot, resource.storagePath);
-        if (!fs.existsSync(absPath)) {
-          return res.status(404).json({ message: "File not found on server" });
-        }
-        res.download(absPath, resource.filename);
-      } catch (error) {
-        console.error("Error downloading resource:", error);
-        res.status(500).json({ message: "Internal server error" });
-      }
-    }
-  );
-
-  // --- Delete Resource File ---
-  app.delete(
-    "/api/resources/:id",
-    isAuthenticated,
-    async (req, res) => {
-      try {
-        const resourceId = parseInt(req.params.id);
-        if (isNaN(resourceId)) {
-          return res.status(400).json({ message: "Invalid resource ID" });
-        }
-        const resource = await storage.getResourceById(resourceId);
-        if (!resource) {
-          return res.status(404).json({ message: "Resource not found" });
-        }
-        // Only allow instructor, admin, or uploader to delete
-        const course = await storage.getCourse(resource.courseId);
-        if (!course) {
-          return res.status(404).json({ message: "Course not found" });
-        }
-        if (
-          req.user!.role !== "admin" &&
-          course.instructorId !== req.user!.id &&
-          resource.uploaderId !== req.user!.id
-        ) {
+      if (req.user!.role !== "admin" && course.instructorId !== req.user!.id) {
+        // Check enrollment
+        const enrollments = await storage.getEnrollmentsByUser(req.user!.id);
+        const enrolled = enrollments.some((e) => e.courseId === course.id);
+        if (!enrolled) {
           return res.status(403).json({ message: "Forbidden" });
         }
-        // Delete file from disk
-        const absPath = path.join(projectRoot, resource.storagePath);
-        if (fs.existsSync(absPath)) {
-          try {
-            fs.unlinkSync(absPath);
-          } catch (err) {
-            console.warn("Failed to delete file from disk:", err);
-          }
-        }
-        // Delete from DB
-        await storage.deleteResource(resourceId);
-        res.status(204).send();
-      } catch (error) {
-        console.error("Error deleting resource:", error);
-        res.status(500).json({ message: "Internal server error" });
       }
+      // Serve file
+      const absPath = path.join(projectRoot, resource.storagePath);
+      if (!fs.existsSync(absPath)) {
+        return res.status(404).json({ message: "File not found on server" });
+      }
+      res.setHeader("Content-Type", resource.mimetype);
+      res.sendFile(absPath);
+    } catch (error) {
+      console.error("Error viewing resource:", error);
+      res.status(500).json({ message: "Internal server error" });
     }
-  );
+  });
+
+  // --- Create Note ---
+  app.post("/api/notes", isAuthenticated, async (req, res) => {
+    try {
+      const { lessonId, content } = req.body;
+      if (!lessonId || !content) {
+        return res
+          .status(400)
+          .json({ message: "Lesson ID and content are required" });
+      }
+      const userId = req.user!.id;
+      const note = await storage.saveNote({
+        userId,
+        lessonId,
+        content,
+      });
+      res.status(201).json(note);
+    } catch (error) {
+      console.error("Error creating note:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // --- Get Note ---
+  app.get("/api/notes", isAuthenticated, async (req, res) => {
+    try {
+      const { lessonId, userId } = req.query;
+      if (!lessonId || !userId) {
+        return res
+          .status(400)
+          .json({ message: "Lesson ID and user ID are required" });
+      }
+      const note = await storage.getNoteByLessonAndUser(
+        parseInt(lessonId as string),
+        parseInt(userId as string)
+      );
+      res.json(note);
+    } catch (error) {
+      console.error("Error fetching note:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // --- View Resource File ---
+  app.get("/api/resources/:id/view", isAuthenticated, async (req, res) => {
+    try {
+      const resourceId = parseInt(req.params.id);
+      if (isNaN(resourceId)) {
+        return res.status(400).json({ message: "Invalid resource ID" });
+      }
+      const resource = await storage.getResourceById(resourceId);
+      if (!resource) {
+        return res.status(404).json({ message: "Resource not found" });
+      }
+      // Only allow enrolled users, instructor, or admin to view
+      const course = await storage.getCourse(resource.courseId);
+      if (!course) {
+        return res.status(404).json({ message: "Course not found" });
+      }
+      if (req.user!.role !== "admin" && course.instructorId !== req.user!.id) {
+        // Check enrollment
+        const enrollments = await storage.getEnrollmentsByUser(req.user!.id);
+        const enrolled = enrollments.some((e) => e.courseId === course.id);
+        if (!enrolled) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+      }
+      // Serve file
+      const absPath = path.join(projectRoot, resource.storagePath);
+      if (!fs.existsSync(absPath)) {
+        return res.status(404).json({ message: "File not found on server" });
+      }
+      res.setHeader("Content-Type", resource.mimetype);
+      res.sendFile(absPath);
+    } catch (error) {
+      console.error("Error viewing resource:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // --- Create Note ---
+  app.post("/api/notes", isAuthenticated, async (req, res) => {
+    try {
+      const { lessonId, content } = req.body;
+      if (!lessonId || !content) {
+        return res
+          .status(400)
+          .json({ message: "Lesson ID and content are required" });
+      }
+      const userId = req.user!.id;
+      const note = await storage.saveNote({
+        userId,
+        lessonId,
+        content,
+      });
+      res.status(201).json(note);
+    } catch (error) {
+      console.error("Error creating note:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // --- Get Note ---
+  app.get("/api/notes", isAuthenticated, async (req, res) => {
+    try {
+      const { lessonId, userId } = req.query;
+      if (!lessonId || !userId) {
+        return res
+          .status(400)
+          .json({ message: "Lesson ID and user ID are required" });
+      }
+      const note = await storage.getNoteByLessonAndUser(
+        parseInt(lessonId as string),
+        parseInt(userId as string)
+      );
+      res.json(note);
+    } catch (error) {
+      console.error("Error fetching note:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // --- Download Resource File ---
+  app.get("/api/resources/:id/download", isAuthenticated, async (req, res) => {
+    try {
+      const resourceId = parseInt(req.params.id);
+      if (isNaN(resourceId)) {
+        return res.status(400).json({ message: "Invalid resource ID" });
+      }
+      const resource = await storage.getResourceById(resourceId);
+      if (!resource) {
+        return res.status(404).json({ message: "Resource not found" });
+      }
+      // Only allow enrolled users, instructor, or admin to download
+      const course = await storage.getCourse(resource.courseId);
+      if (!course) {
+        return res.status(404).json({ message: "Course not found" });
+      }
+      if (req.user!.role !== "admin" && course.instructorId !== req.user!.id) {
+        // Check enrollment
+        const enrollments = await storage.getEnrollmentsByUser(req.user!.id);
+        const enrolled = enrollments.some((e) => e.courseId === course.id);
+        if (!enrolled) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+      }
+      // Send file
+      const absPath = path.join(projectRoot, resource.storagePath);
+      if (!fs.existsSync(absPath)) {
+        return res.status(404).json({ message: "File not found on server" });
+      }
+      res.download(absPath, resource.filename);
+    } catch (error) {
+      console.error("Error downloading resource:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // --- Delete Resource File ---
+  app.delete("/api/resources/:id", isAuthenticated, async (req, res) => {
+    try {
+      const resourceId = parseInt(req.params.id);
+      if (isNaN(resourceId)) {
+        return res.status(400).json({ message: "Invalid resource ID" });
+      }
+      const resource = await storage.getResourceById(resourceId);
+      if (!resource) {
+        return res.status(404).json({ message: "Resource not found" });
+      }
+      // Only allow instructor, admin, or uploader to delete
+      const course = await storage.getCourse(resource.courseId);
+      if (!course) {
+        return res.status(404).json({ message: "Course not found" });
+      }
+      if (
+        req.user!.role !== "admin" &&
+        course.instructorId !== req.user!.id &&
+        resource.uploaderId !== req.user!.id
+      ) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      // Delete file from disk
+      const absPath = path.join(projectRoot, resource.storagePath);
+      if (fs.existsSync(absPath)) {
+        try {
+          fs.unlinkSync(absPath);
+        } catch (err) {
+          console.warn("Failed to delete file from disk:", err);
+        }
+      }
+      // Delete from DB
+      await storage.deleteResource(resourceId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting resource:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
   // --- End Upload Routes ---
 
   // --- Certificate Creation Route ---
@@ -3653,28 +3661,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
   // New endpoint to get lesson summary
-  app.get(
-    "/api/lessons/:id/summary",
-    isAuthenticated,
-    async (req, res) => {
-      try {
-        const lessonId = parseInt(req.params.id);
-        if (isNaN(lessonId)) {
-          return res.status(400).json({ message: "Invalid lesson ID" });
-        }
-
-        const lessonSummary = await storage.getLessonSummary(lessonId);
-        if (!lessonSummary) {
-          return res.status(404).json({ message: "Lesson summary not found" });
-        }
-
-        res.json({ summary: lessonSummary });
-      } catch (error) {
-        console.error("Error fetching lesson summary:", error);
-        res.status(500).json({ message: "Internal server error" });
+  app.get("/api/lessons/:id/summary", isAuthenticated, async (req, res) => {
+    try {
+      const lessonId = parseInt(req.params.id);
+      if (isNaN(lessonId)) {
+        return res.status(400).json({ message: "Invalid lesson ID" });
       }
+
+      const lessonSummary = await storage.getLessonSummary(lessonId);
+      if (!lessonSummary) {
+        return res.status(404).json({ message: "Lesson summary not found" });
+      }
+
+      res.json({ summary: lessonSummary });
+    } catch (error) {
+      console.error("Error fetching lesson summary:", error);
+      res.status(500).json({ message: "Internal server error" });
     }
-  );
+  });
 
   return httpServer;
 }

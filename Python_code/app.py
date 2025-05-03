@@ -21,16 +21,17 @@ def generate_image_endpoint():
     """Flask API endpoint to generate and save an image"""
     try:
         data = request.get_json()
+        course_id = data.get("course_id")
         course_title = data.get("course_title", "")
         course_description = data.get("course_description", "")
 
         print(f"🚀 Generating image for course: {course_title}")
-        generate_course_image(course_title,course_description)
+        result = generate_course_image(course_id,course_title,course_description)
 
         return jsonify({
             "success": True,
             "message": "Image generated and saved successfully.",
-            # "saved_path": result["saved_path"]
+            "saved_paths": result
         }), 200  # ✅ Return success message with HTTP 200
 
     except Exception as e:

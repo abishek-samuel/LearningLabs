@@ -12,7 +12,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 
@@ -36,20 +42,25 @@ export default function CategoryManagement() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const [newCategory, setNewCategory] = useState('');
+  const [newCategory, setNewCategory] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
-  const [editCategory, setEditCategory] = useState<{ id: number | null; name: string }>({ id: null, name: '' });
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState<{ id: number | null; open: boolean }>({ id: null, open: false });
+  const [editCategory, setEditCategory] = useState<{
+    id: number | null;
+    name: string;
+  }>({ id: null, name: "" });
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState<{
+    id: number | null;
+    open: boolean;
+  }>({ id: null, open: false });
 
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
-  const [createCategoryError, setCreateCategoryError] = useState('');
-  const [editCategoryError, setEditCategoryError] = useState('');
+  const [createCategoryError, setCreateCategoryError] = useState("");
+  const [editCategoryError, setEditCategoryError] = useState("");
 
-
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("all");
 
   useEffect(() => {
     fetchCategories();
@@ -57,7 +68,7 @@ export default function CategoryManagement() {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch('/api/categories');
+      const response = await fetch("/api/categories");
       const data = await response.json();
       setCategories(data);
     } catch (error) {
@@ -69,31 +80,34 @@ export default function CategoryManagement() {
     }
   };
 
-
   const handleCreateCategory = async () => {
     if (!newCategory.trim()) {
-      setCreateCategoryError('Category name is required');
+      setCreateCategoryError("Category name is required");
       return;
     }
 
     try {
       setIsLoading(true);
-      const response = await fetch('/api/categories', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newCategory }),
       });
 
-      if (!response.ok) throw new Error('Failed to create category');
+      if (!response.ok) throw new Error("Failed to create category");
 
       toast({ title: "Success", description: "Category created successfully" });
-      setNewCategory('');
-      setEditCategoryError('');
-      setCreateCategoryError('');
+      setNewCategory("");
+      setEditCategoryError("");
+      setCreateCategoryError("");
       setIsAddDialogOpen(false);
       await fetchCategories();
     } catch (error) {
-      toast({ title: "Error", description: "Failed to create category", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to create category",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -101,26 +115,30 @@ export default function CategoryManagement() {
 
   const handleUpdateCategory = async (id: number) => {
     if (!editCategory.name.trim()) {
-      setEditCategoryError('Category name is required');
+      setEditCategoryError("Category name is required");
       return;
     }
     try {
       setIsLoading(true);
       const response = await fetch(`/api/categories/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: editCategory.name }),
       });
 
-      if (!response.ok) throw new Error('Failed to update category');
+      if (!response.ok) throw new Error("Failed to update category");
 
       toast({ title: "Success", description: "Category updated successfully" });
       setIsEditDialogOpen({ id: null, open: false });
-      setEditCategoryError('');
-      setCreateCategoryError('');
+      setEditCategoryError("");
+      setCreateCategoryError("");
       await fetchCategories();
     } catch (error) {
-      toast({ title: "Error", description: "Failed to update category", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to update category",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -131,11 +149,13 @@ export default function CategoryManagement() {
 
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/categories/${deleteTarget}`, { method: 'DELETE' });
+      const response = await fetch(`/api/categories/${deleteTarget}`, {
+        method: "DELETE",
+      });
 
       if (!response.ok) {
         const data = await response.json().catch(() => null);
-        const errorMessage = data?.message || 'Failed to delete category';
+        const errorMessage = data?.message || "Failed to delete category";
         throw new Error(errorMessage);
       }
 
@@ -147,16 +167,17 @@ export default function CategoryManagement() {
       toast({
         title: "Error",
         description: error?.message || "Failed to delete category",
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const filteredCategories = selectedCategoryId === 'all'
-    ? categories
-    : categories.filter((cat) => cat.id === Number(selectedCategoryId));
+  const filteredCategories =
+    selectedCategoryId === "all"
+      ? categories
+      : categories.filter((cat) => cat.id === Number(selectedCategoryId));
 
   return (
     <MainLayout>
@@ -167,7 +188,10 @@ export default function CategoryManagement() {
           </h1>
 
           <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-            <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
+            <Select
+              value={selectedCategoryId}
+              onValueChange={setSelectedCategoryId}
+            >
               <SelectTrigger className="w-full sm:w-[200px]">
                 <SelectValue placeholder="Select Category" />
               </SelectTrigger>
@@ -197,12 +221,14 @@ export default function CategoryManagement() {
                     value={newCategory}
                     onChange={(e) => {
                       setNewCategory(e.target.value);
-                      if (createCategoryError) setCreateCategoryError('');
+                      if (createCategoryError) setCreateCategoryError("");
                     }}
                     className={createCategoryError ? "border-red-500" : ""}
                   />
                   {createCategoryError && (
-                    <span className="text-sm text-red-500">{createCategoryError}</span>
+                    <span className="text-sm text-red-500">
+                      {createCategoryError}
+                    </span>
                   )}
                   <Button onClick={handleCreateCategory} disabled={isLoading}>
                     Create Category
@@ -213,7 +239,6 @@ export default function CategoryManagement() {
           </div>
         </div>
       </div>
-
 
       <div className="px-4 sm:px-6 lg:px-8 py-8">
         {filteredCategories.length === 0 ? (
@@ -228,16 +253,27 @@ export default function CategoryManagement() {
                   <CardTitle>{category.name}</CardTitle>
                   <div className="flex gap-2">
                     <Dialog
-                      open={isEditDialogOpen.open && isEditDialogOpen.id === category.id}
+                      open={
+                        isEditDialogOpen.open &&
+                        isEditDialogOpen.id === category.id
+                      }
                       onOpenChange={(open) =>
-                        setIsEditDialogOpen({ id: open ? category.id : null, open })
+                        setIsEditDialogOpen({
+                          id: open ? category.id : null,
+                          open,
+                        })
                       }
                     >
                       <DialogTrigger asChild>
                         <Button
                           variant="outline"
                           size="icon"
-                          onClick={() => setEditCategory({ id: category.id, name: category.name })}
+                          onClick={() =>
+                            setEditCategory({
+                              id: category.id,
+                              name: category.name,
+                            })
+                          }
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -251,15 +287,25 @@ export default function CategoryManagement() {
                             placeholder="Category name"
                             value={editCategory.name}
                             onChange={(e) => {
-                              setEditCategory({ id: category.id, name: e.target.value });
-                              if (editCategoryError) setEditCategoryError(''); // clear error on change
+                              setEditCategory({
+                                id: category.id,
+                                name: e.target.value,
+                              });
+                              if (editCategoryError) setEditCategoryError(""); // clear error on change
                             }}
-                            className={editCategoryError ? "border-red-500" : ""}
+                            className={
+                              editCategoryError ? "border-red-500" : ""
+                            }
                           />
                           {editCategoryError && (
-                            <span className="text-sm text-red-500">{editCategoryError}</span>
+                            <span className="text-sm text-red-500">
+                              {editCategoryError}
+                            </span>
                           )}
-                          <Button onClick={() => handleUpdateCategory(category.id)} disabled={isLoading}>
+                          <Button
+                            onClick={() => handleUpdateCategory(category.id)}
+                            disabled={isLoading}
+                          >
                             Update Category
                           </Button>
                         </div>
@@ -281,13 +327,15 @@ export default function CategoryManagement() {
                 </CardHeader>
 
                 <CardContent>
-                  <div className="space-y-2 max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-slate-400 dark:scrollbar-thumb-slate-600">
+                  <div className="space-y-2 max-h-[230px] overflow-y-auto scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-slate-400 dark:scrollbar-thumb-slate-600">
                     {category.courses?.length > 0 ? (
                       category.courses.map((course) => (
                         <div
                           key={course.id}
                           className="p-3 bg-slate-10 dark:bg-slate-800 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700"
-                          onClick={() => navigate(`/course-detail/${course.id}`)}
+                          onClick={() =>
+                            navigate(`/course-detail/${course.id}`)
+                          }
                         >
                           <h3 className="font-medium">{course.title}</h3>
                           <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2">
@@ -302,7 +350,6 @@ export default function CategoryManagement() {
                     )}
                   </div>
                 </CardContent>
-
               </Card>
             ))}
           </div>
@@ -325,7 +372,8 @@ export default function CategoryManagement() {
           {categories.find((cat) => cat.id === deleteTarget)?.courses.length ? (
             <>
               <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-                This category has linked courses. Please remove these courses first:
+                This category has linked courses. Please remove these courses
+                first:
               </p>
               <ul className="list-disc pl-6 space-y-1 text-slate-700 dark:text-slate-300">
                 {categories
@@ -335,7 +383,10 @@ export default function CategoryManagement() {
                   ))}
               </ul>
               <div className="flex justify-end gap-2 mt-4">
-                <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(false)}>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsDeleteConfirmOpen(false)}
+                >
                   Close
                 </Button>
               </div>
@@ -344,7 +395,10 @@ export default function CategoryManagement() {
             <>
               <p>Are you sure you want to delete this category?</p>
               <div className="flex justify-end gap-2 mt-4">
-                <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(false)}>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsDeleteConfirmOpen(false)}
+                >
                   Cancel
                 </Button>
                 <Button
@@ -359,7 +413,6 @@ export default function CategoryManagement() {
           )}
         </DialogContent>
       </Dialog>
-
     </MainLayout>
   );
 }
