@@ -291,7 +291,7 @@ export default function Analytics() {
               Monitor learning metrics and platform performance
             </p>
           </div>
-          <div className="mt-4 flex md:mt-0 md:ml-4">
+          {/* <div className="mt-4 flex md:mt-0 md:ml-4">
             <select className="rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm mr-2">
               <option value="30days">Last 30 Days</option>
               <option value="90days">Last 90 Days</option>
@@ -302,7 +302,7 @@ export default function Analytics() {
               <Download className="mr-2 h-4 w-4" />
               Export
             </Button>
-          </div>
+          </div> */}
         </div>
       </div>
 
