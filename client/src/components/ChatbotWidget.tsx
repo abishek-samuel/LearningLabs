@@ -77,7 +77,7 @@ export default function ChatbotWidget(props) {
 
       {/* Chatbox */}
       {open && (
-        <div className="fixed z-50 bottom-6 right-6 w-[28rem] max-w-[95vw] h-[32rem] bg-white border rounded-xl shadow-2xl flex flex-col">
+        <div className="fixed z-50 bottom-6 right-3 sm:right-6 w-[28rem] max-w-[95vw] max-h-[90vh] h-[32rem] bg-background border rounded-xl shadow-2xl flex flex-col">
           {/* Header */}
           <div className="flex justify-between px-4 py-2 bg-emerald-600 text-white rounded-t-xl">
             <span className="font-semibold">Chatbot</span>
@@ -87,43 +87,27 @@ export default function ChatbotWidget(props) {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-4 py-2 space-y-2 bg-slate-50 chatbot-scrollbar">
-            {messages.map((msg, i) => (
+          <div className="flex-1 overflow-y-auto px-4 py-2 space-y-2 bg-muted/30 dark:bg-muted/50 chatbot-scrollbar">
+            {messages.map((msg) => (
               <div
                 key={msg.text}
-                className={
-                  msg.sender === "user"
-                    ? "flex justify-end"
-                    : "flex justify-start"
-                }
+                className={msg.sender === "user" ? "flex justify-end" : "flex justify-start"}
               >
                 <div
-                  className={`px-3 py-2 rounded-lg max-w-[80%] text-sm whitespace-pre-wrap ${msg.sender === "user"
+                  className={`px-3 py-2 rounded-lg max-w-[80%] text-sm whitespace-pre-wrap ${
+                    msg.sender === "user"
                       ? "bg-emerald-600 text-white"
-                      : "bg-slate-200 text-slate-900"
-                    }`}
+                      : "bg-card text-card-foreground dark:bg-gray-800 dark:text-gray-200"
+                  }`}
                 >
                   {msg.sender === "bot" ? (
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
-                        code: ({
-                          node,
-                          inline,
-                          className,
-                          children,
-                          ...props
-                        }) => {
-                          return inline ? (
-                            <code
-                              className="text-emerald-600 bg-slate-100 rounded px-1"
-                              {...props}
-                            >
-                              {children}
-                            </code>
-                          ) : (
-                            <pre className="bg-gray-800 p-3 rounded-md my-2 overflow-auto">
-                              <code className="text-white">{children}</code>
+                        code: ({ node, className, children, ...props }) => {
+                          return (
+                            <pre className="bg-muted dark:bg-gray-700 p-3 rounded-md my-2 overflow-auto">
+                              <code className="text-foreground dark:text-gray-200">{children}</code>
                             </pre>
                           );
                         },
@@ -136,12 +120,12 @@ export default function ChatbotWidget(props) {
                   )}
                 </div>
               </div>
-            ))}
+            ))}   
 
             {/* Show loading message when bot is processing */}
             {loading && (
               <div className="flex justify-start">
-                <div className="px-3 py-2 rounded-lg max-w-[80%] text-sm whitespace-pre-wrap bg-gray-300 text-gray-700">
+                <div className="px-3 py-2 rounded-lg max-w-[80%] text-sm whitespace-pre-wrap bg-muted text-muted-foreground dark:bg-gray-700 dark:text-gray-300">
                   <span className="typing-animation"></span>
                 </div>
               </div>
@@ -153,12 +137,12 @@ export default function ChatbotWidget(props) {
           {/* Input */}
           <form
             onSubmit={handleSend}
-            className="flex items-center border-t px-2 py-2 bg-white"
+            className="flex items-center border-t px-2 py-2 bg-background rounded-b-xl"
           >
             <input
               ref={inputRef}
               type="text"
-              className="flex-1 outline-none px-2 py-1 text-sm text-slate-900"
+              className="flex-1 outline-none px-2 py-1 text-sm text-foreground dark:bg-gray-800 dark:text-gray-200"
               placeholder="Type your message..."
               value={input}
               onChange={(e) => setInput(e.target.value)}

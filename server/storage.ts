@@ -124,6 +124,7 @@ export interface IStorage {
   // Course related methods
   getCourse(id: number): Promise<Course | null>;
   getCourses(): Promise<Course[]>;
+  getCourseByTitle(title: string): Promise<Course | null>;
   getCoursesByInstructor(instructorId: number): Promise<Course[]>;
   createCourse(course: InsertCourse): Promise<Course>;
   updateCourse(id: number, course: Partial<Course>): Promise<Course | null>;
@@ -500,6 +501,16 @@ export class PrismaStorage implements IStorage {
   }
   async getCoursesByInstructor(instructorId: number): Promise<Course[]> {
     return this.prisma.course.findMany({ where: { instructorId } });
+  }
+  async getCourseByTitle(title: string): Promise<Course | null> {
+    return this.prisma.course.findFirst({
+      where: {
+        title: {
+          equals: title,
+          mode: 'insensitive', // Case-insensitive search
+        },
+      },
+    });
   }
   async createCourse(course: InsertCourse): Promise<Course> {
     // Ensure category is included in the data passed to Prisma

@@ -114,7 +114,7 @@ def insert_questions_api():
                         "path": video["path"],
                         "position": video["position"]
                     })
-                    generate_vtt_from_video(video["path"], '../uploads/caption')
+                    generate_vtt_from_video(video["path"], '../uploads/captions')
 
         cur.close()
         conn.close()

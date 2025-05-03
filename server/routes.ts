@@ -1011,15 +1011,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           duration,
           difficulty,
           status,
-        } = req.body; // Add category
-
+        } = req.body;
+  
         // Basic validation (replace with Zod/other validation if needed)
         if (!title || !description) {
           return res
             .status(400)
             .json({ message: "Title and description are required" });
         }
-
+  
+        // Check if a course with the same title already exists
+        const existingCourse = await storage.getCourseByTitle(title);
+        if (existingCourse) {
+          return res
+            .status(409) // 409 Conflict status code
+            .json({ 
+              message: "A course with this title already exists",
+              code: "DUPLICATE_COURSE_TITLE"
+            });
+        }
+  
         const newCourse = await storage.createCourse({
           title,
           description,
@@ -1031,8 +1042,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           categoryId: categoryId ? parseInt(categoryId) : null,
           instructorId: req.user!.id, // Assert req.user exists
         });
-
+  
         res.status(201).json(newCourse);
+        
         try {
           await axios.post("http://localhost:5001/generate_image", {
             course_id: newCourse.id,

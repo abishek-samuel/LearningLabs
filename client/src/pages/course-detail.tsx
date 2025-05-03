@@ -214,7 +214,8 @@ export default function CourseDetail() {
     const firstLesson = firstModule?.lessons?.[1];
     // TODO: Ideally, find the *next uncompleted* lesson instead of the first one.
     if (firstModule && firstLesson) {
-      setLocation(`/course-content?id=${course.id}&moduleId=${firstModule.id}&lessonId=${firstLesson.id}`);
+      // setLocation(`/course-content?id=${course.id}&moduleId=${firstModule.id}&lessonId=${firstLesson.id}`);
+      setLocation(`/course-content?id=${course.id}`);
     } else {
       toast({ title: "Error", description: "Could not find the first lesson to continue.", variant: "destructive" });
     }
