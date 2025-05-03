@@ -393,7 +393,7 @@ export function LessonList({ moduleId, courseId }: LessonListProps) {
                 />
                 <Button
                     size="sm"
-                    className="w-full sm:w-auto flex-shrink-0 px-3"
+                    className="w-full sm:w-auto flex-shrink-0 px-3 bg-primary dark:bg-blue-600 dark:hover:bg-blue-700"
                     onClick={() => handleResourceUpload(lesson)}
                     disabled={!uploadState.files.length || uploadState.uploading}
                 >
@@ -514,7 +514,7 @@ export function LessonList({ moduleId, courseId }: LessonListProps) {
                                     {/* Action Buttons */}
                                     <div className="flex justify-end gap-2 pt-2">
                                         <Button variant="ghost" size="sm" onClick={handleCancelEdit}>Cancel</Button>
-                                        <Button size="sm" onClick={() => handleSaveLessonEdit(lesson.id)}>Save Changes</Button>
+                                        <Button size="sm" className="bg-primary dark:bg-blue-600 dark:hover:bg-blue-700" onClick={() => handleSaveLessonEdit(lesson.id)}>Save Changes</Button>
                                     </div>
                                 </CardContent>
                             </Card>

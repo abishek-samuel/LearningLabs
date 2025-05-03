@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query"; // Import useQuery
 import { MainLayout } from "@/components/layout/main-layout";
 import { useAuth } from "@/context/auth-context";
@@ -20,6 +20,7 @@ type CourseInEnrollment = {
   duration?: number | null; // Assuming duration is in minutes from schema
   modules?: { id: number }[]; // Just need module count, or fetch full modules if needed
   instructor?: { firstName?: string | null; lastName?: string | null; } | null; // Assuming instructor relation is included
+  categoryId?: number | null; // Added categoryId field
 };
 
 type EnrollmentWithCourse = {
@@ -32,13 +33,19 @@ type EnrollmentWithCourse = {
   course?: CourseInEnrollment | null; // Nested course data
 };
 
+// Add type for Category
+type Category = {
+  id: number;
+  name: string;
+};
+
 export default function MyCourses() {
   const { user } = useAuth();
-  const [, navigate] = useLocation(); 
+  const [location, navigate] = useLocation(); 
   
   // Fetch enrollments using React Query
-  const { data: enrollments = [], isLoading, error } = useQuery<EnrollmentWithCourse[]>({
-    queryKey: ["/api/enrollments"], // Query key for caching
+  const { data: enrollments = [], isLoading: enrollmentsLoading, error: enrollmentsError } = useQuery<EnrollmentWithCourse[]>({
+    queryKey: ["enrollments"], // Query key for caching
     queryFn: async () => { // Added fetcher function
       const res = await fetch('/api/enrollments'); // Assumes API endpoint exists
       if (!res.ok) throw new Error('Failed to fetch enrollments');
@@ -50,9 +57,36 @@ export default function MyCourses() {
     staleTime: 0,
   });
 
+  // Fetch categories using React Query
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery<Category[]>({
+    queryKey: ["categories"],
+    queryFn: async () => {
+      const res = await fetch('/api/categories');
+      if (!res.ok) throw new Error('Failed to fetch categories');
+      return res.json();
+    },
+    enabled: !!user,
+  });
+
   const [searchQuery, setSearchQuery] = useState("");
   const [category, setCategory] = useState("all");
   const [sortOrder, setSortOrder] = useState("newest");
+
+  // Get a list of categoryIds that have associated courses
+  const availableCategoryIds = useMemo(() => {
+    const categoryIds = new Set<number>();
+    enrollments.forEach(enrollment => {
+      if (enrollment.course?.categoryId) {
+        categoryIds.add(enrollment.course.categoryId);
+      }
+    });
+    return [...categoryIds];
+  }, [enrollments]);
+
+  // Filter categories to only include those with associated courses
+  const availableCategories = useMemo(() => {
+    return categories.filter(category => availableCategoryIds.includes(category.id));
+  }, [categories, availableCategoryIds]);
 
   const filteredEnrollments = enrollments.filter(e => {
     const course = e.course;
@@ -63,7 +97,9 @@ export default function MyCourses() {
       (course.title && course.title.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (course.description && course.description.toLowerCase().includes(searchQuery.toLowerCase()));
 
-    const matchesCategory = category === "all" || course.category === category;
+    const matchesCategory = 
+      category === "all" || 
+      (course.categoryId && course.categoryId.toString() === category);
 
     return matchesSearch && matchesCategory;
   });
@@ -84,7 +120,22 @@ export default function MyCourses() {
   const completedCourses = sortedEnrollments.filter(e => (e.progress === 100 || e.completedAt) && e.course);
   const inProgressCourses = sortedEnrollments.filter(e => !(e.progress === 100 || e.completedAt) && e.course);
 
-  // TODO: Implement search/filter/sort logic based on fetched data if needed
+  // Get tab parameter from URL if present
+  const urlParams = new URLSearchParams(window.location.search);
+  const tabParam = urlParams.get('tab');
+  const defaultTab = tabParam === 'completed' ? 'completed' : 'inProgress';
+
+  const [activeTab, setActiveTab] = useState(defaultTab);
+
+  // Update active tab when URL changes
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+    setActiveTab(tabParam === 'completed' ? 'completed' : 'inProgress');
+  }, [window.location.search]);
+
+  const isLoading = enrollmentsLoading || categoriesLoading;
+  const error = enrollmentsError;
 
   return (
     <MainLayout>
@@ -128,16 +179,33 @@ export default function MyCourses() {
                 className="appearance-none rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 pl-3 pr-8 py-2 text-sm"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
+                disabled={isLoading}
               >
                 <option value="all">All Categories</option>
-                {/* Add dynamic categories later */}
+                {availableCategories.map(cat => (
+                  <option key={cat.id} value={cat.id.toString()}>
+                    {cat.name}
+                  </option>
+                ))}
               </select>
               <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
             </div>
           </div>
         </div>
         
-        <Tabs defaultValue="inProgress">
+        <Tabs value={activeTab} defaultValue={defaultTab} onValueChange={(value) => {
+            setActiveTab(value);
+            
+            // Get the current path (fallback to '/my-courses' if undefined)
+            const currentPath = location.pathname || '/my-courses';
+            
+            // Update URL when tab changes without full navigation
+            const newUrl = value === 'completed' 
+              ? `${currentPath}?tab=completed` 
+              : currentPath;
+              
+            window.history.replaceState(null, '', newUrl);
+          }}>
           <TabsList className="mb-6">
             <TabsTrigger value="inProgress">In Progress ({inProgressCourses.length})</TabsTrigger>
             <TabsTrigger value="completed">Completed ({completedCourses.length})</TabsTrigger>
@@ -202,7 +270,7 @@ export default function MyCourses() {
                             Instructor: <span className="font-medium">{enrollment.course?.instructor?.firstName || 'N/A'}</span>
                           </div>
                           {/* Navigate to course content page */}
-                          <Button size="sm" onClick={() => navigate(`/course-content?id=${enrollment.courseId}`)}> 
+                          <Button size="sm" className="bg-primary dark:bg-blue-600 dark:hover:bg-blue-700" onClick={() => navigate(`/course-content?id=${enrollment.courseId}`)}> 
                             Continue
                             <ArrowRight className="ml-2 h-4 w-4" />
                           </Button>
@@ -254,10 +322,10 @@ export default function MyCourses() {
                           </div>
                           {/* Link to review the course, maybe back to course detail */}
                           <div className="flex gap-2">
-                            <Button size="sm" onClick={() => navigate(`/course-content?id=${enrollment.courseId}`)}>
+                            <Button size="sm" className="bg-primary dark:bg-blue-600 dark:hover:bg-blue-700" onClick={() => navigate(`/course-content?id=${enrollment.courseId}`)}>
                               View Course
                             </Button>
-                            <Button variant="default" size="sm" onClick={() => navigate(`/course-detail?id=${enrollment.courseId}`)}>
+                            <Button variant="default" size="sm" className="bg-primary dark:bg-blue-600 dark:hover:bg-blue-700" onClick={() => navigate(`/course-detail?id=${enrollment.courseId}`)}>
                               Review Course
                             </Button>
                           </div>

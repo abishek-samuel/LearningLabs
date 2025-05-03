@@ -3,7 +3,7 @@ import { MainLayout } from "@/components/layout/main-layout";
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Award, Download, Calendar, FileText, Copy } from "lucide-react";
+import { Award, Calendar, FileText, Copy , ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Certificates() {
@@ -106,7 +106,7 @@ export default function Certificates() {
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                 >
-                  <Download className="mr-2 h-4 w-4" />
+                  <ExternalLink className="mr-2 h-4 w-4" />
                   View Certificate
                 </a>
               </CardFooter>

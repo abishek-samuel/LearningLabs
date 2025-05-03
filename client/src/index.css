@@ -84,3 +84,7 @@
 .sidebar-scroll-container::-webkit-scrollbar-thumb:hover {
   background-color: rgba(107, 114, 128, 0.7); /* Slightly darker on hover */
 }
+
+input[type="password"]::-ms-reveal {
+  display: none;
+}

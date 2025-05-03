@@ -48,9 +48,9 @@ export function CourseCard({
           }}
         />
         {rating && (
-          <div className="absolute top-2 right-2 bg-accent text-white text-xs font-medium px-2 py-1 rounded">
-            {rating} ★
-          </div>
+          <div className="absolute top-2 right-2 bg-accent text-accent-foreground dark:text-white text-xs font-medium px-2 py-1 rounded">
+          {rating} <span className="text-yellow-400">★</span>
+        </div>
         )}
       </div>
       <div className="p-4 flex-1 flex flex-col">
@@ -71,7 +71,7 @@ export function CourseCard({
         <Button 
           type="button" // Explicitly set button type
           variant="default" 
-          className="w-full mt-auto bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white"
+          className="w-full mt-auto bg-primary dark:bg-blue-600 dark:hover:bg-blue-700 text-white"
           onClick={handleNavigate} // Use the handler function
         > 
           {isInProgress ? "Continue Learning" : "View Course"}

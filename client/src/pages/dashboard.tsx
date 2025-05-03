@@ -112,8 +112,8 @@ export default function Dashboard() {
             icon={CheckSquare}
             iconBgColor="bg-green-100 dark:bg-green-900/30"
             iconColor="text-green-600 dark:text-green-400"
-            linkText="View certificates"
-            linkHref="/certificates"
+            linkText="View all"
+            linkHref="/my-courses?tab=completed"
           />
           
           <StatsCard
