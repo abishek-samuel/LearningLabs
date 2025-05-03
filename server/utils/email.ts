@@ -20,7 +20,7 @@ export async function sendWelcomeEmail(
   const mailOptions = {
     from: process.env.SMTP_FROM,
     to: email,
-    subject: "Welcome to Learning Management System",
+    subject: "Welcome to Learning Labs",
     html: `
       <h1>Welcome to Learning Labs!</h1>
       <p>Hello ${username},</p>
@@ -55,7 +55,7 @@ export async function sendApproveEmail(
   const mailOptions = {
     from: process.env.SMTP_FROM,
     to: email,
-    subject: "Welcome to Learning Management System - Account Approved",
+    subject: "Welcome to Learning Labs - Account Approved",
     html: `
       <h1>Welcome to Learning Labs!</h1>
       <p>Hello ${username},</p>
@@ -85,7 +85,7 @@ export async function sendRejectionEmail(email: string, username: string) {
   const mailOptions = {
     from: process.env.SMTP_FROM,
     to: email,
-    subject: "Learning Management System - Account Request Rejected",
+    subject: "Learning Labs - Account Request Rejected",
     html: `
       <h1>Account Request Status</h1>
       <p>Hello ${username},</p>
@@ -148,7 +148,7 @@ export async function sendPasswordResetEmail(
   const mailOptions = {
     from: process.env.SMTP_FROM,
     to: email,
-    subject: "Password Reset - Learning Management System",
+    subject: "Password Reset - Learning Labs",
     html: `
       <h1>Password Reset</h1>
       <p>Hello ${username},</p>

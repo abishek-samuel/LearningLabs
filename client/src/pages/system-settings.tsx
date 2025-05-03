@@ -39,7 +39,7 @@ export default function SystemSettings() {
               <CardContent className="space-y-6">
                 <div className="space-y-2">
                   <Label htmlFor="site-name">Site Name</Label>
-                  <Input id="site-name" defaultValue="Learning Management System" />
+                  <Input id="site-name" defaultValue="Learning Labs" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="site-description">Site Description</Label>

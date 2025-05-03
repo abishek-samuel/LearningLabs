@@ -210,6 +210,48 @@ function AssessmentLessonWrapper({
   );
 }
 
+function getNextLesson(modules, lessonProgress) {
+  if (!modules?.length) return null;
+
+  const completedLessonIds = new Set(
+    (lessonProgress || []).filter(p => p.status === "completed").map(p => p.lessonId)
+  );
+
+  let firstLesson = null;
+  let lastLesson = null;
+
+  const sortedModules = modules
+    .slice()
+    .sort((a, b) => a.position - b.position);
+
+  for (const module of sortedModules) {
+    const sortedLessons = module.lessons
+      .filter(lesson => lesson.position >= 0)
+      .sort((a, b) => a.position - b.position);
+
+    if (sortedLessons.length === 0) continue;
+
+    // Track first and last lessons
+    if (!firstLesson) {
+      firstLesson = { module, lesson: sortedLessons[0] };
+    }
+    lastLesson = { module, lesson: sortedLessons[sortedLessons.length - 1] };
+
+    for (const lesson of sortedLessons) {
+      if (!completedLessonIds.has(lesson.id)) {
+        return { module, lesson };
+      }
+    }
+  }
+
+  if (!lessonProgress || lessonProgress.length === 0) {
+    return firstLesson;
+  }
+
+  return lastLesson; // All completed
+}
+
+
 export default function CourseContent() {
   const [activeAssessmentModuleId, setActiveAssessmentModuleId] = useState<
     number | null
@@ -420,8 +462,8 @@ export default function CourseContent() {
 
         setCourse(data);
 
-        setCurrentModule(data.modules?.[0] || null);
-        setCurrentLesson(data.modules?.[0]?.lessons?.[0] || null);
+        // setCurrentModule(data.modules?.[0] || null);
+        // setCurrentLesson(data.modules?.[0]?.lessons?.[0] || null);
 
         if (user?.id) {
           try {
@@ -439,6 +481,10 @@ export default function CourseContent() {
                 {}
               );
               setLessonProgressMap(progressMap);
+              const {module,lesson} = getNextLesson(data.modules,progressData)
+              console.log("moduleId,lessonId",module,lesson)
+              setCurrentModule(module);
+              setCurrentLesson(lesson);
             } else {
               console.error(
                 "Failed to fetch lesson progress:",
