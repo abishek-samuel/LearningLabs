@@ -503,7 +503,7 @@ export default function Analytics() {
                 <CardContent className="p-6">
                   <div className="h-64">
                     {courseData && courseData.length ? (
-                      <Chart options={options} series={series} type="bar" />
+                      <Chart options={options} series={series} type="bar" height="100%" />
                     ) : (
                       <div className="flex items-center justify-center h-full text-gray-500">
                         No data available
