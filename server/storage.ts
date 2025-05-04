@@ -238,7 +238,7 @@ export interface IStorage {
   createCertificate(certificate: InsertCertificate): Promise<Certificate>;
   getCertificateByHash(certHash: string): Promise<Certificate | null>;
 
-// Session store
+  // Session store
   sessionStore: session.Store;
 
   // Note related methods
@@ -496,9 +496,21 @@ export class PrismaStorage implements IStorage {
       },
     });
   }
-  async getCourses(): Promise<Course[]> {
-    return this.prisma.course.findMany();
+  async getCourses(): Promise<any[]> {
+    const courses = await this.prisma.course.findMany({
+      include: {
+        _count: {
+          select: { modules: true },
+        },
+      },
+    });
+
+    return courses.map(({ _count, ...rest }) => ({
+      ...rest,
+      modules: _count.modules,
+    }));
   }
+
   async getCoursesByInstructor(instructorId: number): Promise<Course[]> {
     return this.prisma.course.findMany({ where: { instructorId } });
   }
@@ -1198,66 +1210,66 @@ export class PrismaStorage implements IStorage {
     });
   }
 
-// --- Resource Methods ---
-async createResource(
-  resource: InsertResource
-): Promise<import(".prisma/client").Resource> {
-  return this.prisma.resource.create({ data: resource });
-}
-
-async getResourcesByCourse(
-  courseId: number
-): Promise<import(".prisma/client").Resource[]> {
-  return this.prisma.resource.findMany({
-    where: { courseId },
-    orderBy: { uploadedAt: "desc" },
-  });
-}
-
-async getResourceById(
-  id: number
-): Promise<import(".prisma/client").Resource | null> {
-  return this.prisma.resource.findUnique({ where: { id } });
-}
-
-async deleteResource(id: number): Promise<boolean> {
-  try {
-    await this.prisma.resource.delete({ where: { id } });
-    return true;
-  } catch (error) {
-    return false;
+  // --- Resource Methods ---
+  async createResource(
+    resource: InsertResource
+  ): Promise<import(".prisma/client").Resource> {
+    return this.prisma.resource.create({ data: resource });
   }
-}
 
-// --- Note Methods ---
-async saveNote(note: InsertNote): Promise<import(".prisma/client").Note> {
-  return this.prisma.note.upsert({
-    where: {
-      userId_lessonId: {
-        userId: note.userId,
-        lessonId: note.lessonId,
+  async getResourcesByCourse(
+    courseId: number
+  ): Promise<import(".prisma/client").Resource[]> {
+    return this.prisma.resource.findMany({
+      where: { courseId },
+      orderBy: { uploadedAt: "desc" },
+    });
+  }
+
+  async getResourceById(
+    id: number
+  ): Promise<import(".prisma/client").Resource | null> {
+    return this.prisma.resource.findUnique({ where: { id } });
+  }
+
+  async deleteResource(id: number): Promise<boolean> {
+    try {
+      await this.prisma.resource.delete({ where: { id } });
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  // --- Note Methods ---
+  async saveNote(note: InsertNote): Promise<import(".prisma/client").Note> {
+    return this.prisma.note.upsert({
+      where: {
+        userId_lessonId: {
+          userId: note.userId,
+          lessonId: note.lessonId,
+        },
       },
-    },
-    update: {
-      content: note.content,
-    },
-    create: note,
-  });
-}
+      update: {
+        content: note.content,
+      },
+      create: note,
+    });
+  }
 
-async getNoteByLessonAndUser(
-  lessonId: number,
-  userId: number
-): Promise<import(".prisma/client").Note | null> {
-  return this.prisma.note.findFirst({
-    where: { lessonId, userId },
-  });
-}
+  async getNoteByLessonAndUser(
+    lessonId: number,
+    userId: number
+  ): Promise<import(".prisma/client").Note | null> {
+    return this.prisma.note.findFirst({
+      where: { lessonId, userId },
+    });
+  }
 
-// Optional: Method to disconnect Prisma client when server shuts down
-async disconnect(): Promise<void> {
-  await this.prisma.$disconnect();
-}
+  // Optional: Method to disconnect Prisma client when server shuts down
+  async disconnect(): Promise<void> {
+    await this.prisma.$disconnect();
+  }
 }
 
 // Export the instance of PrismaStorage

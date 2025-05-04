@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, Bell, Sun, Moon, Menu } from "lucide-react";
+import { Search, Bell, Sun, Moon, Menu, HelpCircle } from "lucide-react";
 import LOGO from "../../../favicon.png";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
@@ -102,7 +102,16 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
       return message; // fallback if parsing fails
     }
   };
+  // const openUserGuide = () => {
+  //   const userGuideUrl = import.meta.env.VITE_USER_GUIDE_URL;
+  //   window.open(userGuideUrl, "_blank");
+  // };
 
+
+  const openUserGuide = () => {
+    const userGuideUrl = "../../../../../user_guide.pdf";
+    window.open(userGuideUrl, "_blank");
+  };
 
   return (
     <header className="sticky top-0 z-30 w-full bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 shadow-sm">
@@ -215,7 +224,9 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
-
+          <button onClick={openUserGuide} title="User Guide">
+            <HelpCircle className="h-5 w-5 text-slate-600 hover:text-blue-600 cursor-pointer" />
+          </button>
           {/* User dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -260,6 +271,7 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
         </div>
       </div>
     </header>
