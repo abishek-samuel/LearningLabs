@@ -1027,7 +1027,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .status(409) // 409 Conflict status code
             .json({
               message: "A course with this title already exists",
-              code: "DUPLICATE_COURSE_TITLE"
+              code: "DUPLICATE_COURSE_TITLE",
             });
         }
 
@@ -1230,6 +1230,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         courseId,
       });
+      const courseDetails = await storage.getCourse(courseId);
 
       // Log the activity
       await storage.createActivityLog({
@@ -1237,7 +1238,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         action: "enrolled",
         resourceType: "course",
         resourceId: courseId,
-        metadata: {}, // Prisma expects JsonNull or an object
+        metadata: { title: courseDetails?.title }, // Prisma expects JsonNull or an object
       });
 
       res.status(201).json(newEnrollment);
@@ -1691,9 +1692,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const isCorrect =
             q &&
             ans.selectedOption.trim().toLowerCase() ===
-            q.options[`option${q.correctAnswer.replace("option", "")}`]
-              .trim()
-              .toLowerCase();
+              q.options[`option${q.correctAnswer.replace("option", "")}`]
+                .trim()
+                .toLowerCase();
 
           if (isCorrect) correct++;
           return {
@@ -1753,12 +1754,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 },
               });
             }
+
+            const moduleDetails = await storage.getModule(
+              assessmentLesson.moduleId
+            );
+
             await storage.createActivityLog({
               userId: req.user!.id,
               action: "completed_assessment",
               resourceType: "lesson",
               resourceId: assessmentLesson.id,
-              metadata: {}, // Prisma expects JsonNull or an object
+              metadata: { title: moduleDetails?.title }, // Prisma expects JsonNull or an object
             });
 
             // Get the module and course
@@ -1829,9 +1835,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   const progressPercentage =
                     totalLessonsInCourse > 0
                       ? Math.round(
-                        (completedLessonsInCourse / totalLessonsInCourse) *
-                        100
-                      )
+                          (completedLessonsInCourse / totalLessonsInCourse) *
+                            100
+                        )
                       : 0; // Avoid division by zero if course has no lessons
 
                   // 5. Update enrollment with correct progress and completion status
@@ -2120,13 +2126,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         assessmentId,
       });
 
+      const moduleDetails = await storage.getModule(newAttempt.moduleId);
+
       // Log the activity
       await storage.createActivityLog({
         userId: userId,
         action: "started_assessment",
         resourceType: "assessment",
         resourceId: assessmentId,
-        metadata: {}, // Prisma expects JsonNull or an object
+        metadata: { title: moduleDetails?.title }, // Prisma expects JsonNull or an object
       });
 
       res.status(201).json(newAttempt);
@@ -2784,7 +2792,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           action: "completed_lesson",
           resourceType: "lesson",
           resourceId: lessonId,
-          metadata: {}, // Prisma expects JsonNull or an object
+          metadata: { title: lesson.title }, // Prisma expects JsonNull or an object
         });
 
         // Update course enrollment progress
@@ -2827,8 +2835,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const progressPercentage =
               totalLessonsInCourse > 0
                 ? Math.round(
-                  (completedLessonsInCourse / totalLessonsInCourse) * 100
-                )
+                    (completedLessonsInCourse / totalLessonsInCourse) * 100
+                  )
                 : 0; // Avoid division by zero if course has no lessons
 
             // 5. Update enrollment with correct progress and completion status
@@ -3704,37 +3712,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Get total active users
       const activeUsers = await storage.prisma.user.count({
-        where: { status: "active" }
+        where: { status: "active" },
       });
 
       // Get course completion rate
       const completedEnrollments = await storage.prisma.enrollment.count({
-        where: { progress: 100 }
+        where: { progress: 100 },
       });
       const totalEnrollments = await storage.prisma.enrollment.count();
-      const completionRate = totalEnrollments > 0
-        ? Math.round((completedEnrollments / totalEnrollments) * 100)
-        : 0;
+      const completionRate =
+        totalEnrollments > 0
+          ? Math.round((completedEnrollments / totalEnrollments) * 100)
+          : 0;
 
       // Get average engagement (hours per week)
       const activityLogs = await storage.prisma.activityLog.findMany({
         where: {
           createdAt: {
-            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // Last 7 days
-          }
-        }
+            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Last 7 days
+          },
+        },
       });
-      const avgEngagement = activityLogs.length > 0
-        ? (activityLogs.length / activeUsers / 7 * 2).toFixed(1)
-        : "0.0";
+      const avgEngagement =
+        activityLogs.length > 0
+          ? ((activityLogs.length / activeUsers / 7) * 2).toFixed(1)
+          : "0.0";
 
       // Get certificates issued in last 30 days
       const recentCertificates = await storage.prisma.certificate.count({
         where: {
           issueDate: {
-            gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-          }
-        }
+            gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+          },
+        },
       });
 
       // Get course enrollment data
@@ -3743,30 +3753,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         select: {
           title: true,
           _count: {
-            select: { enrollments: true }
+            select: { enrollments: true },
           },
           enrollments: {
             select: {
-              progress: true
-            }
-          }
+              progress: true,
+            },
+          },
         },
         take: 5,
         orderBy: {
           enrollments: {
-            _count: 'desc'
-          }
-        }
+            _count: "desc",
+          },
+        },
       });
 
-      const courseData = courses.map(course => ({
+      const courseData = courses.map((course) => ({
         name: course.title,
         enrollment: course._count.enrollments,
         completion: Math.round(
           course.enrollments.reduce((acc, curr) => acc + curr.progress, 0) /
-          (course.enrollments.length || 1)
+            (course.enrollments.length || 1)
         ),
-        avgScore: Math.round(65 + Math.random() * 20) // Placeholder - needs assessment data
+        avgScore: Math.round(65 + Math.random() * 20), // Placeholder - needs assessment data
       }));
 
       res.json({
@@ -3774,9 +3784,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           totalUsers: activeUsers,
           courseCompletion: completionRate,
           avgEngagement: avgEngagement,
-          certificatesIssued: recentCertificates
+          certificatesIssued: recentCertificates,
         },
-        courseData
+        courseData,
       });
     } catch (error) {
       console.error("Error fetching analytics:", error);

@@ -212,7 +212,7 @@ export function CourseForm({
             name="thumbnail"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Course Image</FormLabel>
+                <FormLabel>Course Image (choose one image)</FormLabel>
                 <FormControl>
                   <>
                     {loadingImages ? (
@@ -252,7 +252,11 @@ export function CourseForm({
           />
         )}
 
-        <Button type="submit" disabled={isSubmitting} className="w-full bg-primary dark:bg-blue-600 dark:hover:bg-blue-700">
+        <Button
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full bg-primary dark:bg-blue-600 dark:hover:bg-blue-700"
+        >
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -6,16 +6,35 @@ import { Button } from "@/components/ui/button";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { CourseCard } from "@/components/dashboard/course-card";
 import { ActivityItem } from "@/components/dashboard/activity-item";
-import { Filter, BookOpen, CheckSquare, Clock, Medal, Video, Award, FileText, Activity, ClipboardCheck, UserPlus } from "lucide-react";
+import { queryClient } from "../lib/queryClient";
+import {
+  Filter,
+  BookOpen,
+  CheckSquare,
+  Clock,
+  Medal,
+  Video,
+  Award,
+  FileText,
+  Activity,
+  ClipboardCheck,
+  UserPlus,
+} from "lucide-react";
 import { useLocation } from "wouter";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function Dashboard() {
   const { user } = useAuth();
   const currentDate = format(new Date(), "MMMM d, yyyy");
   const [, navigate] = useLocation();
 
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ["/api/activity-logs"] });
+  }, []);
 
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ["/api/enrollments"] });
+  }, []);
 
   // Fetch enrollments for the current user
   const { data: enrollments, isLoading: enrollmentsLoading } = useQuery({
@@ -32,13 +51,14 @@ export default function Dashboard() {
   // In a real app, we would use these values from the API
   const statsData = {
     enrolled: enrollments?.length || 0,
-    completed: enrollments?.filter(e => e.completedAt)?.length || 0,
-    inProgress: enrollments?.filter(e => !e.completedAt)?.length || 0,
-    certificates: enrollments?.filter(e => e.completedAt)?.length || 0,
+    completed: enrollments?.filter((e) => e.completedAt)?.length || 0,
+    inProgress: enrollments?.filter((e) => !e.completedAt)?.length || 0,
+    certificates: enrollments?.filter((e) => e.completedAt)?.length || 0,
   };
 
   // Mock data for demo purposes - in a real application, this would come from API
-  const inProgressCourses = enrollments?.filter((e: any) => e.progress < 100).slice(0, 3) || [];
+  const inProgressCourses =
+    enrollments?.filter((e: any) => e.progress < 100).slice(0, 3) || [];
   const recommendedCourses = [];
 
   return (
@@ -47,7 +67,9 @@ export default function Dashboard() {
       <div className="bg-white dark:bg-slate-900 shadow">
         <div className="px-4 sm:px-6 lg:px-8 py-6 md:flex md:items-center md:justify-between">
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold leading-7 text-slate-900 sm:truncate sm:text-3xl dark:text-white">Dashboard</h1>
+            <h1 className="text-2xl font-bold leading-7 text-slate-900 sm:truncate sm:text-3xl dark:text-white">
+              Dashboard
+            </h1>
             <div className="mt-1 flex flex-col sm:mt-0 sm:flex-row sm:flex-wrap sm:space-x-6">
               <div className="mt-2 flex items-center text-sm text-slate-500 dark:text-slate-400">
                 <svg
@@ -84,7 +106,10 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="mt-4 flex md:mt-0 md:ml-4 space-x-3">
-            <Button variant="outline" onClick={() => navigate('/course-catalog')}>
+            <Button
+              variant="outline"
+              onClick={() => navigate("/course-catalog")}
+            >
               <BookOpen className="mr-2 h-4 w-4" />
               Explore Courses
             </Button>
@@ -105,7 +130,7 @@ export default function Dashboard() {
             linkText="View all"
             linkHref="/my-courses"
           />
-          
+
           <StatsCard
             title="Completed"
             value={statsData.completed}
@@ -115,7 +140,7 @@ export default function Dashboard() {
             linkText="View all"
             linkHref="/my-courses?tab=completed"
           />
-          
+
           <StatsCard
             title="In Progress"
             value={statsData.inProgress}
@@ -125,7 +150,7 @@ export default function Dashboard() {
             linkText="Continue learning"
             linkHref="/my-courses"
           />
-          
+
           <StatsCard
             title="Certificates"
             value={statsData.certificates}
@@ -136,9 +161,11 @@ export default function Dashboard() {
             linkHref="/certificates"
           />
         </div>
-        
+
         {/* In progress section */}
-        <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">Continue Learning</h2>
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">
+          Continue Learning
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {enrollmentsLoading ? (
             <div className="col-span-3 flex justify-center py-8">
@@ -160,24 +187,28 @@ export default function Dashboard() {
           ) : (
             <div className="col-span-3 text-center py-10 bg-white dark:bg-slate-800 rounded-lg shadow">
               <BookOpen className="mx-auto h-12 w-12 text-slate-400" />
-              <h3 className="mt-2 text-sm font-medium text-slate-900 dark:text-white">No courses in progress</h3>
+              <h3 className="mt-2 text-sm font-medium text-slate-900 dark:text-white">
+                No courses in progress
+              </h3>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 Start learning by enrolling in a course.
               </p>
               <div className="mt-6">
-                <Button onClick={() => navigate('/course-catalog')}>
+                <Button onClick={() => navigate("/course-catalog")}>
                   Browse Courses
                 </Button>
               </div>
             </div>
           )}
         </div>
-        
+
         {/* Upcoming deadlines and recent activity */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Upcoming deadlines */}
           <div className="lg:col-span-2">
-            <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">Upcoming Deadlines</h2>
+            <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">
+              Upcoming Deadlines
+            </h2>
             <div className="bg-white dark:bg-slate-800 shadow rounded-lg overflow-hidden">
               <div className="divide-y divide-slate-200 dark:divide-slate-700">
                 {/* Mock data for deadlines - would be fetched from API in real application */}
@@ -188,8 +219,12 @@ export default function Dashboard() {
                         <FileText className="text-slate-600 dark:text-slate-300 text-lg" />
                       </div>
                       <div className="ml-4">
-                        <h3 className="text-sm font-medium text-slate-900 dark:text-white">Module Assessment: React Hooks</h3>
-                        <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">React Fundamentals</div>
+                        <h3 className="text-sm font-medium text-slate-900 dark:text-white">
+                          Module Assessment: React Hooks
+                        </h3>
+                        <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                          React Fundamentals
+                        </div>
                       </div>
                     </div>
                     <div className="text-sm text-red-600 dark:text-red-400 font-medium">
@@ -197,7 +232,7 @@ export default function Dashboard() {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="p-4 sm:px-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
@@ -205,8 +240,12 @@ export default function Dashboard() {
                         <FileText className="text-slate-600 dark:text-slate-300 text-lg" />
                       </div>
                       <div className="ml-4">
-                        <h3 className="text-sm font-medium text-slate-900 dark:text-white">Final Project: Vue.js Application</h3>
-                        <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">Vue.js for Beginners</div>
+                        <h3 className="text-sm font-medium text-slate-900 dark:text-white">
+                          Final Project: Vue.js Application
+                        </h3>
+                        <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                          Vue.js for Beginners
+                        </div>
                       </div>
                     </div>
                     <div className="text-sm text-yellow-600 dark:text-yellow-400 font-medium">
@@ -214,7 +253,7 @@ export default function Dashboard() {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="p-4 sm:px-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
@@ -222,8 +261,12 @@ export default function Dashboard() {
                         <FileText className="text-slate-600 dark:text-slate-300 text-lg" />
                       </div>
                       <div className="ml-4">
-                        <h3 className="text-sm font-medium text-slate-900 dark:text-white">Data Analysis Report</h3>
-                        <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">Python Data Analysis</div>
+                        <h3 className="text-sm font-medium text-slate-900 dark:text-white">
+                          Data Analysis Report
+                        </h3>
+                        <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                          Python Data Analysis
+                        </div>
                       </div>
                     </div>
                     <div className="text-sm text-green-600 dark:text-green-400 font-medium">
@@ -234,15 +277,22 @@ export default function Dashboard() {
               </div>
               <div className="bg-slate-50 dark:bg-slate-700/50 px-4 py-3 sm:px-6">
                 <div className="text-sm">
-                  <a href="#" className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300">View all deadlines</a>
+                  <a
+                    href="#"
+                    className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
+                  >
+                    View all deadlines
+                  </a>
                 </div>
               </div>
             </div>
           </div>
-          
+
           {/* Recent activity */}
           <div>
-            <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">Recent Activity</h2>
+            <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">
+              Recent Activity
+            </h2>
             <div className="bg-white dark:bg-slate-800 shadow rounded-lg overflow-hidden">
               <div className="divide-y divide-slate-200 dark:divide-slate-700">
                 {activitiesLoading ? (
@@ -252,66 +302,76 @@ export default function Dashboard() {
                 ) : activityLogs && activityLogs.length > 0 ? (
                   activityLogs.slice(0, 3).map((activity) => {
                     let icon, iconBgColor, iconColor, title;
-                    
+
                     switch (activity.action) {
-                      case 'watched_video':
+                      case "watched_video":
                         icon = Video; // Icon for watching content
                         // iconBgColor = 'bg-blue-100 dark:bg-blue-900/30'; // Blue often associated with information/media
-                        iconColor = 'text-blue-600 dark:text-blue-400';
+                        iconColor = "text-blue-600 dark:text-blue-400";
                         // Use metadata, provide fallback
-                        title = `Watched "${activity.metadata?.title || 'Video'}"`;
+                        title = `Watched "${
+                          activity.metadata?.title || "Video"
+                        }"`;
                         break;
-                
-                    case 'completed_lesson':
+
+                      case "completed_lesson":
                         icon = CheckSquare; // Standard completion icon
                         // iconBgColor = 'bg-green-100 dark:bg-green-900/30'; // Green signifies success/completion
-                        iconColor = 'text-green-600 dark:text-green-400';
-                         // Use metadata, provide specific fallback
-                        title = `Completed lesson: "${activity.metadata?.title || 'Lesson'}"`;
+                        iconColor = "text-green-600 dark:text-green-400";
+                        // Use metadata, provide specific fallback
+                        title = `Completed lesson: "${
+                          activity.metadata?.title || "Lesson"
+                        }"`;
                         break;
-                
-                    case 'completed_assessment':
+
+                      case "completed_assessment":
                         // Suggestion: Use a more specific icon for assessments if desired
                         icon = ClipboardCheck; // Icon suggesting a test or checklist
                         // Alternatively, keep CheckSquare if you prefer consistency for all completions
                         // icon = CheckSquare;
                         // iconBgColor = 'bg-green-100 dark:bg-green-900/30'; // Green signifies success/completion
-                        iconColor = 'text-green-600 dark:text-green-400';
+                        iconColor = "text-green-600 dark:text-green-400";
                         // IMPORTANT: Title should reflect ASSESSMENT completion
-                        title = `Completed assessment: "${activity.metadata?.title || 'Assessment'}"`;
+                        title = `Completed assessment: "${
+                          activity.metadata?.title || "Assessment"
+                        }"`;
                         break;
-                
-                    // --- ADDED CASE for 'enrolled' ---
-                    case 'enrolled':
+
+                      // --- ADDED CASE for 'enrolled' ---
+                      case "enrolled":
                         icon = UserPlus; // Icon signifying adding a user or joining
                         // Teal provides a distinct color from completion (green) or media (blue)
                         // iconBgColor = 'bg-teal-100 dark:bg-teal-900/30';
-                        iconColor = 'text-teal-600 dark:text-teal-400';
+                        iconColor = "text-teal-600 dark:text-teal-400";
                         // Assuming metadata title refers to the course name here
-                        title = `Enrolled in "${activity.metadata?.title || 'Course'}"`;
+                        title = `Enrolled in "${
+                          activity.metadata?.title || "Course"
+                        }"`;
                         break;
-                    // --- END ADDED CASE ---
-                
-                    case 'earned_badge':
+                      // --- END ADDED CASE ---
+
+                      case "earned_badge":
                         icon = Award; // Icon for achievements
                         // Purple often associated with rewards or distinction
                         // iconBgColor = 'bg-purple-100 dark:bg-purple-900/30';
-                        iconColor = 'text-purple-600 dark:text-purple-400';
-                        title = `Earned "${activity.metadata?.title || 'Badge'}"`;
+                        iconColor = "text-purple-600 dark:text-purple-400";
+                        title = `Earned "${
+                          activity.metadata?.title || "Badge"
+                        }"`;
                         break;
-                
-                    // Consider adding other specific cases if needed (e.g., 'commented', 'started_course')
-                
-                    default:
+
+                      // Consider adding other specific cases if needed (e.g., 'commented', 'started_course')
+
+                      default:
                         // A generic fallback - maybe use a neutral color/icon?
                         icon = Activity; // Generic activity icon (import Activity from lucide-react)
-                        iconBgColor = 'bg-slate-100 dark:bg-slate-800'; // Neutral gray/slate
-                        iconColor = 'text-slate-600 dark:text-slate-400';
+                        iconBgColor = "bg-slate-100 dark:bg-slate-800"; // Neutral gray/slate
+                        iconColor = "text-slate-600 dark:text-slate-400";
                         // Title indicating the action type clearly
                         title = `Performed action: ${activity.action}`;
                         break;
-                }
-                    
+                    }
+
                     return (
                       <ActivityItem
                         key={activity.id}
@@ -319,28 +379,37 @@ export default function Dashboard() {
                         iconBgColor={iconBgColor}
                         iconColor={iconColor}
                         title={title}
-                        subtitle={activity.metadata.courseName || ''}
+                        subtitle={activity.metadata.courseName || ""}
                         timestamp={new Date(activity.createdAt)}
                       />
                     );
                   })
                 ) : (
                   <div className="text-center py-6">
-                    <p className="text-sm text-slate-500 dark:text-slate-400">No recent activity</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      No recent activity
+                    </p>
                   </div>
                 )}
               </div>
               <div className="bg-slate-50 dark:bg-slate-700/50 px-4 py-3">
                 <div className="text-sm">
-                  <a href="#" className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300">View activity log</a>
+                  <a
+                    href="#"
+                    className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
+                  >
+                    View activity log
+                  </a>
                 </div>
               </div>
             </div>
           </div>
         </div>
-        
+
         {/* Recommended courses */}
-        <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-4">Recommended for You</h2>
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-4">
+          Recommended for You
+        </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Mock data for recommended courses - would be fetched from API in real application */}
           <CourseCard
@@ -351,7 +420,7 @@ export default function Dashboard() {
             rating={4.9}
             isInProgress={false}
           />
-          
+
           <CourseCard
             id={102}
             title="Node.js Microservices"
@@ -360,7 +429,7 @@ export default function Dashboard() {
             rating={4.7}
             isInProgress={false}
           />
-          
+
           <CourseCard
             id={103}
             title="Machine Learning Basics"
@@ -369,7 +438,7 @@ export default function Dashboard() {
             rating={4.8}
             isInProgress={false}
           />
-          
+
           <CourseCard
             id={104}
             title="AWS Cloud Fundamentals"

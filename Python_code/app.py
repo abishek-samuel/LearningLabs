@@ -16,6 +16,43 @@ app = Flask(__name__)
 CORS(app)
 load_dotenv()
 
+@app.route("/api/course-summaries/<int:course_id>", methods=["GET"])
+def get_course_summaries(course_id):
+    try:
+        # Connect to DB to get module IDs for this course
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        cursor = conn.cursor()
+        
+        # Get all module IDs for the course
+        cursor.execute("SELECT id FROM modules WHERE course_id = %s ORDER BY position", (course_id,))
+        module_ids = [row[0] for row in cursor.fetchall()]
+        
+        summaries = []
+        for module_id in module_ids:
+            try:
+                with open(f"module_summaries/module{module_id}_summary.txt", "r", encoding="utf-8") as f:
+                    summary = f.read().strip()
+                    if summary:
+                        summaries.append(summary
+                        )
+            except FileNotFoundError:
+                print(f"⚠️ No summary found for module {module_id}")
+                continue
+                
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "summaries": summaries
+        })
+        
+    except Exception as e:
+        print(f"❌ Error getting summaries: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
 
 @app.route("/generate_image", methods=["POST"])
 def generate_image_endpoint():
