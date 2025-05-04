@@ -13,6 +13,7 @@ import Chart from 'react-apexcharts';
 
 export default function Analytics() {
   const { user } = useAuth();
+  const role = user?.role || "employee";
   const [users, setUsers] = useState<User[]>([]);
   const [enrollments, setEnrollments] = useState([]);
   const [analyticsData, setAnalyticsData] = React.useState<{
@@ -345,7 +346,8 @@ export default function Analytics() {
           <TabsList className="mb-8">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="courses">Courses</TabsTrigger>
-            <TabsTrigger value="users">Users</TabsTrigger>
+            {role === "admin" &&
+              <TabsTrigger value="users">Users</TabsTrigger>}
             <TabsTrigger value="assessments">Assessments</TabsTrigger>
           </TabsList>
 

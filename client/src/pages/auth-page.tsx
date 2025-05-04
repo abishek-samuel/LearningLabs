@@ -90,10 +90,15 @@ export default function AuthPage() {
         <div className="mx-auto w-full max-w-sm lg:w-[420px] sm:mt-16 lg:mt-[10px]"> {/* Added padding-top to account for the fixed header */}
           <div className="text-center lg:text-left mb-8">
             <div className="flex items-center mb-1">
-              <BookOpen className="h-8 w-8 text-blue-600 dark:text-blue-400 mr-3" />
-              <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+              <BookOpen className="h-7 w-7 text-blue-600 dark:text-blue-400 mr-3" />
+              <span className="text-2xl font-semibold bg-gradient-to-r from-blue-700 via-purple-700 to-black bg-clip-text text-transparent font-[Roboto] tracking-wide dark:from-blue-600 dark:via-purple-600 dark:to-blue-800 dark:text-transparent">
                 Learning Labs
-              </h2>
+              </span>
+
+
+              {/* <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+                Learning Labs
+              </h2> */}
             </div>
             <p className="text-sm text-slate-600 dark:text-slate-400">
               A modern learning management system for organizations

@@ -146,9 +146,14 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
               width="130"
             />
 
-            <span className="hidden sm:inline font-bold text-xl text-slate-900 dark:text-white">
+            <span className="hidden sm:inline text-2xl font-semibold bg-gradient-to-r from-blue-700 via-purple-700 to-black bg-clip-text text-transparent font-[Roboto] tracking-wide dark:from-blue-600 dark:via-purple-600 dark:to-blue-800 dark:text-transparent mt-1">
               Learning Labs
             </span>
+
+            {/* <span className="hidden sm:inline text-2xl font-semibold bg-gradient-to-r from-blue-700 via-purple-700 to-black bg-clip-text text-transparent font-[Raleway] tracking-wide dark:from-blue-600 dark:via-purple-600 dark:to-blue-800 dark:text-transparent">
+              Learning Labs
+            </span> */}
+
 
           </Link>
         </div>
@@ -225,8 +230,9 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
             </DropdownMenuContent>
           </DropdownMenu>
           <button onClick={openUserGuide} title="User Guide">
-            <HelpCircle className="h-5 w-5 text-slate-600 hover:text-blue-600 cursor-pointer" />
+            <HelpCircle className="h-5 w-5 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer" />
           </button>
+
           {/* User dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
