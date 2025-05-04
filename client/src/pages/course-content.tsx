@@ -121,6 +121,7 @@ type Course = {
 type LessonProgress = { lessonId: number; status: string };
 
 import { useQuery } from "@tanstack/react-query";
+import { CustomAudioPlayer } from "@/components/audio/CustomAudioPlayer";
 
 // AssessmentLessonWrapper: Handles display of assessment result and retake logic
 function AssessmentLessonWrapper({
@@ -210,15 +211,16 @@ function AssessmentLessonWrapper({
   );
 }
 
-function getNextLesson(modules, lessonProgress) {
-  if (!modules?.length) return null;
+function getNextLesson(modules:Module[], lessonProgress:LessonProgress[]) {
+
+  let firstLesson = null;
+  let lastLesson = null;
+
+  if (!modules?.length) return {module:null,lesson:firstLesson};
 
   const completedLessonIds = new Set(
     (lessonProgress || []).filter(p => p.status === "completed").map(p => p.lessonId)
   );
-
-  let firstLesson = null;
-  let lastLesson = null;
 
   const sortedModules = modules
     .slice()
@@ -480,11 +482,17 @@ export default function CourseContent() {
                 },
                 {}
               );
+
+              const newModuleId = parseInt(queryParams.get("moduleId") || "0", 10);
+              const newLessonId = parseInt(queryParams.get("lessonId") || "0", 10);
+
               setLessonProgressMap(progressMap);
               const {module,lesson} = getNextLesson(data.modules,progressData)
-              console.log("moduleId,lessonId",module,lesson)
-              setCurrentModule(module);
-              setCurrentLesson(lesson);
+
+              if(!newModuleId && !newLessonId){
+                setCurrentModule(module);
+                setCurrentLesson(lesson);
+              }
             } else {
               console.error(
                 "Failed to fetch lesson progress:",
@@ -642,6 +650,11 @@ export default function CourseContent() {
 
     if (lesson.videoUrl) return <PlayCircle className={iconClasses} />;
     return <FileText className={iconClasses} />;
+  };
+
+  const isAudioFile = (url) => {
+    if (!url) return false;
+    return /\.(mp3|wav|ogg|aac|flac)$/i.test(url);
   };
 
   if (isLoading) {
@@ -913,25 +926,44 @@ export default function CourseContent() {
                     userId={user?.id}
                   />
                 ) : currentLesson.videoUrl ? (
-                  <div className="aspect-video bg-black rounded-t-none">
-                    <video
-                      key={currentLesson.videoUrl}
-                      src={currentLesson.videoUrl}
-                      className="w-full h-full"
-                      controls
-                    >
-                      {captionExists && <track
-                        src={currentLesson.videoUrl.replace('/videos/', '/captions/').replace(/\.(mp4|webm|ogg|mov|avi)$/i, '.vtt')}
-                        kind="captions"
-                        srcLang="en"  // Using generated/default value
-                        label="English"   // Using generated/default value
-                        default
-                        // Consider removing 'default' unless you accept the risk
-                        // of it trying to load a non-existent file by default.
-                        />}
-                    </video>
-                  </div>
-                ) : currentLesson.content ? (
+                  <>
+                    {isAudioFile(currentLesson.videoUrl) ? (
+                      // Audio Player
+                      <div className="bg-gray-100 p-4 dark:bg-gray-900">
+                                <CustomAudioPlayer
+          src={currentLesson.videoUrl} 
+          captionSrc={captionExists ? 
+            currentLesson.videoUrl
+              .replace('/videos/', '/captions/')
+              .replace(/\.(mp3|wav|ogg|aac|flac)$/i, '.vtt') : null
+          }
+        />
+                      </div>
+                    ) : (
+                      // Video Player
+                      <div className="aspect-video bg-black rounded-t-none">
+                        <video
+                          key={currentLesson.videoUrl}
+                          src={currentLesson.videoUrl}
+                          className="w-full h-full"
+                          controls
+                        >
+                          {captionExists && (
+                            <track
+                              src={currentLesson.videoUrl
+                                .replace('/videos/', '/captions/')
+                                .replace(/\.(mp4|webm|ogg|mov|avi)$/i, '.vtt')}
+                              kind="captions"
+                              srcLang="en"
+                              label="English"
+                              default
+                            />
+                          )}
+                        </video>
+                      </div>
+                    )}
+                  </>
+                )  : currentLesson.content ? (
                   <div className="p-6 prose dark:prose-invert max-w-none prose-sm sm:prose-base">
                     <p>{currentLesson.content}</p>
                   </div>

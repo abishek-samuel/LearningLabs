@@ -40,6 +40,7 @@ type CourseType = {
   createdAt: string;
   difficulty?: string | null;
   duration?: number | null;
+  rating?: number | null;
 };
 
 type Category = {
@@ -275,7 +276,7 @@ export default function CourseCatalog() {
                     title={course.title}
                     description={course.description}
                     thumbnailUrl={course.thumbnail ?? undefined}
-                    rating={4.5}
+                    rating={course.rating}
                   />
                 ))}
             </div>

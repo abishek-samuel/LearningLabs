@@ -3,7 +3,7 @@ import { PrismaClient, QuestionDifficulty } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function main() {
-  const moduleId =14; // Change this to the desired module ID
+  const moduleId =17; // Change this to the desired module ID
 
   const questions = [
     // 3 beginner

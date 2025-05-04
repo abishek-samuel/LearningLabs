@@ -47,9 +47,9 @@ export function CourseCard({
             (e.target as HTMLImageElement).src = defaultThumbnail;
           }}
         />
-        {rating && (
+        {(rating || rating==0) && (
           <div className="absolute top-2 right-2 bg-accent text-accent-foreground dark:text-white text-xs font-medium px-2 py-1 rounded">
-          {rating} <span className="text-yellow-400">★</span>
+          {rating==0?"-":rating} <span className="text-yellow-400">★</span>
         </div>
         )}
       </div>

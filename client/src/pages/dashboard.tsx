@@ -180,7 +180,7 @@ export default function Dashboard() {
                 description={enrollment.course.description}
                 thumbnailUrl={enrollment.course.thumbnail}
                 progress={enrollment.progress}
-                rating={4.8}
+                rating={enrollment.course.rating}
                 isInProgress={true}
               />
             ))

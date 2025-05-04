@@ -81,6 +81,7 @@ model User {
   Resource           Resource[]
   notifications      Notification[] // 1-to-many (One User can have many Notifications)
   Note               Note[]
+  Review             Review[]
 
   @@map("users")
 }
@@ -117,6 +118,7 @@ model Course {
   certificates Certificate[]
   groups       GroupCourse[]
   Resource     Resource[]
+  Review       Review[]
 
   @@map("courses")
 }
@@ -396,3 +398,20 @@ model Note {
   @@unique([userId, lessonId], name: "userId_lessonId")
   @@map("notes")
 }
+
+model Review {
+  id        Int      @id @default(autoincrement())
+  stars     Int
+  comment   String?
+  courseId  Int      @map("course_id")
+  userId    Int      @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([userId, courseId], name: "userId_courseId")
+  @@map("reviews")
+}
+

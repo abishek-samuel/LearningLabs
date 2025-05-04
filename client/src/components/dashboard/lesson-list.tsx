@@ -494,7 +494,7 @@ export function LessonList({ moduleId, courseId }: LessonListProps) {
                                     <Textarea placeholder="Lesson content (optional)" value={editingLessonContent} onChange={(e) => setEditingLessonContent(e.target.value)} rows={4} />
                                     {/* Video */}
                                      <div>
-                                        <label className="text-sm font-medium block mb-1.5">Lesson Video</label>
+                                        <label className="text-sm font-medium block mb-1.5">Lesson Audio/Video</label>
                                         <div className="flex items-center gap-2">
                                             <label className={`flex-grow cursor-pointer border border-dashed rounded-md p-2 text-center text-sm text-muted-foreground hover:border-foreground/50 ${editingLessonVideoUrl ? 'border-green-500 dark:border-green-600 hover:border-green-600' : ''}`}>
                                                 <UploadCloud className="h-5 w-5 mx-auto mb-1" />
@@ -559,11 +559,11 @@ export function LessonList({ moduleId, courseId }: LessonListProps) {
             <Textarea placeholder="Lesson content (optional)" value={newLessonContent} onChange={(e) => setNewLessonContent(e.target.value)} rows={3} />
             {/* Video Upload */}
              <div>
-              <label className="text-sm font-medium block mb-1.5">Video (Optional)</label>
+              <label className="text-sm font-medium block mb-1.5">Lesson Audio/Video (Optional)</label>
               <div className="flex items-center gap-2">
                  <label className="flex-grow cursor-pointer border border-dashed rounded-md p-2 text-center text-sm text-muted-foreground hover:border-foreground/50">
                     <UploadCloud className="h-5 w-5 mx-auto mb-1" />
-                    {selectedVideoFile ? selectedVideoFile.name : 'Click or drag to upload video'}
+                    {selectedVideoFile ? selectedVideoFile.name : 'Click or drag to upload audio/video'}
                     <Input type="file" accept="video/*" className="hidden" onChange={handleVideoFileChange} disabled={isUploadingVideo}/>
                  </label>
                  {selectedVideoFile && !isUploadingVideo && (

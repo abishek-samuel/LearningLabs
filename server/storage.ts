@@ -287,6 +287,12 @@ export class PrismaStorage implements IStorage {
     });
   }
 
+  async getEnrollmentCountByCourse(courseId: number): Promise<number> {
+    return this.prisma.enrollment.count({
+      where: { courseId },
+    });
+  }
+
   async getCommentsWithUserByLesson(lessonId: number): Promise<any[]> {
     return this.prisma.comment.findMany({
       where: { lessonId },
