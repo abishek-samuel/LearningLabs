@@ -115,6 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         title: "Logged out",
         description: "You have been successfully logged out.",
       });
+      sessionStorage.removeItem("sidebar-scroll-position");
     },
     onError: (error: Error) => {
       toast({

@@ -19,9 +19,12 @@ import {
   Activity,
   ClipboardCheck,
   UserPlus,
+  CheckCircle,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState, useEffect } from "react";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -60,6 +63,24 @@ export default function Dashboard() {
   const inProgressCourses =
     enrollments?.filter((e: any) => e.progress < 100).slice(0, 3) || [];
   const recommendedCourses = [];
+
+  const completedCourses = enrollments?.filter((e: any) => e.progress === 100) || [];
+  const getInstructorName = (instructor: CourseInEnrollment['instructor'] | null | undefined) => {
+    if (!instructor) return 'N/A';
+    const firstName = instructor.firstName ?? '';
+    const lastName = instructor.lastName ?? '';
+    return `${firstName} ${lastName}`.trim() || 'N/A';
+  };
+
+  const formatDuration = (durationMinutes: number | null | undefined) => {
+    if (durationMinutes == null || durationMinutes <= 0) return 'N/A';
+    const hours = Math.floor(durationMinutes / 60);
+    const minutes = durationMinutes % 60;
+    const parts = [];
+    if (hours > 0) parts.push(`${hours}h`);
+    if (minutes > 0) parts.push(`${minutes}m`);
+    return parts.join(' ') || '0m';
+  };
 
   return (
     <MainLayout>
@@ -202,209 +223,180 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Upcoming deadlines and recent activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Upcoming deadlines */}
-          <div className="lg:col-span-2">
-            <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">
-              Upcoming Deadlines
-            </h2>
-            <div className="bg-white dark:bg-slate-800 shadow rounded-lg overflow-hidden">
-              <div className="divide-y divide-slate-200 dark:divide-slate-700">
-                {/* Mock data for deadlines - would be fetched from API in real application */}
-                <div className="p-4 sm:px-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10 bg-slate-100 dark:bg-slate-700 rounded-md flex items-center justify-center">
-                        <FileText className="text-slate-600 dark:text-slate-300 text-lg" />
-                      </div>
-                      <div className="ml-4">
-                        <h3 className="text-sm font-medium text-slate-900 dark:text-white">
-                          Module Assessment: React Hooks
-                        </h3>
-                        <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                          React Fundamentals
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-sm text-red-600 dark:text-red-400 font-medium">
-                      Due in 2 days
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-4 sm:px-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10 bg-slate-100 dark:bg-slate-700 rounded-md flex items-center justify-center">
-                        <FileText className="text-slate-600 dark:text-slate-300 text-lg" />
-                      </div>
-                      <div className="ml-4">
-                        <h3 className="text-sm font-medium text-slate-900 dark:text-white">
-                          Final Project: Vue.js Application
-                        </h3>
-                        <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                          Vue.js for Beginners
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-sm text-yellow-600 dark:text-yellow-400 font-medium">
-                      Due in 5 days
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-4 sm:px-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10 bg-slate-100 dark:bg-slate-700 rounded-md flex items-center justify-center">
-                        <FileText className="text-slate-600 dark:text-slate-300 text-lg" />
-                      </div>
-                      <div className="ml-4">
-                        <h3 className="text-sm font-medium text-slate-900 dark:text-white">
-                          Data Analysis Report
-                        </h3>
-                        <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                          Python Data Analysis
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-sm text-green-600 dark:text-green-400 font-medium">
-                      Due in 8 days
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-slate-50 dark:bg-slate-700/50 px-4 py-3 sm:px-6">
-                <div className="text-sm">
-                  <a
-                    href="#"
-                    className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
-                  >
-                    View all deadlines
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Recent activity */}
-          <div>
-            <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">
-              Recent Activity
-            </h2>
-            <div className="bg-white dark:bg-slate-800 shadow rounded-lg overflow-hidden">
-              <div className="divide-y divide-slate-200 dark:divide-slate-700">
-                {activitiesLoading ? (
-                  <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
-                  </div>
-                ) : activityLogs && activityLogs.length > 0 ? (
-                  activityLogs.slice(0, 3).map((activity) => {
-                    let icon, iconBgColor, iconColor, title;
-
-                    switch (activity.action) {
-                      case "watched_video":
-                        icon = Video; // Icon for watching content
-                        // iconBgColor = 'bg-blue-100 dark:bg-blue-900/30'; // Blue often associated with information/media
-                        iconColor = "text-blue-600 dark:text-blue-400";
-                        // Use metadata, provide fallback
-                        title = `Watched "${
-                          activity.metadata?.title || "Video"
-                        }"`;
-                        break;
-
-                      case "completed_lesson":
-                        icon = CheckSquare; // Standard completion icon
-                        // iconBgColor = 'bg-green-100 dark:bg-green-900/30'; // Green signifies success/completion
-                        iconColor = "text-green-600 dark:text-green-400";
-                        // Use metadata, provide specific fallback
-                        title = `Completed lesson: "${
-                          activity.metadata?.title || "Lesson"
-                        }"`;
-                        break;
-
-                      case "completed_assessment":
-                        // Suggestion: Use a more specific icon for assessments if desired
-                        icon = ClipboardCheck; // Icon suggesting a test or checklist
-                        // Alternatively, keep CheckSquare if you prefer consistency for all completions
-                        // icon = CheckSquare;
-                        // iconBgColor = 'bg-green-100 dark:bg-green-900/30'; // Green signifies success/completion
-                        iconColor = "text-green-600 dark:text-green-400";
-                        // IMPORTANT: Title should reflect ASSESSMENT completion
-                        title = `Completed assessment: "${
-                          activity.metadata?.title || "Assessment"
-                        }"`;
-                        break;
-
-                      // --- ADDED CASE for 'enrolled' ---
-                      case "enrolled":
-                        icon = UserPlus; // Icon signifying adding a user or joining
-                        // Teal provides a distinct color from completion (green) or media (blue)
-                        // iconBgColor = 'bg-teal-100 dark:bg-teal-900/30';
-                        iconColor = "text-teal-600 dark:text-teal-400";
-                        // Assuming metadata title refers to the course name here
-                        title = `Enrolled in "${
-                          activity.metadata?.title || "Course"
-                        }"`;
-                        break;
-                      // --- END ADDED CASE ---
-
-                      case "earned_badge":
-                        icon = Award; // Icon for achievements
-                        // Purple often associated with rewards or distinction
-                        // iconBgColor = 'bg-purple-100 dark:bg-purple-900/30';
-                        iconColor = "text-purple-600 dark:text-purple-400";
-                        title = `Earned "${
-                          activity.metadata?.title || "Badge"
-                        }"`;
-                        break;
-
-                      // Consider adding other specific cases if needed (e.g., 'commented', 'started_course')
-
-                      default:
-                        // A generic fallback - maybe use a neutral color/icon?
-                        icon = Activity; // Generic activity icon (import Activity from lucide-react)
-                        iconBgColor = "bg-slate-100 dark:bg-slate-800"; // Neutral gray/slate
-                        iconColor = "text-slate-600 dark:text-slate-400";
-                        // Title indicating the action type clearly
-                        title = `Performed action: ${activity.action}`;
-                        break;
-                    }
-
-                    return (
-                      <ActivityItem
-                        key={activity.id}
-                        icon={icon}
-                        iconBgColor={iconBgColor}
-                        iconColor={iconColor}
-                        title={title}
-                        subtitle={activity.metadata.courseName || ""}
-                        timestamp={new Date(activity.createdAt)}
-                      />
-                    );
-                  })
-                ) : (
-                  <div className="text-center py-6">
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                      No recent activity
+        <div className="lg:flex lg:gap-x-3">
+          {/* 75% width container */}
+          <div className="lg:w-2/4 w-full">
+            <div className="lg:col-span-2">
+              <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">
+                Completed Courses
+              </h2>
+              <div className="bg-white dark:bg-slate-800 shadow rounded-lg overflow-hidden">
+                {completedCourses.length === 0 ? (
+                  <div className="text-center py-16">
+                    <CheckCircle className="mx-auto h-12 w-12 text-slate-400" />
+                    <h3 className="mt-2 text-sm font-medium text-slate-900 dark:text-white">
+                      No completed courses
+                    </h3>
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                      Courses you've finished will show up here.
                     </p>
                   </div>
+                ) : (
+                  <>
+                    <div className="divide-y divide-slate-200 dark:divide-slate-700">
+                      {completedCourses.slice(0, 3).map((enrollment) => (
+                        <div key={enrollment.id} className="p-4 sm:px-6">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center">
+                              <div className="flex-shrink-0 h-10 w-10 bg-slate-100 dark:bg-slate-700 rounded-md flex items-center justify-center">
+                                <CheckCircle className="text-green-600 dark:text-green-400 w-5 h-5" />
+                              </div>
+                              <div className="ml-4">
+                                <h3 className="text-sm font-medium text-slate-900 dark:text-white line-clamp-1">
+                                  {enrollment.course?.title ?? 'Course Title Missing'}
+                                </h3>
+
+                                <div className="text-xs text-slate-500 dark:text-slate-400">
+                                  Instructor:{' '}
+                                  <span className="font-medium">
+                                    {getInstructorName(enrollment.course?.instructor)}
+                                  </span>
+                                </div>
+                                <div className="text-xs text-green-600 dark:text-green-400 pt-1">
+                                  Completed on:{' '}
+                                  {enrollment.completedAt
+                                    ? new Date(enrollment.completedAt).toLocaleDateString()
+                                    : 'N/A'}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex gap-2 ml-4">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => navigate(`/course-content?id=${enrollment.courseId}`)}
+                              >
+                                View
+                              </Button>
+                              {/* <Button
+                                size="sm"
+                                className="bg-primary dark:bg-blue-600 dark:hover:bg-blue-700"
+                                onClick={() => handleOpenReviewModal(enrollment.course)}
+                                disabled={!enrollment.course}
+                              >
+                                Review
+                              </Button> */}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-700/50 px-4 py-3 sm:px-6">
+                      <div className="text-sm">
+                        <a
+                          href="#"
+                          onClick={() => navigate('/my-courses?tab=completed')}
+                          className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
+                        >
+                          View all completed courses
+                        </a>
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
-              <div className="bg-slate-50 dark:bg-slate-700/50 px-4 py-3">
-                <div className="text-sm">
-                  <a
-                    href="#"
-                    className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
-                  >
-                    View activity log
-                  </a>
+            </div>
+
+          </div>
+
+          {/* 25% width container */}
+          <div className="lg:w-2/4 w-full">
+            <div>
+              <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">
+                Recent Activity
+              </h2>
+              <div className="bg-white dark:bg-slate-800 shadow rounded-lg overflow-hidden">
+                <div className="divide-y divide-slate-200 dark:divide-slate-700">
+                  {activitiesLoading ? (
+                    <div className="flex justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
+                    </div>
+                  ) : activityLogs && activityLogs.length > 0 ? (
+                    activityLogs.slice(0, 3).map((activity) => {
+                      let icon, iconBgColor, iconColor, title;
+
+                      switch (activity.action) {
+                        case "watched_video":
+                          icon = Video;
+                          iconColor = "text-blue-600 dark:text-blue-400";
+                          title = `Watched "${activity.metadata?.title || "Video"}"`;
+                          break;
+
+                        case "completed_lesson":
+                          icon = CheckSquare;
+                          iconColor = "text-green-600 dark:text-green-400";
+                          title = `Completed lesson: "${activity.metadata?.title || "Lesson"}"`;
+                          break;
+
+                        case "completed_assessment":
+                          icon = ClipboardCheck;
+                          iconColor = "text-green-600 dark:text-green-400";
+                          title = `Completed assessment: "${activity.metadata?.title || "Assessment"}"`;
+                          break;
+
+                        case "enrolled":
+                          icon = UserPlus;
+                          iconColor = "text-teal-600 dark:text-teal-400";
+                          title = `Enrolled in "${activity.metadata?.title || "Course"}"`;
+                          break;
+
+                        case "earned_badge":
+                          icon = Award;
+                          iconColor = "text-purple-600 dark:text-purple-400";
+                          title = `Earned "${activity.metadata?.title || "Badge"}"`;
+                          break;
+
+                        default:
+                          icon = Activity;
+                          iconColor = "text-slate-600 dark:text-slate-400";
+                          title = `Performed action: ${activity.action}`;
+                          break;
+                      }
+
+                      return (
+                        <ActivityItem
+                          key={activity.id}
+                          icon={icon}
+                          iconColor={iconColor}
+                          title={title}
+                          subtitle={activity.metadata.courseName || ""}
+                          timestamp={new Date(activity.createdAt)}
+                        />
+                      );
+                    })
+                  ) : (
+                    <div className="text-center py-6">
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                        No recent activity
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-700/50 px-4 py-3">
+                  <div className="text-sm">
+                    <a
+                      href="#"
+                      className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
+                    >
+                      View activity log
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
+
 
         {/* Recommended courses */}
         <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-4">

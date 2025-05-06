@@ -1,5 +1,5 @@
 import { useAuth } from "@/context/auth-context";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ interface SidebarProps {
 export function Sidebar({ className }: SidebarProps) {
   const { user, logoutMutation } = useAuth();
   const [location] = useLocation();
+  const sidebarRef = useRef<HTMLDivElement>(null);
 
   const role = user?.role || "employee";
 
@@ -54,14 +55,29 @@ export function Sidebar({ className }: SidebarProps) {
       >
         <Icon className={cn(
           "mr-3 h-5 w-5",
-          isActive(href) 
-            ? "text-blue-600 dark:text-blue-500" 
+          isActive(href)
+            ? "text-blue-600 dark:text-blue-500"
             : "text-slate-500 dark:text-slate-400"
         )} />
         <span>{label}</span>
       </a>
     </Link>
   );
+
+  // Save scroll position when the user scrolls
+  const handleScroll = () => {
+    if (sidebarRef.current) {
+      sessionStorage.setItem("sidebar-scroll-position", String(sidebarRef.current.scrollTop));
+    }
+  };
+
+  // Restore scroll position when the component mounts
+  useEffect(() => {
+    const savedScrollPosition = sessionStorage.getItem("sidebar-scroll-position");
+    if (savedScrollPosition && sidebarRef.current) {
+      sidebarRef.current.scrollTop = Number(savedScrollPosition);
+    }
+  }, []);
 
   return (
     <div
@@ -70,7 +86,11 @@ export function Sidebar({ className }: SidebarProps) {
         className
       )}
     >
-      <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto sidebar-scroll-container">
+      <div
+        className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto sidebar-scroll-container"
+        ref={sidebarRef}
+        onScroll={handleScroll}  // Attach the scroll handler
+      >
         <div className="px-4">
           <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider dark:text-slate-400">
             Dashboard
@@ -100,8 +120,6 @@ export function Sidebar({ className }: SidebarProps) {
             </h2>
             <div className="mt-2 space-y-1">
               <NavItem href="/my-content" icon={FileEdit} label="My Content" itemKey="my-content" />
-              {/* <NavItem href="/videos" icon={Video} label="Videos" itemKey="videos" />
-              <NavItem href="/assessments" icon={HelpCircle} label="Assessments" itemKey="assessments" /> */}
               <NavItem href="/analytics" icon={LineChart} label="Analytics" itemKey="analytics" />
             </div>
           </div>

@@ -77,10 +77,12 @@ export default function Analytics() {
     } finally {
     }
   };
-  console.log(enrollments);
 
 
   const courseData = analyticsData.courseData;
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+
 
   // Stats cards data
   const statsData = [
@@ -122,6 +124,7 @@ export default function Analytics() {
       type: 'bar',
       stacked: false,
       toolbar: { show: false },
+      background: 'transparent',
     },
     plotOptions: {
       bar: {
@@ -134,16 +137,41 @@ export default function Analytics() {
     },
     xaxis: {
       categories: courseData?.map(item => item.name) || [],
+      labels: {
+        style: {
+          colors: isDarkMode ? '#ffffff' : '#000000', // x-axis label color
+        },
+      },
+    },
+    yaxis: {
+      labels: {
+        style: {
+          colors: isDarkMode ? '#ffffff' : '#000000', // y-axis label color
+        },
+      },
     },
     legend: {
       position: 'top',
+      labels: {
+        colors: isDarkMode ? '#ffffff' : '#000000', // legend label color
+      },
     },
     tooltip: {
       shared: true,
       intersect: false,
+      style: {
+        fontFamily: 'Helvetica, Arial, sans-serif', // Optional: Ensure consistent font family
+        fontSize: '12px', // Optional: Set a standard font size
+      },
+      onDatasetHover: {
+        highlightDataSeries: true,
+      },
+      theme: isDarkMode ? 'dark' : 'light', // Use the built-in theme for tooltips if the library supports it
     },
     colors: ['#8884d8', '#82ca9d', '#ffc658'],
   };
+
+
 
   const series = [
     {
@@ -173,13 +201,20 @@ export default function Analytics() {
   const getChartConfig = (countMap, colors) => ({
     options: {
       labels: Object.keys(countMap),
-      legend: { position: 'bottom' },
+      legend: {
+        position: 'bottom',
+        labels: {
+          colors: "#64748b"
+        },
+      },
       colors,
       chart: { type: 'donut' },
       dataLabels: {
+        style: {
+          colors: ["#64748b"],
+        },
         formatter: function (val, opts) {
-          // Get the actual count (not percentage)
-          return opts.w.config.series[opts.seriesIndex];
+          return opts.w.config.series[opts.seriesIndex]; // actual count
         },
       },
     },
@@ -187,8 +222,9 @@ export default function Analytics() {
   });
 
 
-  const statusChart = getChartConfig(statusCount, ['#22C55E', '#EF4444']); // green, red
-  const roleChart = getChartConfig(roleCount, ['#3B82F6', '#F59E0B', '#8B5CF6']); // blue, amber, violet
+
+  const statusChart = getChartConfig(statusCount, ['#22C55E', '#EF4444']);
+  const roleChart = getChartConfig(roleCount, ['#3B82F6', '#F59E0B', '#8B5CF6']);
   // 1. Bar Chart - Enrollments by Course
   const courseCountMap = enrollments.reduce((acc, e) => {
     const courseName = e.course?.title || 'Unknown';
@@ -204,21 +240,48 @@ export default function Analytics() {
     options: {
       chart: {
         type: 'bar',
+        background: 'transparent',
+        toolbar: { show: false },
       },
       xaxis: {
         categories: Object.keys(courseCountMap),
         title: {
-          text: 'Courses', // X-axis label
-        }
+          text: 'Courses',
+          style: {
+            color: isDarkMode ? '#ffffff' : '#000000',
+          },
+        },
+        labels: {
+          style: {
+            colors: isDarkMode ? '#ffffff' : '#000000',
+          },
+        },
       },
       yaxis: {
         title: {
-          text: 'Number of Enrollments', // Y-axis label
-
-        }
-      }
+          text: 'Number of Enrollments',
+          style: {
+            color: isDarkMode ? '#ffffff' : '#000000',
+          },
+        },
+        labels: {
+          style: {
+            colors: isDarkMode ? '#ffffff' : '#000000',
+          },
+        },
+      },
+      tooltip: {
+        theme: isDarkMode ? 'dark' : 'light', // 👈 handles tooltip styling
+      },
+      legend: {
+        labels: {
+          colors: isDarkMode ? '#ffffff' : '#000000',
+        },
+      },
+      colors: ['#60a5fa'], // A color like soft blue that works in both themes
     },
   };
+
 
 
   // 2. Donut Chart - Course Status
@@ -235,7 +298,12 @@ export default function Analytics() {
         type: 'donut',
       },
       labels: Object.keys(courseStatusCount),
-
+      legend: {
+        position: 'bottom',
+        labels: {
+          colors: "#64748b"
+        },
+      },
       dataLabels: {
         formatter: (val, opts) => opts.w.config.series[opts.seriesIndex],
       },
@@ -257,28 +325,51 @@ export default function Analytics() {
     options: {
       chart: {
         type: 'line',
+        background: 'transparent',
       },
       xaxis: {
         categories: Object.keys(enrollmentsByDate),
         title: {
-          text: 'Date', // X-axis label
+          text: 'Date',
           style: {
             fontSize: '14px',
-            fontWeight: 'bold'
+            fontWeight: 'bold',
+            color: isDarkMode ? '#ffffff' : '#000000', // 👈 X-axis title color
+          }
+        },
+        labels: {
+          style: {
+            colors: isDarkMode ? '#ffffff' : '#000000', // 👈 X-axis labels
           }
         }
       },
       yaxis: {
         title: {
-          text: 'Number of Enrollments', // Y-axis label
+          text: 'Number of Enrollments',
           style: {
             fontSize: '14px',
-            fontWeight: 'bold'
+            fontWeight: 'bold',
+            color: isDarkMode ? '#ffffff' : '#000000', // 👈 Y-axis title color
+          }
+        },
+        labels: {
+          style: {
+            colors: isDarkMode ? '#ffffff' : '#000000', // 👈 Y-axis labels
           }
         }
-      }
+      },
+      tooltip: {
+        theme: isDarkMode ? 'dark' : 'light', // 👈 Tooltip theme
+      },
+      legend: {
+        labels: {
+          colors: isDarkMode ? '#ffffff' : '#000000', // 👈 Legend labels color
+        }
+      },
+      colors: ['#3b82f6'], // blue-500 (good for both light/dark)
     },
   };
+
 
   const getRandomColor = () => {
     const r = Math.floor(120 + Math.random() * 100); // 120–220
@@ -289,7 +380,22 @@ export default function Analytics() {
 
 
   const maxEnrollment = Math.max(...courseData.map(c => c.enrollment));
+  // Detect dark mode class and update on change
+  useEffect(() => {
+    const updateTheme = () => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    };
 
+    updateTheme();
+
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <MainLayout>

@@ -211,12 +211,12 @@ function AssessmentLessonWrapper({
   );
 }
 
-function getNextLesson(modules:Module[], lessonProgress:LessonProgress[]) {
+function getNextLesson(modules: Module[], lessonProgress: LessonProgress[]) {
 
   let firstLesson = null;
   let lastLesson = null;
 
-  if (!modules?.length) return {module:null,lesson:firstLesson};
+  if (!modules?.length) return { module: null, lesson: firstLesson };
 
   const completedLessonIds = new Set(
     (lessonProgress || []).filter(p => p.status === "completed").map(p => p.lessonId)
@@ -390,7 +390,7 @@ export default function CourseContent() {
   const [lessonProgressMap, setLessonProgressMap] = useState<
     Record<number, boolean>
   >({});
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const [lessonSummary, setLessonSummary] = useState<string | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
@@ -487,9 +487,9 @@ export default function CourseContent() {
               const newLessonId = parseInt(queryParams.get("lessonId") || "0", 10);
 
               setLessonProgressMap(progressMap);
-              const {module,lesson} = getNextLesson(data.modules,progressData)
+              const { module, lesson } = getNextLesson(data.modules, progressData)
 
-              if(!newModuleId && !newLessonId){
+              if (!newModuleId && !newLessonId) {
                 setCurrentModule(module);
                 setCurrentLesson(lesson);
               }
@@ -507,9 +507,8 @@ export default function CourseContent() {
         console.error("Failed to fetch course data:", error);
         toast({
           title: "Error",
-          description: `Could not load course: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`,
+          description: `Could not load course: ${error instanceof Error ? error.message : "Unknown error"
+            }`,
           variant: "destructive",
         });
         setCourse(null);
@@ -541,7 +540,7 @@ export default function CourseContent() {
     }
   }, [search, course]);
 
-// Fetch comments and note when currentLesson changes
+  // Fetch comments and note when currentLesson changes
   useEffect(() => {
     if (currentLesson?.id) {
       fetchComments(currentLesson.id);
@@ -551,7 +550,7 @@ export default function CourseContent() {
     }
   }, [currentLesson?.id, user?.id]);
 
-// Calculate navigation links
+  // Calculate navigation links
   const allLessons = (
     course?.modules.flatMap(m =>
       [...m.lessons]
@@ -587,7 +586,7 @@ export default function CourseContent() {
       });
 
       if (!response.ok) {
-        const errorData = await response.text(); 
+        const errorData = await response.text();
         throw new Error(`Failed to update progress: ${response.status} ${response.statusText} - ${errorData}`);
       }
 
@@ -603,12 +602,12 @@ export default function CourseContent() {
         navigateToLesson(nextLesson.moduleId, nextLesson.id);
       }
     } catch (error) {
-       console.error("Failed to mark lesson complete:", error);
-       toast({
-         title: "Error",
-         description: `Could not update progress: ${error instanceof Error ? error.message : 'Unknown error'}`,
-         variant: "destructive",
-       });
+      console.error("Failed to mark lesson complete:", error);
+      toast({
+        title: "Error",
+        description: `Could not update progress: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        variant: "destructive",
+      });
     }
   };
 
@@ -691,8 +690,8 @@ export default function CourseContent() {
             {!courseId
               ? "No course ID provided."
               : !course
-              ? "The course could not be loaded."
-              : "The selected module or lesson could not be found."}
+                ? "The course could not be loaded."
+                : "The selected module or lesson could not be found."}
           </p>
           <Button
             onClick={() => setLocation("/course-catalog")}
@@ -711,15 +710,17 @@ export default function CourseContent() {
 
   return (
     <MainLayout>
-      <div className="bg-white dark:bg-slate-900 shadow">
+      <div className="bg-white dark:bg-slate-900 shadow sticky top-0 z-50">
+
         <div className="px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2 md:gap-4 text-sm flex-shrink-0">
+          <div className="flex items-center gap-1 md:gap-4 text-sm flex-shrink-0">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="lg:hidden"
+              // className="lg:hidden"
               aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
+              title="Toggle Course details"
             >
               {isSidebarOpen ? (
                 <PanelLeftClose className="h-5 w-5" />
@@ -746,7 +747,7 @@ export default function CourseContent() {
               "lg:col-span-1 transition-transform duration-300 ease-in-out lg:translate-x-0",
               isSidebarOpen
                 ? "translate-x-0"
-                : "-translate-x-full absolute lg:static"
+                : "-translate-x-full absolute lg:static lg:hidden"
             )}
           >
             <div className="lg:sticky lg:top-[70px] space-y-6 max-h-[calc(100vh-90px)] overflow-y-auto pr-2 custom-scrollbar">
@@ -824,7 +825,7 @@ export default function CourseContent() {
                                   )}
                                   aria-current={
                                     module.id === currentModule?.id &&
-                                    lesson.id === currentLesson?.id
+                                      lesson.id === currentLesson?.id
                                       ? "page"
                                       : undefined
                                   }
@@ -872,9 +873,8 @@ export default function CourseContent() {
           </aside>
 
           <main
-            className={`space-y-6 ${
-              isSidebarOpen ? "lg:col-span-3" : "lg:col-span-4"
-            }`}
+            className={`space-y-6 ${isSidebarOpen ? "lg:col-span-3" : "lg:col-span-4"
+              }`}
           >
             <Card>
               <CardHeader className="pb-4">
@@ -930,14 +930,14 @@ export default function CourseContent() {
                     {isAudioFile(currentLesson.videoUrl) ? (
                       // Audio Player
                       <div className="bg-gray-100 p-4 dark:bg-gray-900">
-                                <CustomAudioPlayer
-          src={currentLesson.videoUrl} 
-          captionSrc={captionExists ? 
-            currentLesson.videoUrl
-              .replace('/videos/', '/captions/')
-              .replace(/\.(mp3|wav|ogg|aac|flac)$/i, '.vtt') : null
-          }
-        />
+                        <CustomAudioPlayer
+                          src={currentLesson.videoUrl}
+                          captionSrc={captionExists ?
+                            currentLesson.videoUrl
+                              .replace('/videos/', '/captions/')
+                              .replace(/\.(mp3|wav|ogg|aac|flac)$/i, '.vtt') : null
+                          }
+                        />
                       </div>
                     ) : (
                       // Video Player
@@ -963,7 +963,7 @@ export default function CourseContent() {
                       </div>
                     )}
                   </>
-                )  : currentLesson.content ? (
+                ) : currentLesson.content ? (
                   <div className="p-6 prose dark:prose-invert max-w-none prose-sm sm:prose-base">
                     <p>{currentLesson.content}</p>
                   </div>
@@ -1162,10 +1162,10 @@ export default function CourseContent() {
                 </div>
                 <div>
                   {currentLesson.type === "assessment" ? null : isLessonCompleted ? (
-                      <div className="flex items-center gap-2 text-green-600 dark:text-green-400 font-medium text-sm p-2 rounded-md bg-green-50 dark:bg-green-900/30">
-                        <Check className="h-5 w-5"/>
-                        <span>Completed</span>
-                      </div>
+                    <div className="flex items-center gap-2 text-green-600 dark:text-green-400 font-medium text-sm p-2 rounded-md bg-green-50 dark:bg-green-900/30">
+                      <Check className="h-5 w-5" />
+                      <span>Completed</span>
+                    </div>
                   ) : (
                     <Button
                       variant="default"
