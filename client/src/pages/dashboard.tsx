@@ -1,7 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/auth-context";
 import { format } from "date-fns";
 import { MainLayout } from "@/components/layout/main-layout";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Edit3, Info, Loader2, MessageSquareWarning } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { CourseCard } from "@/components/dashboard/course-card";
@@ -20,23 +25,58 @@ import {
   ClipboardCheck,
   UserPlus,
   CheckCircle,
+  Star,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils"; // Added cn import - assumption
 
+
+interface CourseInEnrollment {
+  id: number;
+  courseId: number;
+  course: {
+    id: number;
+    title: string;
+    description: string;
+    thumbnail: string;
+    rating: number;
+    instructor: {
+      firstName?: string;
+      lastName?: string;
+    } | null | undefined;
+  };
+  progress: number;
+  completedAt?: string | null;
+}
 
 export default function Dashboard() {
   const { user } = useAuth();
   const currentDate = format(new Date(), "MMMM d, yyyy");
   const [, navigate] = useLocation();
+  const queryClient1 = useQueryClient();
+  const { toast } = useToast();
+
+  const [selectedCourseForReview, setSelectedCourseForReview] = useState<CourseInEnrollment | null>(null);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [currentRating, setCurrentRating] = useState(0);
+  const [currentComment, setCurrentComment] = useState("");
+  // const [isFetchingReview, setIsFetchingReview] = useState(false);
 
   useEffect(() => {
-    queryClient.invalidateQueries({ queryKey: ["/api/activity-logs"] });
+    queryClient1.invalidateQueries({ queryKey: ["/api/enrollments"] });
   }, []);
 
   useEffect(() => {
-    queryClient.invalidateQueries({ queryKey: ["/api/enrollments"] });
+    queryClient1.invalidateQueries({ queryKey: ["/api/activity-logs"] });
   }, []);
 
   // Fetch enrollments for the current user
@@ -64,26 +104,261 @@ export default function Dashboard() {
     enrollments?.filter((e: any) => e.progress < 100).slice(0, 3) || [];
   const recommendedCourses = [];
 
-  const completedCourses = enrollments?.filter((e: any) => e.progress === 100) || [];
-  const getInstructorName = (instructor: CourseInEnrollment['instructor'] | null | undefined) => {
-    if (!instructor) return 'N/A';
-    const firstName = instructor.firstName ?? '';
-    const lastName = instructor.lastName ?? '';
-    return `${firstName} ${lastName}`.trim() || 'N/A';
+  const completedCourses =
+    enrollments?.filter((e: any) => e.progress === 100) || [];
+  const getInstructorName = (
+    instructor: CourseInEnrollment["instructor"] | null | undefined,
+  ) => {
+    if (!instructor) return "N/A";
+    const firstName = instructor.firstName ?? "";
+    const lastName = instructor.lastName ?? "";
+    return `${firstName} ${lastName}`.trim() || "N/A";
   };
 
   const formatDuration = (durationMinutes: number | null | undefined) => {
-    if (durationMinutes == null || durationMinutes <= 0) return 'N/A';
+    if (durationMinutes == null || durationMinutes <= 0) return "N/A";
     const hours = Math.floor(durationMinutes / 60);
     const minutes = durationMinutes % 60;
     const parts = [];
     if (hours > 0) parts.push(`${hours}h`);
     if (minutes > 0) parts.push(`${minutes}m`);
-    return parts.join(' ') || '0m';
+    return parts.join(" ") || "0m";
+  };
+
+  // Review Mutation (Placeholder - needs actual implementation)
+  const reviewMutation = useMutation({
+    mutationFn: async (reviewData: { courseId: number; stars: number; comment: string }) => {
+      const res = await fetch(`/api/courses/${reviewData.courseId}/reviews`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stars: reviewData.stars, comment: reviewData.comment }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ message: `Request failed with status ${res.status}` }));
+        throw new Error(errorData.message || `Failed to submit review`);
+      }
+      return res.json();
+    },
+    onSuccess: (data, variables) => {
+      toast({ title: "Review Submitted!", description: "Thank you for your feedback." });
+      setIsReviewModalOpen(false);
+      queryClient1.invalidateQueries({ queryKey: ["myReview", variables.courseId, user?.id] });
+      queryClient1.invalidateQueries({ queryKey: ["reviewAverage", variables.courseId] });
+      queryClient1.invalidateQueries({ queryKey: ["reviews", variables.courseId] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Submission Failed",
+        description: error instanceof Error ? error.message : "Could not submit your review.",
+        variant: "destructive",
+      });
+    }
+  });
+
+
+  // Review query
+  const { data: existingReviewData, error: fetchReviewError, isFetching: isFetchingReview } = useQuery({
+    queryKey: ["myReview", selectedCourseForReview?.id, user?.id],
+    queryFn: async () => {
+      const courseId = selectedCourseForReview?.id;
+      const userId = user?.id;
+      if (!courseId || !userId) return null;
+      const res = await fetch(`/api/courses/${courseId}/reviews/my-review`);
+      if (!res.ok) {
+        if (res.status === 404) return null;
+        const errorText = await res.text();
+        console.error(`Failed to fetch existing review: ${res.status} ${res.statusText}`, errorText);
+        throw new Error(`Failed to check for existing review (${res.status})`);
+      }
+      return res.json();
+    },
+    enabled: isReviewModalOpen && !!selectedCourseForReview?.id && !!user?.id,
+    staleTime: 1 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    retry: 1,
+  });
+
+  // Effect to sync form state with fetched review data
+  useEffect(() => {
+    if (isReviewModalOpen) {
+      if (!isFetchingReview && !fetchReviewError) {
+        setCurrentRating(existingReviewData?.stars ?? 0);
+        setCurrentComment(existingReviewData?.comment ?? "");
+      } else if (fetchReviewError && !isFetchingReview) {
+        setCurrentRating(0);
+        setCurrentComment("");
+      }
+    }
+  }, [isReviewModalOpen, isFetchingReview, existingReviewData, fetchReviewError]);
+
+  const handleOpenReviewModal = (course: CourseInEnrollment | null | undefined) => {
+    if (!course?.id) {
+      console.error("Cannot open review modal: Invalid course data provided.");
+      toast({ title: "Error", description: "Could not open review modal for this course.", variant: "destructive" });
+      return;
+    }
+    setSelectedCourseForReview(course);
+    setCurrentRating(0);
+    setCurrentComment("");
+    setIsReviewModalOpen(true);
+  };
+
+  const handleReviewSubmit = () => {
+    const courseId = selectedCourseForReview?.id;
+    if (!courseId) {
+      toast({ title: "Error", description: "Cannot submit review for unknown course.", variant: "destructive" });
+      return;
+    }
+    if (currentRating === 0) {
+      toast({ title: "Missing Rating", description: "Please select a star rating (1-5).", variant: "destructive" });
+      return;
+    }
+    if (reviewMutation.isPending) return;
+    reviewMutation.mutate({
+      courseId: courseId,
+      stars: currentRating,
+      comment: currentComment.trim(),
+    });
+  };
+
+  const renderStars = (interactive = true) => {
+    return (
+      <div className="flex items-center space-x-1">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <button
+            key={star}
+            type="button"
+            onClick={interactive ? () => setCurrentRating(star) : undefined}
+            className={cn(
+              "p-1.5 rounded-full transition-all duration-150 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-slate-900 focus-visible:ring-yellow-500",
+              interactive ? 'hover:bg-yellow-100 dark:hover:bg-yellow-900/30 hover:scale-110 active:scale-100 cursor-pointer' : 'cursor-default',
+              isFetchingReview ? 'opacity-60 pointer-events-none' : ''
+            )}
+            disabled={!interactive || isFetchingReview}
+            aria-label={`Rate ${star} out of 5 stars`}
+            aria-pressed={interactive ? star === currentRating : undefined}
+          >
+            <Star
+              className={cn(
+                "h-7 w-7 transition-colors duration-150 ease-in-out",
+                (currentRating ?? 0) >= star
+                  ? 'text-yellow-400 fill-yellow-400'
+                  : 'text-slate-300 dark:text-slate-500'
+              )}
+              aria-hidden="true"
+            />
+          </button>
+        ))}
+      </div>
+    );
   };
 
   return (
     <MainLayout>
+      {/* Review Dialog */}
+      <Dialog open={isReviewModalOpen} onOpenChange={setIsReviewModalOpen}>
+        <DialogContent className="sm:max-w-lg rounded-lg shadow-xl p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-5 pb-4 border-b dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+            <DialogTitle className="text-lg font-semibold flex items-center">
+              {/* Show icon only if review exists and is not currently fetching */}
+              {existingReviewData && !isFetchingReview && <Edit3 className="h-5 w-5 mr-2 text-blue-500 flex-shrink-0" />}
+              {/* Determine title based on review existence and fetch state */}
+              {(existingReviewData && !isFetchingReview) ? 'Edit Your Review for:' : 'Leave a Review for:'}
+            </DialogTitle>
+            <DialogDescription className="text-sm text-slate-600 dark:text-slate-300 pt-0.5 !mt-0 font-medium">
+              {selectedCourseForReview?.course?.title ?? 'Course'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Main Content Area for Dialog */}
+          <div className="px-6 py-6 max-h-[60vh] overflow-y-auto">
+            {/* Loading State - Show only during initial fetch, not refetch */}
+            {isFetchingReview && !existingReviewData && !fetchReviewError && (
+              <div className="min-h-[200px] flex flex-col items-center justify-center text-center text-slate-500 dark:text-slate-400">
+                <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
+                <span>Loading your previous review...</span>
+              </div>
+            )}
+
+            {/* Error State during Fetch */}
+            {fetchReviewError && (
+              <Alert variant="destructive" className="mb-5">
+                <MessageSquareWarning className="h-4 w-4" />
+                <AlertTitle>Error Loading Review</AlertTitle>
+                <AlertDescription>
+                  {`Could not load previous data (${fetchReviewError.message}). You can still submit a new review below.`}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Form Area */}
+            {(!isFetchingReview || fetchReviewError) && (
+              <div className="space-y-6">
+                {/* Edit Information Alert */}
+                {existingReviewData && !fetchReviewError && (
+                  <Alert variant="info" className="bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700/50">
+                    <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    <AlertTitle className="text-blue-800 dark:text-blue-300 font-medium">Editing Previous Review</AlertTitle>
+                    <AlertDescription className="text-blue-700 dark:text-blue-400 text-xs">
+                      Last updated on {existingReviewData.updatedAt ? new Date(existingReviewData.updatedAt).toLocaleDateString() : 'N/A'}.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Rating Section */}
+                <div className="space-y-2">
+                  <Label htmlFor="rating" className="text-base font-semibold flex items-center text-slate-800 dark:text-slate-100">
+                    Your Rating <span className="text-red-500 ml-1">*</span>
+                  </Label>
+                  <div className="p-3 bg-white dark:bg-slate-700/50 rounded-md border dark:border-slate-600/50 shadow-sm">
+                    {renderStars(true)}
+                  </div>
+                  {currentRating === 0 && (
+                    <p className="text-xs text-red-500 dark:text-red-400 pl-1">Please select a rating from 1 to 5 stars.</p>
+                  )}
+                </div>
+
+                {/* Comment Section */}
+                <div className="space-y-2">
+                  <Label htmlFor="comment" className="text-base font-semibold text-slate-800 dark:text-slate-100">
+                    Your Review <span className="text-slate-500 text-sm font-normal">(Optional)</span>
+                  </Label>
+                  <Textarea
+                    id="comment"
+                    value={currentComment}
+                    onChange={(e) => setCurrentComment(e.target.value)}
+                    className="min-h-[120px] text-sm focus:ring-primary dark:bg-slate-700/50 border dark:border-slate-600/50 shadow-sm rounded-md"
+                    placeholder="Share your experience... What did you like or dislike? How could it be improved?"
+                    rows={5}
+                    disabled={isFetchingReview || reviewMutation.isPending}
+                    aria-label="Review comment"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <DialogFooter className="px-6 py-4 bg-slate-100 dark:bg-slate-800 border-t dark:border-slate-700 sm:justify-between rounded-b-lg">
+            <DialogClose asChild>
+              <Button type="button" variant="ghost" disabled={reviewMutation.isPending}>
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button
+              type="button"
+              onClick={handleReviewSubmit}
+              disabled={currentRating === 0 || reviewMutation.isPending || isFetchingReview}
+              className="bg-primary dark:bg-blue-600 dark:hover:bg-blue-700 mt-2 sm:mt-0 min-w-[120px]"
+            >
+              {reviewMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (existingReviewData && !isFetchingReview ? <Edit3 className="mr-2 h-4 w-4" /> : null)}
+              {reviewMutation.isPending ? 'Saving...' : (existingReviewData && !isFetchingReview ? 'Update Review' : 'Submit Review')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {/* Dashboard header */}
       <div className="bg-white dark:bg-slate-900 shadow">
         <div className="px-4 sm:px-6 lg:px-8 py-6 md:flex md:items-center md:justify-between">
@@ -224,8 +499,9 @@ export default function Dashboard() {
         </div>
 
         <div className="lg:flex lg:gap-x-3">
-          {/* 75% width container */}
-          <div className="lg:w-2/4 w-full">
+          {/* 60% width container */}
+          {/* <div className="lg:w-3/4 w-full"> */}
+          <div className="lg:w-[60%] w-full">
             <div className="lg:col-span-2">
               <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">
                 Completed Courses
@@ -253,20 +529,25 @@ export default function Dashboard() {
                               </div>
                               <div className="ml-4">
                                 <h3 className="text-sm font-medium text-slate-900 dark:text-white line-clamp-1">
-                                  {enrollment.course?.title ?? 'Course Title Missing'}
+                                  {enrollment.course?.title ??
+                                    "Course Title Missing"}
                                 </h3>
 
                                 <div className="text-xs text-slate-500 dark:text-slate-400">
-                                  Instructor:{' '}
+                                  Instructor:{" "}
                                   <span className="font-medium">
-                                    {getInstructorName(enrollment.course?.instructor)}
+                                    {getInstructorName(
+                                      enrollment.course?.instructor,
+                                    )}
                                   </span>
                                 </div>
                                 <div className="text-xs text-green-600 dark:text-green-400 pt-1">
-                                  Completed on:{' '}
+                                  Completed on:{" "}
                                   {enrollment.completedAt
-                                    ? new Date(enrollment.completedAt).toLocaleDateString()
-                                    : 'N/A'}
+                                    ? new Date(
+                                      enrollment.completedAt,
+                                    ).toLocaleDateString()
+                                    : "N/A"}
                                 </div>
                               </div>
                             </div>
@@ -274,18 +555,24 @@ export default function Dashboard() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => navigate(`/course-content?id=${enrollment.courseId}`)}
+                                onClick={() =>
+                                  navigate(
+                                    `/course-content?id=${enrollment.courseId}`,
+                                  )
+                                }
                               >
                                 View
                               </Button>
-                              {/* <Button
+                              <Button
                                 size="sm"
                                 className="bg-primary dark:bg-blue-600 dark:hover:bg-blue-700"
-                                onClick={() => handleOpenReviewModal(enrollment.course)}
+                                onClick={() =>
+                                  handleOpenReviewModal(enrollment)
+                                }
                                 disabled={!enrollment.course}
                               >
                                 Review
-                              </Button> */}
+                              </Button>
                             </div>
                           </div>
                         </div>
@@ -295,7 +582,7 @@ export default function Dashboard() {
                       <div className="text-sm">
                         <a
                           href="#"
-                          onClick={() => navigate('/my-courses?tab=completed')}
+                          onClick={() => navigate("/my-courses?tab=completed")}
                           className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
                         >
                           View all completed courses
@@ -306,11 +593,10 @@ export default function Dashboard() {
                 )}
               </div>
             </div>
-
           </div>
 
-          {/* 25% width container */}
-          <div className="lg:w-2/4 w-full">
+          {/* 40% width container */}
+          <div className="lg:w-[40%] w-full">
             <div>
               <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">
                 Recent Activity
@@ -396,7 +682,6 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-
 
         {/* Recommended courses */}
         <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-4">
