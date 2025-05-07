@@ -4053,5 +4053,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
+// app.get("/api/recommendations", async (req, res) => {
+app.get("/api/recommendations", isAuthenticated, async (req, res) => {
+  try {
+    const userId = req.user!.id;
+
+    // 2. Get average ratings for all courses
+    const ratings = await storage.prisma.review.groupBy({
+      by: ['courseId'],
+      _avg: { stars: true }
+    });
+
+    const ratingMap = new Map<number, number>();
+    ratings.forEach(r => {
+      ratingMap.set(r.courseId, parseFloat(r._avg.stars.toFixed(1)));
+    });
+
+    // 3. Get recommended course IDs from Python server
+    let recommendedCourses = [];
+    try {
+      const flaskResponse = await axios.post("http://localhost:5001/recommend", {
+        user_id: userId
+      });
+
+      const recommendedList = flaskResponse.data.recommended_courses;
+      const recommendedIds = recommendedList.map(course => course.id);
+
+      console.log("recommendedIds",recommendedIds)
+
+
+      if (recommendedIds.length) {
+        const courses = await storage.prisma.course.findMany({
+          where: { id: { in: recommendedIds } },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            thumbnail: true
+          }
+        });
+
+        recommendedCourses = courses.map(c => ({
+          ...c,
+          rating: ratingMap.get(c.id) || null
+        }));
+      }
+
+    } catch (err) {
+      console.error("⚠️ Error fetching recommendations from Flask:", err.message);
+    }
+
+    // 4. Return response
+    setTimeout(()=>{
+      return res.json({
+        recommendedCourses
+      });
+    },5000)
+
+  } catch (error) {
+    console.error("❌ Error fetching course:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
   return httpServer;
 }

@@ -437,15 +437,15 @@ export default function CourseDetail() {
       });
 
       if (course) {
-        const firstModule = course.modules?.[0];
-        const firstLesson = firstModule?.lessons?.[0];
-        if (firstModule && firstLesson) {
-          setLocation(
-            `/course-content?id=${course.id}&moduleId=${firstModule.id}&lessonId=${firstLesson.id}`
-          );
-        } else {
+        // const firstModule = course.modules?.[0];
+        // const firstLesson = firstModule?.lessons?.[0];
+        // if (firstModule && firstLesson) {
+        //   setLocation(
+        //     `/course-content?id=${course.id}&moduleId=${firstModule.id}&lessonId=${firstLesson.id}`
+        //   );
+        // } else {
           setLocation(`/course-content?id=${course.id}`);
-        }
+        // }
       } else {
         setLocation(`/my-courses`);
       }
@@ -694,7 +694,7 @@ export default function CourseDetail() {
                 // ** CORRECTED: Ensure onClick is passed **
                 <Button
                   onClick={handleStartCourse}
-                  className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white"
+                  className="bg-primary dark:bg-blue-600 dark:hover:bg-blue-700 text-white"
                   disabled={enrollMutation.isPending}
                 >
                   {enrollMutation.isPending ? (

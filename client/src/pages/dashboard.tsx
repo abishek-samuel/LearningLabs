@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils"; // Added cn import - assumption
+import { Skeleton } from "@/components/ui/skeleton"; // Ensure Skeleton is imported
 
 
 interface CourseInEnrollment {
@@ -57,6 +58,49 @@ interface CourseInEnrollment {
   progress: number;
   completedAt?: string | null;
 }
+
+// Add these type definitions
+type RecommendedCourseApi = {
+  id: number;
+  title: string;
+  description?: string | null;
+  thumbnail?: string | null;
+  rating?: number | null;
+};
+
+type RecommendationsApiResponse = {
+  recommendedCourses: RecommendedCourseApi[];
+};
+
+// Add this constant
+const DEFAULT_COURSE_THUMBNAIL_URL = "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?ixlib=rb-4.0.3&auto=format&fit=crop&w=1170&q=80";
+
+
+export function CourseCardSkeleton() {
+  return (
+    <Card className="overflow-hidden animate-pulse flex flex-col h-full"> {/* Match Card usage */}
+      {/* Image Area Skeleton */}
+      <Skeleton className="aspect-[16/9] w-full bg-slate-200 dark:bg-slate-700" /> {/* Aspect ratio like the image */}
+
+      {/* Content Area Skeleton */}
+      <CardContent className="p-4 flex-grow flex flex-col"> {/* Match padding, flex for button positioning */}
+        {/* Title Skeleton */}
+        <Skeleton className="h-5 w-3/4 mb-1" />
+        {/* Description Skeleton (approx 2 lines) */}
+        <Skeleton className="h-4 w-full mb-1" />
+        <Skeleton className="h-4 w-5/6 mb-3" /> {/* Slightly shorter second line */}
+
+        {/* Footer/Button Area Skeleton */}
+        <div className="mt-auto pt-2"> {/* Pushes button skeleton to bottom */}
+           {/* Rating Skeleton (Optional, can be added if needed) */}
+           {/* <Skeleton className="h-4 w-1/4 mb-2" /> */}
+           <Skeleton className="h-9 w-full rounded-md" /> {/* Button Skeleton */}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -78,6 +122,28 @@ export default function Dashboard() {
   useEffect(() => {
     queryClient1.invalidateQueries({ queryKey: ["/api/activity-logs"] });
   }, []);
+
+  // Fetch Recommended Courses
+  const {
+    data: recommendationsApiResponse,
+    isLoading: isLoadingRecommendations,
+    error: recommendationsError,
+  } = useQuery<RecommendationsApiResponse>({
+    queryKey: ["recommendations"], // General recommendations key
+    queryFn: async () => {
+      const response = await fetch('/api/recommendations');
+      if (!response.ok) {
+        console.error("Failed to fetch recommendations:", response.statusText);
+        // Return default structure on error to prevent breaking UI
+        return { recommendedCourses: [] };
+      }
+      return response.json();
+    },
+    staleTime: 15 * 60 * 1000, // Cache for 15 minutes
+  });
+
+  // Derive recommendedCourses, defaulting to an empty array
+  const recommendedCourses = recommendationsApiResponse?.recommendedCourses || [];
 
   // Fetch enrollments for the current user
   const { data: enrollments, isLoading: enrollmentsLoading } = useQuery({
@@ -102,7 +168,6 @@ export default function Dashboard() {
   // Mock data for demo purposes - in a real application, this would come from API
   const inProgressCourses =
     enrollments?.filter((e: any) => e.progress < 100).slice(0, 3) || [];
-  const recommendedCourses = [];
 
   const completedCourses =
     enrollments?.filter((e: any) => e.progress === 100) || [];
@@ -687,44 +752,47 @@ export default function Dashboard() {
         <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-4">
           Recommended for You
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* Mock data for recommended courses - would be fetched from API in real application */}
-          <CourseCard
-            id={101}
-            title="TypeScript Essentials"
-            description="Learn type safety and advanced TypeScript features."
-            thumbnailUrl="https://images.unsplash.com/photo-1607799279861-4dd421887fb3?ixlib=rb-4.0.3&auto=format&fit=crop&w=1170&q=80"
-            rating={4.9}
-            isInProgress={false}
-          />
-
-          <CourseCard
-            id={102}
-            title="Node.js Microservices"
-            description="Build scalable backend services with Node.js."
-            thumbnailUrl="https://images.unsplash.com/photo-1556155092-490a1ba16284?ixlib=rb-4.0.3&auto=format&fit=crop&w=1170&q=80"
-            rating={4.7}
-            isInProgress={false}
-          />
-
-          <CourseCard
-            id={103}
-            title="Machine Learning Basics"
-            description="Introduction to ML algorithms and applications."
-            thumbnailUrl="https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&auto=format&fit=crop&w=1170&q=80"
-            rating={4.8}
-            isInProgress={false}
-          />
-
-          <CourseCard
-            id={104}
-            title="AWS Cloud Fundamentals"
-            description="Core AWS services and cloud architecture basics."
-            thumbnailUrl="https://images.unsplash.com/photo-1573164713988-8665fc963095?ixlib=rb-4.0.3&auto=format&fit=crop&w=1169&q=80"
-            rating={4.6}
-            isInProgress={false}
-          />
-        </div>
+        {/* Conditional Rendering based on fetch state */}
+        {isLoadingRecommendations && (
+            // Loading State: Show Skeletons
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {[...Array(4)].map((_, i) => (
+                    <CourseCardSkeleton />
+                ))}
+            </div>
+        )}
+        {!isLoadingRecommendations && recommendationsError && (
+            // Error State
+            <div className="text-center py-6 text-red-500 bg-red-50 dark:bg-red-900/20 rounded-md">
+                <p>Could not load recommendations at this time.</p>
+                {/* Optionally show error message: {recommendationsError.message} */}
+            </div>
+        )}
+        {!isLoadingRecommendations && !recommendationsError && recommendedCourses.length === 0 && (
+            // Empty State
+             <div className="text-center py-10 text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 rounded-lg shadow">
+                <BookOpen className="mx-auto h-12 w-12 text-slate-400" />
+                <h3 className="mt-2 text-sm font-medium text-slate-900 dark:text-white">No recommendations right now</h3>
+                <p className="mt-1 text-sm">Keep learning to get personalized suggestions!</p>
+            </div>
+        )}
+        {!isLoadingRecommendations && !recommendationsError && recommendedCourses.length > 0 && (
+            // Success State: Display fetched courses
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {recommendedCourses.map((courseRec: RecommendedCourseApi) => (
+                <CourseCard
+                    key={courseRec.id}
+                    id={courseRec.id}
+                    title={courseRec.title}
+                    description={courseRec.description || ""}
+                    thumbnailUrl={courseRec.thumbnail || DEFAULT_COURSE_THUMBNAIL_URL}
+                    rating={courseRec.rating || 0} // Pass rating (CourseCard should handle null)
+                    isInProgress={false} // Recommended are not in progress
+                />
+            ))}
+            </div>
+        )}
+        {/* End Recommended Courses Section */}
       </div>
     </MainLayout>
   );

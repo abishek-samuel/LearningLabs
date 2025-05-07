@@ -11,6 +11,7 @@ from llm_handler import chat
 from image_generation import generate_course_image
 from video_caption_vtt import generate_vtt_from_video
 from pathlib import Path
+from recommender_system import get_recommendations
 
 app = Flask(__name__)
 CORS(app)
@@ -233,6 +234,55 @@ def insert_questions_api():
 
     except Exception as e:
         print(f"🔥 Error: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/recommend', methods=['POST'])
+def recommend():
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+
+        if not user_id:
+            return jsonify({'error': 'user_id is required'}), 400
+
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        cursor = conn.cursor()
+
+        # 🔹 Step 1: Fetch accessible courses (with IDs)
+        cursor.execute("""
+            SELECT c.id, c.title, c.description
+            FROM course_access ca
+            JOIN courses c ON ca.course_id = c.id
+            WHERE ca.user_id = %s
+        """, (user_id,))
+        accessible_courses = [{'id': cid, 'title': title, 'description': desc} for cid, title, desc in cursor.fetchall()]
+
+        # 🔹 Step 2: Fetch enrolled course titles
+        cursor.execute("""
+            SELECT c.title
+            FROM enrollments e
+            JOIN courses c ON e.course_id = c.id
+            WHERE e.user_id = %s
+        """, (user_id,))
+        enrolled_titles = [row[0] for row in cursor.fetchall()]
+
+        cursor.close()
+        conn.close()
+
+        if not accessible_courses or not enrolled_titles:
+            return jsonify({'recommended_courses': []})
+
+        print("accessible",accessible_courses)
+        print("enrolled_titles",enrolled_titles)
+
+        recommendations = get_recommendations(accessible_courses, enrolled_titles)
+        return jsonify({'recommended_courses': recommendations})
+
+    except Exception as e:
+        print(f"❌ Error getting recommendations: {e}")
         return jsonify({
             "success": False,
             "error": str(e)
