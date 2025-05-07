@@ -34,7 +34,7 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
   const { user, logoutMutation } = useAuth();
   const { theme, setTheme } = useTheme();
   const queryClient = useQueryClient();
-
+  const role = user?.role || "employee";
   const { data: notifications = [] } = useQuery<Notification[]>({
     queryKey: ["notifications"],
     queryFn: async () => {
@@ -107,9 +107,17 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
   //   window.open(userGuideUrl, "_blank");
   // };
 
-
   const openUserGuide = () => {
-    const userGuideUrl = "../../../../../user_guide.pdf";
+    let userGuideUrl = "";
+
+    if (role === "admin") {
+      userGuideUrl = "../../../../../Admin_User_Manual.pdf";
+    } else if (role === "contributor") {
+      userGuideUrl = "../../../../../Contributor_User_Manual.pdf";
+    } else {
+      userGuideUrl = "../../../../../Employee_User_Manual.pdf";
+    }
+
     window.open(userGuideUrl, "_blank");
   };
 
@@ -150,7 +158,7 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
               Learning Labs
             </span> */}
 
-<img
+            <img
               src="../../../black.png"
               className="mt-1 mr-2 ml-[-5px] dark:hidden"
               title="Learning Labs"
@@ -168,141 +176,139 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
             {/* <span className="hidden sm:inline text-2xl font-semibold bg-gradient-to-r from-blue-700 via-purple-700 to-black bg-clip-text text-transparent font-[Raleway] tracking-wide dark:from-blue-600 dark:via-purple-600 dark:to-blue-800 dark:text-transparent">
               Learning Labs
             </span> */}
-
-
           </Link>
         </div>
 
         <div className="ml-auto flex items-center gap-3">
-  {/* Dark mode toggle button */}
-  <Button
-    variant="ghost"
-    size="icon"
-    onClick={toggleTheme}
-    className="text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-  >
-    <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-    <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-    <span className="sr-only">Toggle theme</span>
-  </Button>
-
-  {/* Notifications dropdown */}
-  <DropdownMenu>
-    <DropdownMenuTrigger asChild>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="relative rounded-full text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-      >
-        <Bell className="h-5 w-5" />
-        {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-slate-900"></span>
-        )}
-        <span className="sr-only">View notifications</span>
-      </Button>
-    </DropdownMenuTrigger>
-    <DropdownMenuContent align="end" className="w-80">
-      <DropdownMenuLabel className="flex justify-between items-center">
-        <span>Notifications</span>
-        {unreadCount > 0 && (
+          {/* Dark mode toggle button */}
           <Button
             variant="ghost"
-            size="sm"
-            onClick={() => markAllAsReadMutation.mutate()}
-            className="text-xs"
+            size="icon"
+            onClick={toggleTheme}
+            className="text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
           >
-            Mark all as read
+            <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+            <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            <span className="sr-only">Toggle theme</span>
           </Button>
-        )}
-      </DropdownMenuLabel>
-      <DropdownMenuSeparator />
-      <div className="max-h-72 overflow-y-auto overflow-x-hidden break-words py-1">
-        {notifications.length === 0 ? (
-          <div className="py-2 px-4 text-center text-gray-500">
-            No notifications
-          </div>
-        ) : (
-          notifications.map((notification) => (
-            <div
-              key={notification.id}
-              className={`py-2 px-4 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer ${
-                !notification.isRead
-                  ? "bg-slate-50 dark:bg-slate-900"
-                  : ""
-              }`}
-              onClick={() => markAsReadMutation.mutate(notification.id)}
-            >
-              <div className="font-medium">{notification.title}</div>
-              <div className="text-sm text-gray-500">
-                {formatMessage(notification.message)}
-              </div>
-              <div className="text-xs text-gray-400 mt-1">
-                {formatDate(notification.createdAt)}
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-    </DropdownMenuContent>
-  </DropdownMenu>
 
-  {/* Help button */}
-  <Button
-    variant="ghost"
-    size="icon"
-    onClick={openUserGuide}
-    title="User Guide"
-    className="text-slate-600 hover:bg-slate-100 hover:text-blue-600 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-blue-400"
-  >
-    <HelpCircle className="h-5 w-5" />
-    <span className="sr-only">Help</span>
-  </Button>
+          {/* Notifications dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative rounded-full text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                <Bell className="h-5 w-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-slate-900"></span>
+                )}
+                <span className="sr-only">View notifications</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80">
+              <DropdownMenuLabel className="flex justify-between items-center">
+                <span>Notifications</span>
+                {unreadCount > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => markAllAsReadMutation.mutate()}
+                    className="text-xs"
+                  >
+                    Mark all as read
+                  </Button>
+                )}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <div className="max-h-72 overflow-y-auto overflow-x-hidden break-words py-1">
+                {notifications.length === 0 ? (
+                  <div className="py-2 px-4 text-center text-gray-500">
+                    No notifications
+                  </div>
+                ) : (
+                  notifications.map((notification) => (
+                    <div
+                      key={notification.id}
+                      className={`py-2 px-4 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer ${
+                        !notification.isRead
+                          ? "bg-slate-50 dark:bg-slate-900"
+                          : ""
+                      }`}
+                      onClick={() => markAsReadMutation.mutate(notification.id)}
+                    >
+                      <div className="font-medium">{notification.title}</div>
+                      <div className="text-sm text-gray-500">
+                        {formatMessage(notification.message)}
+                      </div>
+                      <div className="text-xs text-gray-400 mt-1">
+                        {formatDate(notification.createdAt)}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-  {/* User dropdown */}
-  <DropdownMenu>
-    <DropdownMenuTrigger asChild>
-      <Button
-        variant="ghost"
-        className="relative rounded-full h-8 w-8 p-0 overflow-hidden"
-      >
-        <Avatar>
-          <AvatarImage
-            src={user?.profilePicture}
-            alt={user?.username || "User"}
-          />
-          <AvatarFallback className="bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200">
-            {getInitials()}
-          </AvatarFallback>
-        </Avatar>
-      </Button>
-    </DropdownMenuTrigger>
-    <DropdownMenuContent align="end" className="w-56">
-      <DropdownMenuLabel>{user?.username || "User"}</DropdownMenuLabel>
-      <DropdownMenuSeparator />
-      <DropdownMenuItem asChild>
-        <Link href="/profile">Profile</Link>
-      </DropdownMenuItem>
-      <DropdownMenuItem asChild>
-        <Link href="/settings">Settings</Link>
-      </DropdownMenuItem>
-      {user?.role === "admin" && (
-        <>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem asChild>
-            <Link href="/system-settings">System Settings</Link>
-          </DropdownMenuItem>
-        </>
-      )}
-      <DropdownMenuSeparator />
-      <DropdownMenuItem
-        onClick={() => logoutMutation.mutate()}
-        disabled={logoutMutation.isPending}
-      >
-        {logoutMutation.isPending ? "Signing out..." : "Sign out"}
-      </DropdownMenuItem>
-    </DropdownMenuContent>
-  </DropdownMenu>
-</div>
+          {/* Help button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={openUserGuide}
+            title="User Guide"
+            className="text-slate-600 hover:bg-slate-100 hover:text-blue-600 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-blue-400"
+          >
+            <HelpCircle className="h-5 w-5" />
+            <span className="sr-only">Help</span>
+          </Button>
+
+          {/* User dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                className="relative rounded-full h-8 w-8 p-0 overflow-hidden"
+              >
+                <Avatar>
+                  <AvatarImage
+                    src={user?.profilePicture}
+                    alt={user?.username || "User"}
+                  />
+                  <AvatarFallback className="bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200">
+                    {getInitials()}
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>{user?.username || "User"}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/profile">Profile</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/settings">Settings</Link>
+              </DropdownMenuItem>
+              {user?.role === "admin" && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/system-settings">System Settings</Link>
+                  </DropdownMenuItem>
+                </>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => logoutMutation.mutate()}
+                disabled={logoutMutation.isPending}
+              >
+                {logoutMutation.isPending ? "Signing out..." : "Sign out"}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </header>
   );
