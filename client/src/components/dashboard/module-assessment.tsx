@@ -144,7 +144,20 @@ export function ModuleAssessment({
     <div className="my-6 max-w-2xl mx-auto">
       <Card>
         <CardHeader>
-          <CardTitle>Module Assessment</CardTitle>
+          <CardTitle>
+            <span className="flex items-center">
+              Module Assessment
+              <span
+                className="ml-2 px-1.5 mt-1 py-0.5 text-[10px] font-bold text-white bg-gradient-to-r from-purple-500 to-pink-500 rounded shadow-sm"
+                style={{
+                  fontFamily: "monospace",
+                  letterSpacing: "0.5px",
+                }}
+              >
+                AI
+              </span>
+            </span>
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (

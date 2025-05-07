@@ -97,7 +97,18 @@ export default function AssessmentPage() {
       <div className="max-w-2xl mx-auto py-8">
         <Card>
           <CardHeader>
-            <CardTitle>Module Assessment</CardTitle>
+            <CardTitle>
+              Module Assessment
+              <span
+                className="ml-2 px-1.5 py-0.4 text-[10px] font-bold text-white bg-gradient-to-r from-purple-500 to-pink-500 rounded shadow"
+                style={{
+                  fontFamily: "monospace",
+                  letterSpacing: "0.5px",
+                }}
+              >
+                AI
+              </span>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {loading ? (

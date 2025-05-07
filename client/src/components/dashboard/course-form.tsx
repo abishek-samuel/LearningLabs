@@ -112,12 +112,20 @@ export function CourseForm({
     const loadImages = async () => {
       setLoadingImages(true);
       const images = await fetchCourseImages(initialData.id, initialData.title);
+
       if (images.length > 0) {
         setImageOptions(images);
-        if (!form.getValues("thumbnail")) {
-          form.setValue("thumbnail", images[0]);
+
+        const fullThumbnail = initialData.thumbnail || "";
+        const matchedRelativePath = images.find((imgPath) =>
+          fullThumbnail.endsWith(imgPath)
+        );
+
+        if (matchedRelativePath) {
+          form.setValue("thumbnail", matchedRelativePath);
         }
       }
+
       setLoadingImages(false);
     };
 
@@ -212,7 +220,18 @@ export function CourseForm({
             name="thumbnail"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Course Image (choose one image)</FormLabel>
+                <FormLabel>
+                  Course Image (choose one image)
+                  <span
+                    className="ml-2 px-1.5 mt-1 py-0.5 text-[10px] font-bold text-white bg-gradient-to-r from-purple-500 to-pink-500 rounded shadow-sm"
+                    style={{
+                      fontFamily: "monospace",
+                      letterSpacing: "0.5px",
+                    }}
+                  >
+                    AI
+                  </span>
+                </FormLabel>
                 <FormControl>
                   <>
                     {loadingImages ? (

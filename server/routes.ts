@@ -327,7 +327,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
   );
-  
+
   app.get(
     "/api/users",
     isAuthenticated,
@@ -877,15 +877,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // 2. Get average rating per course in a single DB call
       const ratings = await storage.prisma.review.groupBy({
-        by: ['courseId'],
+        by: ["courseId"],
         _avg: {
-          stars: true
-        }
+          stars: true,
+        },
       });
 
       // 3. Create a map of courseId to average rating
       const ratingMap = new Map();
-      ratings.forEach(r => {
+      ratings.forEach((r) => {
         ratingMap.set(r.courseId, parseFloat(r._avg.stars.toFixed(1)));
       });
 
@@ -894,9 +894,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           (course) => course.status === "published"
         );
 
-        const coursesWithRatings = courses.map(course => ({
+        const coursesWithRatings = courses.map((course) => ({
           ...course,
-          rating: ratingMap.get(course.id) || 0
+          rating: ratingMap.get(course.id) || 0,
         }));
 
         return res.json(coursesWithRatings);
@@ -950,9 +950,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       // 4. Merge ratings with courses
-      const accessibleCoursesWithRatings = accessibleCourses.map(course => ({
+      const accessibleCoursesWithRatings = accessibleCourses.map((course) => ({
         ...course,
-        rating: ratingMap.get(course.id) || 0
+        rating: ratingMap.get(course.id) || 0,
       }));
 
       res.json(accessibleCoursesWithRatings);
@@ -1235,26 +1235,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const enrollments = await storage.getEnrollmentsByUser(req.user!.id); // Assert req.user exists
 
       const ratings = await storage.prisma.review.groupBy({
-        by: ['courseId'],
+        by: ["courseId"],
         _avg: {
-          stars: true
-        }
+          stars: true,
+        },
       });
 
       const ratingMap = new Map();
-      ratings.forEach(r => {
+      ratings.forEach((r) => {
         ratingMap.set(r.courseId, parseFloat(r._avg.stars.toFixed(1)));
       });
 
-      const enrollmentsWithRatings = enrollments.map(enrollment => {
+      const enrollmentsWithRatings = enrollments.map((enrollment) => {
         const course = {
           ...enrollment.course,
-          rating: ratingMap.get(enrollment.course.id) || 0
+          rating: ratingMap.get(enrollment.course.id) || 0,
         };
-      
+
         return {
           ...enrollment,
-          course
+          course,
         };
       });
 
@@ -1974,7 +1974,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const questions = await storage.prisma.question.findMany({
           where: { moduleId },
         });
-        res.json(questions);
+        const sanitizedQuestions = questions.map(
+          ({ correctAnswer, ...rest }) => rest
+        );
+        res.json(sanitizedQuestions);
       } catch (error) {
         console.error("Error fetching questions for module:", error);
         res.status(500).json({ message: "Internal server error" });
@@ -3863,168 +3866,192 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-
   // 1. GET All Reviews for a Course (Publicly Accessible)
-app.get("/api/courses/:courseId/reviews", async (req, res) => {
-  try {
-    const courseId = parseInt(req.params.courseId);
-    if (isNaN(courseId)) {
-      return res.status(400).json({ message: "Invalid Course ID" });
-    }
+  app.get("/api/courses/:courseId/reviews", async (req, res) => {
+    try {
+      const courseId = parseInt(req.params.courseId);
+      if (isNaN(courseId)) {
+        return res.status(400).json({ message: "Invalid Course ID" });
+      }
 
-    const reviews = await storage.prisma.review.findMany({
-      where: { courseId: courseId },
-      orderBy: { createdAt: "desc" },
-      // Include basic user info (can be simplified further if needed)
-      include: {
-        user: {
-          select: {
-            id: true,
-            firstName: true, // Keep names for display
-            lastName: true,
-            profilePicture: true, // Keep avatar
+      const reviews = await storage.prisma.review.findMany({
+        where: { courseId: courseId },
+        orderBy: { createdAt: "desc" },
+        // Include basic user info (can be simplified further if needed)
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true, // Keep names for display
+              lastName: true,
+              profilePicture: true, // Keep avatar
+            },
           },
         },
-      },
-    });
+      });
 
-    res.json(reviews); // Send the raw review data with nested user
-
-  } catch (error) {
-    console.error("Error fetching course reviews:", error);
-    res.status(500).json({ message: "Could not fetch reviews" });
-  }
-});
-
-// 2. GET Average Rating for a Course (Publicly Accessible)
-app.get("/api/courses/:courseId/reviews/average", async (req, res) => {
-  try {
-    const courseId = parseInt(req.params.courseId);
-    if (isNaN(courseId)) {
-      return res.status(400).json({ message: "Invalid Course ID" });
+      res.json(reviews); // Send the raw review data with nested user
+    } catch (error) {
+      console.error("Error fetching course reviews:", error);
+      res.status(500).json({ message: "Could not fetch reviews" });
     }
+  });
 
-    // Fetch all reviews for the course (simpler than aggregate for understanding)
-    const reviews = await storage.prisma.review.findMany({
+  // 2. GET Average Rating for a Course (Publicly Accessible)
+  app.get("/api/courses/:courseId/reviews/average", async (req, res) => {
+    try {
+      const courseId = parseInt(req.params.courseId);
+      if (isNaN(courseId)) {
+        return res.status(400).json({ message: "Invalid Course ID" });
+      }
+
+      // Fetch all reviews for the course (simpler than aggregate for understanding)
+      const reviews = await storage.prisma.review.findMany({
         where: { courseId: courseId },
-        select: { stars: true } // Only select the stars field
-    });
+        select: { stars: true }, // Only select the stars field
+      });
 
-    const reviewCount = reviews.length;
-    let averageRating = 0;
+      const reviewCount = reviews.length;
+      let averageRating = 0;
 
-    if (reviewCount > 0) {
-        const totalStars = reviews.reduce((sum, review) => sum + review.stars, 0);
+      if (reviewCount > 0) {
+        const totalStars = reviews.reduce(
+          (sum, review) => sum + review.stars,
+          0
+        );
         averageRating = parseFloat((totalStars / reviewCount).toFixed(1)); // Calculate and format
+      }
+
+      res.json({
+        averageRating: averageRating,
+        reviewCount: reviewCount,
+      });
+    } catch (error) {
+      console.error("Error fetching average course rating:", error);
+      res.status(500).json({ message: "Could not calculate average rating" });
     }
+  });
 
-    res.json({
-      averageRating: averageRating,
-      reviewCount: reviewCount,
-    });
+  // 3. PUT (Create or Update) a Review for a Course (Requires Authentication)
+  app.put(
+    "/api/courses/:courseId/reviews",
+    isAuthenticated,
+    async (req, res) => {
+      try {
+        const courseId = parseInt(req.params.courseId);
+        const userId = req.user!.id; // User ID from authentication
 
-  } catch (error) {
-    console.error("Error fetching average course rating:", error);
-    res.status(500).json({ message: "Could not calculate average rating" });
-  }
-});
+        if (isNaN(courseId)) {
+          return res.status(400).json({ message: "Invalid Course ID" });
+        }
 
+        const { stars, comment } = req.body;
 
-// 3. PUT (Create or Update) a Review for a Course (Requires Authentication)
-app.put("/api/courses/:courseId/reviews", isAuthenticated, async (req, res) => {
-  try {
-    const courseId = parseInt(req.params.courseId);
-    const userId = req.user!.id; // User ID from authentication
+        // Basic Input Validation
+        if (
+          typeof stars !== "number" ||
+          !Number.isInteger(stars) ||
+          stars < 1 ||
+          stars > 5
+        ) {
+          return res.status(400).json({
+            message: "Rating (stars) must be an integer between 1 and 5",
+          });
+        }
+        // Optional: Basic check for comment type if provided
+        if (
+          comment !== undefined &&
+          comment !== null &&
+          typeof comment !== "string"
+        ) {
+          return res.status(400).json({ message: "Comment must be a string" });
+        }
 
-    if (isNaN(courseId)) {
-      return res.status(400).json({ message: "Invalid Course ID" });
+        // Use upsert to create or update
+        const review = await storage.prisma.review.upsert({
+          where: {
+            // Unique identifier for the review
+            userId_courseId: {
+              userId: userId,
+              courseId: courseId,
+            },
+          },
+          update: {
+            // What to update if it exists
+            stars: stars,
+            comment: comment, // Update comment (allows setting to null/empty)
+          },
+          create: {
+            // What to create if it doesn't exist
+            stars: stars,
+            comment: comment,
+            userId: userId,
+            courseId: courseId,
+          },
+        });
+
+        res.status(200).json(review); // Send back the created/updated review data
+      } catch (error) {
+        // Basic check if the error is because the course doesn't exist
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2003"
+        ) {
+          return res.status(404).json({ message: "Course not found." });
+        }
+        console.error("Error creating/updating review:", error);
+        res.status(500).json({ message: "Could not save review" });
+      }
     }
-
-    const { stars, comment } = req.body;
-
-    // Basic Input Validation
-    if (typeof stars !== 'number' || !Number.isInteger(stars) || stars < 1 || stars > 5) {
-      return res.status(400).json({ message: "Rating (stars) must be an integer between 1 and 5" });
-    }
-    // Optional: Basic check for comment type if provided
-    if (comment !== undefined && comment !== null && typeof comment !== 'string') {
-       return res.status(400).json({ message: "Comment must be a string" });
-    }
-
-    // Use upsert to create or update
-    const review = await storage.prisma.review.upsert({
-      where: {
-        // Unique identifier for the review
-        userId_courseId: {
-          userId: userId,
-          courseId: courseId,
-        },
-      },
-      update: {
-        // What to update if it exists
-        stars: stars,
-        comment: comment, // Update comment (allows setting to null/empty)
-      },
-      create: {
-        // What to create if it doesn't exist
-        stars: stars,
-        comment: comment,
-        userId: userId,
-        courseId: courseId,
-      },
-    });
-
-    res.status(200).json(review); // Send back the created/updated review data
-
-  } catch (error) {
-     // Basic check if the error is because the course doesn't exist
-     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
-        return res.status(404).json({ message: "Course not found." });
-     }
-    console.error("Error creating/updating review:", error);
-    res.status(500).json({ message: "Could not save review" });
-  }
-});
+  );
   // 4. GET Single Review by User for a Course (Requires Authentication)
-// Fetches the specific review left by the currently authenticated user for a given course.
-app.get("/api/courses/:courseId/reviews/my-review", isAuthenticated, async (req, res) => {
-  try {
-    const courseId = parseInt(req.params.courseId);
-    const userId = req.user!.id; // Get user ID from authenticated request
+  // Fetches the specific review left by the currently authenticated user for a given course.
+  app.get(
+    "/api/courses/:courseId/reviews/my-review",
+    isAuthenticated,
+    async (req, res) => {
+      try {
+        const courseId = parseInt(req.params.courseId);
+        const userId = req.user!.id; // Get user ID from authenticated request
 
-    if (isNaN(courseId)) {
-      return res.status(400).json({ message: "Invalid Course ID" });
+        if (isNaN(courseId)) {
+          return res.status(400).json({ message: "Invalid Course ID" });
+        }
+
+        // Use findUnique with the compound unique index
+        const review = await storage.prisma.review.findUnique({
+          where: {
+            userId_courseId: {
+              // Use the unique constraint name from your schema @@unique([userId, courseId], name: "userId_courseId")
+              userId: userId,
+              courseId: courseId,
+            },
+          },
+          // Optional: Include user details if needed, though often not necessary
+          // as the frontend already knows the user.
+          // include: {
+          //   user: { select: { id: true, firstName: true, lastName: true } }
+          // }
+        });
+
+        if (!review) {
+          // It's important to return 404 if the review specifically doesn't exist
+          // This is different from a server error.
+          return res
+            .status(404)
+            .json({ message: "Review not found for this user and course." });
+        }
+
+        // Review found, return it
+        res.status(200).json(review);
+      } catch (error) {
+        console.error("Error fetching user's course review:", error);
+        res
+          .status(500)
+          .json({ message: "Internal server error fetching your review" });
+      }
     }
-
-    // Use findUnique with the compound unique index
-    const review = await storage.prisma.review.findUnique({
-      where: {
-        userId_courseId: { // Use the unique constraint name from your schema @@unique([userId, courseId], name: "userId_courseId")
-          userId: userId,
-          courseId: courseId,
-        },
-      },
-       // Optional: Include user details if needed, though often not necessary
-       // as the frontend already knows the user.
-       // include: {
-       //   user: { select: { id: true, firstName: true, lastName: true } }
-       // }
-    });
-
-    if (!review) {
-      // It's important to return 404 if the review specifically doesn't exist
-      // This is different from a server error.
-      return res.status(404).json({ message: "Review not found for this user and course." });
-    }
-
-    // Review found, return it
-    res.status(200).json(review);
-
-  } catch (error) {
-    console.error("Error fetching user's course review:", error);
-    res.status(500).json({ message: "Internal server error fetching your review" });
-  }
-});
+  );
 
   return httpServer;
 }

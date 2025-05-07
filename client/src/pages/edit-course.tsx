@@ -23,6 +23,7 @@ type CourseData = {
   description: string;
   category?: string;
   instructorId?: number;
+  thumbnail?: string;
   // Add other fields from your Course model
 };
 
@@ -114,6 +115,7 @@ export default function EditCoursePage() {
       const updatedCourse = await response.json();
       console.log("Course updated successfully:", updatedCourse);
       setCourseData(updatedCourse); // Update local state with response
+      window.location.href = `/my-content`;
       // TODO: Show success toast notification
     } catch (error) {
       handleError(error);
