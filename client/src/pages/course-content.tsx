@@ -784,7 +784,7 @@ export default function CourseContent() {
                         value={`module-${module.id}`}
                         className="border-b dark:border-slate-700 last:border-b-0"
                       >
-                        <AccordionTrigger className="px-4 py-3 text-sm hover:bg-slate-50 dark:hover:bg-slate-800/50 [&[data-state=open]]:bg-slate-100 dark:[&[data-state=open]]:bg-slate-800 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none rounded-t-md">
+                        <AccordionTrigger className="px-4 py-3 text-sm hover:bg-slate-50 dark:hover:bg-slate-800/50 [&[data-state=open]]:bg-slate-100 dark:[&[data-state=open]]:bg-slate-800 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none">
                           <div className="text-left flex-grow mr-2">
                             <div className="font-medium leading-snug">
                               {module.title}

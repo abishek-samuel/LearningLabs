@@ -24,7 +24,7 @@ export default function AuthPage() {
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900 overflow-hidden">
       {/* Left side - Auth forms */}
-      <div className="flex flex-col justify-center px-4 py-12 sm:px-6 lg:flex-none lg:px-20 xl:px-24 w-full lg:w-1/2 relative">
+      <div className="flex flex-col justify-center px-4 py-12 sm:px-6 lg:flex-none lg:px-20 xl:px-24 w-full lg:w-1/2 relative mx-2">
         <div className="flex items-center justify-between h-16 fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-800 p-4 lg:hidden">
           <img
             src="../../../alten_black.png"
@@ -89,12 +89,17 @@ export default function AuthPage() {
 
         <div className="mx-auto w-full max-w-sm lg:w-[420px] sm:mt-16 lg:mt-[10px]"> {/* Added padding-top to account for the fixed header */}
           <div className="text-center lg:text-left mb-8">
-            <div className="flex items-center mb-1">
-              <BookOpen className="h-7 w-7 text-blue-600 dark:text-blue-400 mr-3" />
-              <span className="text-2xl font-semibold bg-gradient-to-r from-blue-700 via-purple-700 to-black bg-clip-text text-transparent font-[Roboto] tracking-wide dark:from-blue-600 dark:via-purple-600 dark:to-blue-800 dark:text-transparent">
-                Learning Labs
-              </span>
-
+            <div className="flex items-center mb-3">
+              {/* <BookOpen className="h-7 w-7 text-blue-600 dark:text-blue-400 mr-3" /> */}
+              {/* <span className="text-2xl font-semibold bg-gradient-to-r from-blue-700 via-purple-700 to-black bg-clip-text text-transparent font-[Roboto] tracking-wide dark:from-blue-600 dark:via-purple-600 dark:to-blue-800 dark:text-transparent">
+                Learning Lab
+              </span> */}
+              <img
+                src="../../../blue.png"
+                className="mt-1 mb-1 mr-2 w-[130px]"
+                title="Learning Labs"
+                alt="Learning Labs"
+              />
 
               {/* <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
                 Learning Labs
@@ -171,7 +176,7 @@ export default function AuthPage() {
               </div>
             </div>
 
-            <div className="absolute bottom-8 right-8 text-xs text-blue-200 opacity-70">
+            <div className="absolute bottom-0 right-8 text-xs text-blue-200 opacity-70">
               © 2025 Learning Labs. All rights reserved.
             </div>
           </div>

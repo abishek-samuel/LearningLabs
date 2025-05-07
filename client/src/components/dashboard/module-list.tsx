@@ -244,7 +244,7 @@ export function ModuleList({ courseId }: ModuleListProps) {
               onChange={(e) => setNewModuleTitle(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAddModule()}
             />
-            <Button onClick={handleAddModule} disabled={!newModuleTitle.trim()}>
+            <Button className="bg-primary dark:bg-blue-600 dark:hover:bg-blue-700" onClick={handleAddModule} disabled={!newModuleTitle.trim()}>
               <Plus className="mr-2 h-4 w-4" /> Add Module
             </Button>
           </div>

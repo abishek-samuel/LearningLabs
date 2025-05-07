@@ -12,10 +12,16 @@ import App from "./App";
 import "./index.css";
 import { MsalProvider } from "@azure/msal-react";
 import { msalInstance } from "./msalConfig";
+import { GoogleOAuthProvider, GoogleLogin, useGoogleLogin } from "@react-oauth/google";
+
+const clientId =
+  "986989868035-bbbpdr11ndnft9igim3p4oj5ha9mc658.apps.googleusercontent.com";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
     <MsalProvider instance={msalInstance}>
-        <App />
+        <GoogleOAuthProvider clientId={clientId}>
+            <App />
+        </GoogleOAuthProvider>
     </MsalProvider>
 );
 
