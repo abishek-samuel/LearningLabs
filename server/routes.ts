@@ -4104,11 +4104,9 @@ app.get("/api/recommendations", isAuthenticated, async (req, res) => {
     }
 
     // 4. Return response
-    setTimeout(()=>{
       return res.json({
         recommendedCourses
       });
-    },5000)
 
   } catch (error) {
     console.error("❌ Error fetching course:", error);
