@@ -3521,8 +3521,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
       // Issue Date
-      doc.font("Helvetica").fontSize(12).fillColor("black")
-        .text(`${new Date(cert.issueDate).toDateString()}`, 50, 100);
+      // doc.font("Helvetica").fontSize(12).fillColor("black")
+      //   .text(`${new Date(cert.issueDate).toDateString()}`, 50, 100);
 
       // Certificate Title
       doc.font("Helvetica-Bold").fontSize(28).fillColor("black")
@@ -3551,12 +3551,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .text(course.title, centerX - 200, 310, { width: 400, align: "center" });
 
 
+      // Issue Date
+
+      doc.font("Helvetica").fontSize(12).fillColor("black")
+        .text(`on ${new Date(cert.issueDate).toDateString()}`, centerX - 200, 340, { width: 400, align: "center" });
+
+
 
       // Subtitle
 
       doc.font("Helvetica").fontSize(12).fillColor("gray")
 
-        .text("An course offered by Learning Labs", centerX - 200, 340, { width: 400, align: "center" });
+        .text("A course offered by Learning Labs", centerX - 200, 380, { width: 400, align: "center" });
 
 
 
@@ -3564,11 +3570,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       doc.font("Helvetica-Oblique").fontSize(12).fillColor("black")
 
-        .text("Alten Global Technologies", 50, 370);
+        .text("Alten Global Technologies", centerX - 200, 400, { width: 400, align: "center" });
 
       doc.font("Helvetica").fontSize(10)
 
-        .text("Private Limited", 50, 385);
+        .text("Private Limited", centerX - 200, 415,{ width: 400, align: "center" });
 
 
 
@@ -3576,15 +3582,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       doc.font("Helvetica").fontSize(10).fillColor("gray")
 
-        .text(`Certificate ID: ${certId}`, doc.page.width - 220, 370);
+        .text(`Certificate ID: ${certId}`, centerX - 200, 480,{ width: 400, align: "center" });
 
 
 
       // Verification Link
 
-      doc.fillColor("blue").fontSize(10)
+      doc.fillColor("gray").fontSize(10)
 
-        .text(`Verify at: https://localhost:5000/verify/${certId}`, centerX - 150, 420);
+        .text(`Verify at: http://localhost:5000/public/certificate/${certId}`, centerX - 200, 500);
 
       doc.end();
 
@@ -4105,7 +4111,7 @@ app.get("/api/recommendations", isAuthenticated, async (req, res) => {
         const recommendedList = flaskResponse.data.recommended_courses;
         const recommendedIds = recommendedList.map(course => course.id);
 
-        console.log("recommendedIds", recommendedIds)
+        // console.log("recommendedIds", recommendedIds)
 
 
         if (recommendedIds.length) {

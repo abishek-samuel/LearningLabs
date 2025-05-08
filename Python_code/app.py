@@ -284,8 +284,8 @@ def recommend():
         if not accessible_courses or not enrolled_titles:
             return jsonify({'recommended_courses': []})
 
-        print("accessible",accessible_courses)
-        print("enrolled_titles",enrolled_titles)
+        # print("accessible",accessible_courses)
+        # print("enrolled_titles",enrolled_titles)
 
         recommendations = get_recommendations(accessible_courses, enrolled_titles)
         return jsonify({'recommended_courses': recommendations})
