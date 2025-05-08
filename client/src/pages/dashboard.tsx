@@ -113,7 +113,7 @@ export default function Dashboard() {
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [currentRating, setCurrentRating] = useState(0);
   const [currentComment, setCurrentComment] = useState("");
-  // const [isFetchingReview, setIsFetchingReview] = useState(false);
+  const [isActivityLogOpen, setIsActivityLogOpen] = useState(false);
 
   useEffect(() => {
     queryClient1.invalidateQueries({ queryKey: ["/api/enrollments"] });
@@ -645,13 +645,14 @@ export default function Dashboard() {
                     </div>
                     <div className="bg-slate-50 dark:bg-slate-700/50 px-4 py-3 sm:px-6">
                       <div className="text-sm">
-                        <a
-                          href="#"
+                        <Button
+                          variant="link"
+                          className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 p-0 h-auto"
                           onClick={() => navigate("/my-courses?tab=completed")}
-                          className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
                         >
                           View all completed courses
-                        </a>
+                        </Button>
+
                       </div>
                     </div>
                   </>
@@ -735,12 +736,86 @@ export default function Dashboard() {
                 </div>
                 <div className="bg-slate-50 dark:bg-slate-700/50 px-4 py-3">
                   <div className="text-sm">
-                    <a
+                    {/* <a
                       href="#"
                       className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
                     >
                       View activity log
-                    </a>
+                    </a> */}
+
+                    <Button
+                      variant="link"
+                      className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 p-0 h-auto"
+                      onClick={() => setIsActivityLogOpen(true)}
+                    >
+                      View activity log
+                    </Button>
+
+                    {/* Activity Log Dialog */}
+                    <Dialog open={isActivityLogOpen} onOpenChange={setIsActivityLogOpen}>
+                      <DialogContent className="sm:max-w-2xl">
+                        <DialogHeader>
+                          <DialogTitle>Activity Log</DialogTitle>
+                        </DialogHeader>
+                        <div className="max-h-[60vh] overflow-y-auto">
+                          <div className="divide-y divide-slate-200 dark:divide-slate-700">
+                            {activityLogs?.map((activity) => {
+                              let icon, iconColor;
+
+                              switch (activity.action) {
+                                case "watched_video":
+                                  icon = Video;
+                                  iconColor = "text-blue-600 dark:text-blue-400";
+                                  break;
+                                case "completed_lesson":
+                                  icon = CheckSquare;
+                                  iconColor = "text-green-600 dark:text-green-400";
+                                  break;
+                                case "completed_assessment":
+                                  icon = ClipboardCheck;
+                                  iconColor = "text-green-600 dark:text-green-400";
+                                  break;
+                                case "enrolled":
+                                  icon = UserPlus;
+                                  iconColor = "text-teal-600 dark:text-teal-400";
+                                  break;
+                                case "earned_badge":
+                                  icon = Award;
+                                  iconColor = "text-purple-600 dark:text-purple-400";
+                                  break;
+                                default:
+                                  icon = Activity;
+                                  iconColor = "text-slate-600 dark:text-slate-400";
+                              }
+
+                              return (
+                                <ActivityItem
+                                  key={activity.id}
+                                  icon={icon}
+                                  iconColor={iconColor}
+                                  iconBgColor="bg-slate-100 dark:bg-slate-800"
+                                  title={
+                                    activity.action === "watched_video"
+                                      ? `Watched "${activity.metadata?.title || 'Video'}"`
+                                      : activity.action === "completed_lesson"
+                                        ? `Completed lesson: "${activity.metadata?.title || 'Lesson'}"`
+                                        : activity.action === "completed_assessment"
+                                          ? `Completed assessment: "${activity.metadata?.title || 'Assessment'}"`
+                                          : activity.action === "enrolled"
+                                            ? `Enrolled in "${activity.metadata?.title || 'Course'}"`
+                                            : activity.action === "earned_badge"
+                                              ? `Earned "${activity.metadata?.title || 'Badge'}"`
+                                              : `Performed action: ${activity.action}`
+                                  }
+                                  subtitle={activity.metadata.courseName || ""}
+                                  timestamp={new Date(activity.createdAt)}
+                                />
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
                   </div>
                 </div>
               </div>
@@ -794,6 +869,6 @@ export default function Dashboard() {
         )}
         {/* End Recommended Courses Section */}
       </div>
-    </MainLayout>
+    </MainLayout >
   );
 }
