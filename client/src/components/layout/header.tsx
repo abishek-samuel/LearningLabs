@@ -160,14 +160,14 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
 
             <img
               src="../../../black.png"
-              className="mt-1 mr-2 ml-[-5px] dark:hidden"
+              className="hidden md:block mt-1 mr-2 ml-[-5px] dark:hidden"
               title="Learning Labs"
               alt="Learning Labs"
               width="85"
             />
             <img
               src="../../../white.png"
-              className="mt-1 mr-2 ml-[-5px] hidden dark:block"
+              className="hidden md:block mt-1 mr-2 ml-[-5px] light:hidden"
               title="Learning Labs"
               alt="Learning Labs"
               width="85"
