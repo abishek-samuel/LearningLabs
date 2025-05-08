@@ -980,7 +980,7 @@ export default function CourseContent() {
                         {/* {currentLesson.videoUrl && (
                           <TabsTrigger value="summary">Summary</TabsTrigger>
                         )} */}
-                        <TabsTrigger
+                        {currentLesson.videoUrl && (<TabsTrigger
                           value="summary"
                           className="flex items-center gap-1.5"
                         >
@@ -991,7 +991,7 @@ export default function CourseContent() {
                           >
                             AI
                           </span>
-                        </TabsTrigger>
+                        </TabsTrigger>)}
 
                         <TabsTrigger value="notes">My Notes</TabsTrigger>
                         <TabsTrigger value="discussion">Discussion</TabsTrigger>
