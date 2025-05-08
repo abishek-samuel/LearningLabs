@@ -128,7 +128,7 @@ export default function Dashboard() {
     isLoading: isLoadingRecommendations,
     error: recommendationsError,
   } = useQuery<RecommendationsApiResponse>({
-    queryKey: ["recommendations"],
+    queryKey: ["recommendations", user?.id], // Add user.id to key to track user change
     queryFn: async () => {
       const response = await fetch('/api/recommendations');
       if (!response.ok) {
@@ -137,9 +137,11 @@ export default function Dashboard() {
       }
       return response.json();
     },
-    staleTime: 0,  // Immediately stale → always refetch
-    cacheTime: 0,  // Do not cache at all
-    refetchOnMount: "always", // Always refetch when component mounts
+    staleTime: 0,
+    cacheTime: 0,
+    refetchOnMount: "always",
+    keepPreviousData: false,  // 🔹 Important
+    enabled: !!user,          // 🔹 Optional, only run if user is present
   });
 
   // Derive recommendedCourses, defaulting to an empty array
