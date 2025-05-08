@@ -4076,10 +4076,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
-  // app.get("/api/recommendations", async (req, res) => {
-  app.get("/api/recommendations", isAuthenticated, async (req, res) => {
-    try {
-      const userId = req.user!.id;
+// app.get("/api/recommendations", async (req, res) => {
+app.get("/api/recommendations", isAuthenticated, async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const userRole = req.user!.role;
 
       // 2. Get average ratings for all courses
       const ratings = await storage.prisma.review.groupBy({
@@ -4092,11 +4093,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ratingMap.set(r.courseId, parseFloat(r._avg.stars.toFixed(1)));
       });
 
-      // 3. Get recommended course IDs from Python server
-      let recommendedCourses = [];
-      try {
-        const flaskResponse = await axios.post("http://localhost:5001/recommend", {
-          user_id: userId
+    // 3. Get recommended course IDs from Python server
+    let recommendedCourses = [];
+    try {
+
+      const flaskResponse = await axios.post("http://localhost:5001/recommend",{
+          role: userRole,
+          user_id:userId
         });
 
         const recommendedList = flaskResponse.data.recommended_courses;

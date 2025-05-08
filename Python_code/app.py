@@ -243,6 +243,7 @@ def insert_questions_api():
 def recommend():
     try:
         data = request.get_json()
+        role = data.get('role')
         user_id = data.get('user_id')
 
         if not user_id:
@@ -251,13 +252,21 @@ def recommend():
         conn = psycopg2.connect(os.getenv("DATABASE_URL"))
         cursor = conn.cursor()
 
-        # 🔹 Step 1: Fetch accessible courses (with IDs)
-        cursor.execute("""
-            SELECT c.id, c.title, c.description
-            FROM course_access ca
-            JOIN courses c ON ca.course_id = c.id
-            WHERE ca.user_id = %s
-        """, (user_id,))
+        # 🔹 Step 1: Fetch accessible courses (with or without user_id)
+        if role=="admin":
+            cursor.execute("""
+                SELECT id, title, description
+                FROM courses
+            """)
+        else:
+            cursor.execute("""
+                SELECT c.id, c.title, c.description
+                FROM course_access ca
+                JOIN courses c ON ca.course_id = c.id
+                WHERE ca.user_id = %s
+            """, (user_id,))
+
+
         accessible_courses = [{'id': cid, 'title': title, 'description': desc} for cid, title, desc in cursor.fetchall()]
 
         # 🔹 Step 2: Fetch enrolled course titles

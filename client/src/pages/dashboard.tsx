@@ -123,23 +123,23 @@ export default function Dashboard() {
     queryClient1.invalidateQueries({ queryKey: ["/api/activity-logs"] });
   }, []);
 
-  // Fetch Recommended Courses
   const {
     data: recommendationsApiResponse,
     isLoading: isLoadingRecommendations,
     error: recommendationsError,
   } = useQuery<RecommendationsApiResponse>({
-    queryKey: ["recommendations"], // General recommendations key
+    queryKey: ["recommendations"],
     queryFn: async () => {
       const response = await fetch('/api/recommendations');
       if (!response.ok) {
         console.error("Failed to fetch recommendations:", response.statusText);
-        // Return default structure on error to prevent breaking UI
         return { recommendedCourses: [] };
       }
       return response.json();
     },
-    staleTime: 15 * 60 * 1000, // Cache for 15 minutes
+    staleTime: 0,  // Immediately stale → always refetch
+    cacheTime: 0,  // Do not cache at all
+    refetchOnMount: "always", // Always refetch when component mounts
   });
 
   // Derive recommendedCourses, defaulting to an empty array
