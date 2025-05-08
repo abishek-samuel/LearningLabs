@@ -31,7 +31,7 @@ export function CourseCard({
     // Explicitly prevent default and stop propagation
     e.preventDefault(); 
     e.stopPropagation(); 
-    const targetUrl = isInProgress ? `/course-content?id=${id}&moduleId=1&lessonId=3` : `/course-detail/${id}`;
+    const targetUrl = isInProgress ? `/course-content?id=${id}` : `/course-detail/${id}`;
     navigate(targetUrl);
     // Returning false is generally not needed with preventDefault/stopPropagation
   };
