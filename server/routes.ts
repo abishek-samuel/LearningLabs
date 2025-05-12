@@ -1761,9 +1761,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const isCorrect =
             q &&
             ans.selectedOption.trim().toLowerCase() ===
-            q.options[`option${q.correctAnswer.replace("option", "")}`]
-              .trim()
-              .toLowerCase();
+              q.options[`option${q.correctAnswer.replace("option", "")}`]
+                .trim()
+                .toLowerCase();
 
           if (isCorrect) correct++;
           return {
@@ -1904,9 +1904,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   const progressPercentage =
                     totalLessonsInCourse > 0
                       ? Math.round(
-                        (completedLessonsInCourse / totalLessonsInCourse) *
-                        100
-                      )
+                          (completedLessonsInCourse / totalLessonsInCourse) *
+                            100
+                        )
                       : 0; // Avoid division by zero if course has no lessons
 
                   // 5. Update enrollment with correct progress and completion status
@@ -2907,8 +2907,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const progressPercentage =
               totalLessonsInCourse > 0
                 ? Math.round(
-                  (completedLessonsInCourse / totalLessonsInCourse) * 100
-                )
+                    (completedLessonsInCourse / totalLessonsInCourse) * 100
+                  )
                 : 0; // Avoid division by zero if course has no lessons
 
             // 5. Update enrollment with correct progress and completion status
@@ -3494,7 +3494,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const certId = req.params.certificateId;
       const cert = await storage.getCertificateByHash(certId);
-      if (!cert) return res.status(404).json({ message: "Certificate not found" });
+      if (!cert)
+        return res.status(404).json({ message: "Certificate not found" });
       const course = await storage.getCourse(cert.courseId);
       if (!course) return res.status(404).json({ message: "Course not found" });
 
@@ -3504,7 +3505,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const PDFDocument = (await import("pdfkit")).default;
       const doc = new PDFDocument({ size: "A4", layout: "landscape" });
       res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", `inline; filename="certificate-${certId}.pdf"`);
+      res.setHeader(
+        "Content-Disposition",
+        `inline; filename="certificate-${certId}.pdf"`
+      );
       doc.pipe(res);
       // Load custom background template
 
@@ -3518,90 +3522,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const centerX = doc.page.width / 2;
 
-
-
       // Issue Date
       // doc.font("Helvetica").fontSize(12).fillColor("black")
       //   .text(`${new Date(cert.issueDate).toDateString()}`, 50, 100);
 
       // Certificate Title
-      doc.font("Helvetica-Bold").fontSize(28).fillColor("black")
-        .text("Certificate of Completion", centerX - 200, 190, { width: 400, align: "center" });
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(28)
+        .fillColor("black")
+        .text("Certificate of Completion", centerX - 200, 190, {
+          width: 400,
+          align: "center",
+        });
 
       // Full Name
 
-      doc.font("Helvetica-Bold").fontSize(22).fillColor("black")
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(22)
+        .fillColor("black")
 
-        .text(`${user.firstName} ${user.lastName}`, centerX - 200, 240, { width: 400, align: "center" });
-
-
+        .text(`${user.firstName} ${user.lastName}`, centerX - 200, 240, {
+          width: 400,
+          align: "center",
+        });
 
       // Completion Line
 
-      doc.font("Helvetica").fontSize(16)
+      doc
+        .font("Helvetica")
+        .fontSize(16)
 
-        .text("has successfully completed", centerX - 200, 280, { width: 400, align: "center" });
-
-
+        .text("has successfully completed", centerX - 200, 280, {
+          width: 400,
+          align: "center",
+        });
 
       // Course Title
 
-      doc.font("Helvetica-Bold").fontSize(20)
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(20)
 
-        .text(course.title, centerX - 200, 310, { width: 400, align: "center" });
-
+        .text(course.title, centerX - 200, 310, {
+          width: 400,
+          align: "center",
+        });
 
       // Issue Date
 
-      doc.font("Helvetica").fontSize(12).fillColor("black")
-        .text(`on ${new Date(cert.issueDate).toDateString()}`, centerX - 200, 340, { width: 400, align: "center" });
-
-
+      doc
+        .font("Helvetica")
+        .fontSize(12)
+        .fillColor("black")
+        .text(
+          `on ${new Date(cert.issueDate).toDateString()}`,
+          centerX - 200,
+          340,
+          { width: 400, align: "center" }
+        );
 
       // Subtitle
 
-      doc.font("Helvetica").fontSize(12).fillColor("gray")
+      doc
+        .font("Helvetica")
+        .fontSize(12)
+        .fillColor("gray")
 
-        .text("A course offered by Learning Labs", centerX - 200, 380, { width: 400, align: "center" });
-
-
+        .text("A course offered by Learning Labs", centerX - 200, 380, {
+          width: 400,
+          align: "center",
+        });
 
       // Signature
 
-      doc.font("Helvetica-Oblique").fontSize(12).fillColor("black")
+      doc
+        .font("Helvetica-Oblique")
+        .fontSize(12)
+        .fillColor("black")
 
-        .text("Alten Global Technologies", centerX - 200, 400, { width: 400, align: "center" });
+        .text("Alten Global Technologies", centerX - 200, 400, {
+          width: 400,
+          align: "center",
+        });
 
-      doc.font("Helvetica").fontSize(10)
+      doc
+        .font("Helvetica")
+        .fontSize(10)
 
-        .text("Private Limited", centerX - 200, 415,{ width: 400, align: "center" });
-
-
+        .text("Private Limited", centerX - 200, 415, {
+          width: 400,
+          align: "center",
+        });
 
       // Certificate ID
 
-      doc.font("Helvetica").fontSize(10).fillColor("gray")
+      doc
+        .font("Helvetica")
+        .fontSize(10)
+        .fillColor("gray")
 
-        .text(`Certificate ID: ${certId}`, centerX - 200, 480,{ width: 400, align: "center" });
-
-
+        .text(`Certificate ID: ${certId}`, centerX - 200, 480, {
+          width: 400,
+          align: "center",
+        });
 
       // Verification Link
 
-      doc.fillColor("gray").fontSize(10)
+      doc
+        .fillColor("gray")
+        .fontSize(10)
 
-        .text(`Verify at: http://localhost:5000/public/certificate/${certId}`, centerX - 200, 500);
+        .text(
+          `Verify at: http://localhost:5000/public/certificate/${certId}`,
+          centerX - 200,
+          500
+        );
 
       doc.end();
-
     } catch (error) {
-
       console.error("Error generating certificate:", error);
 
       res.status(500).json({ message: "Internal server error" });
-
     }
-
   });
 
   // --- Certificate PDF by Certificate ID ---
@@ -3875,7 +3919,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         enrollment: course._count.enrollments,
         completion: Math.round(
           course.enrollments.reduce((acc, curr) => acc + curr.progress, 0) /
-          (course.enrollments.length || 1)
+            (course.enrollments.length || 1)
         ),
         avgScore: Math.round(65 + Math.random() * 20), // Placeholder - needs assessment data
       }));
@@ -4082,37 +4126,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
-// app.get("/api/recommendations", async (req, res) => {
-app.get("/api/recommendations", isAuthenticated, async (req, res) => {
-  try {
-    const userId = req.user!.id;
-    const userRole = req.user!.role;
+  // app.get("/api/recommendations", async (req, res) => {
+  app.get("/api/recommendations", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const userRole = "admin"; //req.user!.role;
 
       // 2. Get average ratings for all courses
       const ratings = await storage.prisma.review.groupBy({
-        by: ['courseId'],
-        _avg: { stars: true }
+        by: ["courseId"],
+        _avg: { stars: true },
       });
 
       const ratingMap = new Map<number, number>();
-      ratings.forEach(r => {
+      ratings.forEach((r) => {
         ratingMap.set(r.courseId, parseFloat(r._avg.stars.toFixed(1)));
       });
 
-    // 3. Get recommended course IDs from Python server
-    let recommendedCourses = [];
-    try {
-
-      const flaskResponse = await axios.post("http://localhost:5001/recommend",{
-          role: userRole,
-          user_id:userId
-        });
+      // 3. Get recommended course IDs from Python server
+      let recommendedCourses = [];
+      try {
+        const flaskResponse = await axios.post(
+          "http://localhost:5001/recommend",
+          {
+            role: userRole,
+            user_id: userId,
+          }
+        );
 
         const recommendedList = flaskResponse.data.recommended_courses;
-        const recommendedIds = recommendedList.map(course => course.id);
+        const recommendedIds = recommendedList.map((course) => course.id);
 
         // console.log("recommendedIds", recommendedIds)
-
 
         if (recommendedIds.length) {
           const courses = await storage.prisma.course.findMany({
@@ -4121,25 +4166,26 @@ app.get("/api/recommendations", isAuthenticated, async (req, res) => {
               id: true,
               title: true,
               description: true,
-              thumbnail: true
-            }
+              thumbnail: true,
+            },
           });
 
-          recommendedCourses = courses.map(c => ({
+          recommendedCourses = courses.map((c) => ({
             ...c,
-            rating: ratingMap.get(c.id) || null
+            rating: ratingMap.get(c.id) || null,
           }));
         }
-
       } catch (err) {
-        console.error("⚠️ Error fetching recommendations from Flask:", err.message);
+        console.error(
+          "⚠️ Error fetching recommendations from Flask:",
+          err.message
+        );
       }
 
       // 4. Return response
       return res.json({
-        recommendedCourses
+        recommendedCourses,
       });
-
     } catch (error) {
       console.error("❌ Error fetching course:", error);
       res.status(500).json({ message: "Internal server error" });
